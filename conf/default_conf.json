@@ -1,0 +1,31 @@
+{
+  "common": {
+    "proxy": {
+      "address": "",
+      "proxy_enable": false
+    }
+  },
+  "bika": {
+    "username": "",
+    "password": "",
+    "nonce": "",
+    "token": ""
+  },
+  "hanime.me": {},
+  "jmcomic": {
+    "login": {
+      "username": "",
+      "password": "",
+      "cookie": ""
+    }
+  },
+  "wnacg": {},
+  "bilibili": {
+    "cookie": ""
+  },
+  "download": {
+    "comic": {
+      "leave_images": false
+    }
+  }
+}
