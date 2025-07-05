@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-print("BASE_DIR:", BASE_DIR)
 
 # 配置文件路径
 config_path = BASE_DIR / "conf/conf.json"

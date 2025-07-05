@@ -209,4 +209,5 @@ __marimo__/
 # Custom
 /conf/conf.json
 /data
+/tmp
 *.bak

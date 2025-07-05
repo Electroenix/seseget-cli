@@ -11,7 +11,7 @@ from core.config.config_manager import config
 from core.utils.trace import *
 from core.config.path import BASE_DIR
 
-kcc_c2e_path = BASE_DIR / "core/tools/kcc/kcc-c2e.py"  # kcc_c2e转换工具路径
+kcc_c2e_path = BASE_DIR / "core/thirdparty/kcc/kcc-c2e.py"  # kcc_c2e转换工具路径
 kcc_lock = threading.Lock()  # 避免KCC运行时冲突
 
 

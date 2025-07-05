@@ -38,6 +38,7 @@ yt-dlp = "==2025.2.19"
 colorama = "*"
 
 [dev-packages]
+pip-licenses = "*"
 
 [requires]
 python_version = "3.11"
