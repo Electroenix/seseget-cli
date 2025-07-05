@@ -3,9 +3,12 @@ import shutil
 import sys
 import argparse
 import threading
-from ebooklib import epub
+import zipfile
+from lxml import etree
+from lxml.etree import QName
+from tempfile import TemporaryDirectory
 from core.config.config_manager import config
-from core.utils.trace import SESE_PRINT
+from core.utils.trace import *
 from core.config.path import BASE_DIR
 
 kcc_c2e_path = BASE_DIR / "core/tools/kcc/kcc-c2e.py"  # kcc_c2e转换工具路径
@@ -78,31 +81,64 @@ class ComicInfo:
 
 
 # 更新epub文件中的metadata
-def update_metadate(epub_path, output_path, metadata):
+def update_metadate(epub_path, output_path, metadata: ComicMetaData):
+    with TemporaryDirectory() as extract_path:
+        try:
+            with zipfile.ZipFile(epub_path, 'r') as zf:
+                zf.extractall(extract_path)
 
-    # 读取epub文件
-    book = epub.read_epub(epub_path)
+            opf_path = os.path.join(extract_path, "OEBPS", "content.opf")
+            parser = etree.XMLParser(remove_blank_text=True)
+            opf_tree = etree.parse(opf_path, parser)
+            root_elem = opf_tree.getroot()
 
-    # 更新metadata
-    if metadata.title:
-        book.set_unique_metadata("DC", "title", metadata.title)
+            # namespace
+            nsmap = root_elem.nsmap
+            ns = {
+                'opf': 'http://www.idpf.org/2007/opf',
+                'dc': 'http://purl.org/dc/elements/1.1/'
+            }
+            if None in nsmap:
+                ns[None] = nsmap[None]
 
-    if metadata.creator:
-        book.set_unique_metadata("DC", "creator", metadata.creator)
+            metadata_dc = {
+                "title": metadata.title,
+                "creator": metadata.creator,
+                "description": metadata.description,
+                "language": metadata.language,
+                "subject": metadata.subjects
+            }
 
-    if metadata.description:
-        book.set_unique_metadata("DC", "description", metadata.description)
+            metadata_elem = root_elem.find("opf:metadata", ns)
+            for tag, value in metadata_dc.items():
+                if value is None:
+                    continue
 
-    if metadata.language:
-        book.set_unique_metadata("DC", "language", metadata.language)
+                # 查找并删除已存在元素
+                elem_list = metadata_elem.findall(f'dc:{tag}', ns)
+                for elem in elem_list:
+                    metadata_elem.remove(elem)
 
-    if metadata.subjects:
-        book.set_unique_metadata("DC", "subject", metadata.subjects[0])
-        for s in metadata.subjects[1:]:
-            book.add_metadata("DC", "subject", s)
+                tag_value_list = value if isinstance(value, list) else [value]
 
-    # 保存epub文件
-    epub.write_epub(output_path, book)
+                for tag_value in tag_value_list:
+                    elem = etree.SubElement(metadata_elem, QName(ns['dc'], tag))
+                    elem.text = tag_value
+
+            opf_tree.write(opf_path, encoding='utf-8', xml_declaration=True, pretty_print=True)
+
+            with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as new_zf:
+                for root, _, files in os.walk(extract_path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.relpath(file_path, extract_path)
+                        new_zf.write(file_path, arcname)
+
+        except Exception as e:
+            SESE_TRACE(LOG_ERROR, f"更新EPUB元数据失败, info:{e}")
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            raise
 
 
 def comic_to_epub(file_name: str, image_path: str, metadata: ComicMetaData):
