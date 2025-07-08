@@ -140,7 +140,7 @@ def _download_file(file_name, url, bar=False, auto_retry=True, retry_max=5,
                     }
                     SESE_TRACE(LOG_DEBUG, f'proxy["{proxy_config["address"]}"]')
 
-                response = ss_session.request("HEAD", url=url, headers=headers, stream=True, timeout=5, proxies=proxies)
+                response = ss_session.request("HEAD", url=url, headers=headers, stream=True, proxies=proxies)
 
                 if int(response.headers['Content-Length']) <= 0:
                     SESE_TRACE(LOG_DEBUG, "资源Content-Length大小错误-%d" % int(response.headers['Content-Length']))
@@ -160,7 +160,7 @@ def _download_file(file_name, url, bar=False, auto_retry=True, retry_max=5,
                 # 设置从断点开始继续下载
                 headers['Range'] = 'bytes=%d-' % f_size
 
-                response = ss_session.request("GET", url=url, headers=headers, stream=True, timeout=5, proxies=proxies)
+                response = ss_session.request("GET", url=url, headers=headers, stream=True, proxies=proxies)
                 response.raise_for_status()
 
                 total_size = int(response.headers['Content-Length'])

@@ -214,5 +214,11 @@ class DownloadManager:
         wait(self.threads, return_when=ALL_COMPLETED)
         self.task_pool.shutdown()
 
+    def kill(self):
+        self.task_pool.shutdown(wait=False)
+
+    def all_done(self):
+        return all(future.done() for future in self.threads)
+
 
 download_manager = DownloadManager(max_concurrent=3)

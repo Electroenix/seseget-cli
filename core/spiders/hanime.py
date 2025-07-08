@@ -139,27 +139,26 @@ def get_series_info(soup):
 
 def download_series_thumbnail(series, dir):
     threads_list = []
-    pool = ThreadPoolExecutor(max_workers=10)
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        for video in series:
+            video_url = video["url"]
+            view_url_parse = urlparse(video_url)
+            vid = parse_qs(view_url_parse.query)["v"][0]
 
-    for video in series:
-        video_url = video["url"]
-        view_url_parse = urlparse(video_url)
-        vid = parse_qs(view_url_parse.query)["v"][0]
+            # 下载封面
+            thumbnail_url = video["thumbnail"]
+            thumbnail_path = dir + "%s.jpg" % vid
 
-        # 下载封面
-        thumbnail_url = video["thumbnail"]
-        thumbnail_path = dir + "%s.jpg" % vid
+            # 加入下载线程
+            threads_list.append(pool.submit(ssreq.download_file, thumbnail_path, thumbnail_url))
+            video["thumbnail"] = thumbnail_path
 
-        # 加入下载线程
-        threads_list.append(pool.submit(ssreq.download_file, thumbnail_path, thumbnail_url))
-        video["thumbnail"] = thumbnail_path
-
-    # 监测下载线程状态
-    totle_cnt = len(threads_list)
-    finish_cnt = 0
-    for thread in as_completed(threads_list):
-        finish_cnt = finish_cnt + 1
-        SESE_PRINT('下载系列视频缩略图中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
+        # 监测下载线程状态
+        totle_cnt = len(threads_list)
+        finish_cnt = 0
+        for thread in as_completed(threads_list):
+            finish_cnt = finish_cnt + 1
+            SESE_PRINT('下载系列视频缩略图中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
 
     SESE_PRINT('\n下载完成!')
 

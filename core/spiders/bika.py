@@ -1,7 +1,6 @@
 import time
 import hmac
 import os.path
-import configparser
 from hashlib import sha256
 from urllib.parse import urlparse, parse_qs
 import core.config.path

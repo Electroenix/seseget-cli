@@ -5,7 +5,6 @@ import re
 from typing import Dict
 import jmcomic
 from bs4 import BeautifulSoup
-import shutil
 from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient
 from core.metadata.comic import ChapterInfo, ComicInfo, comic_to_epub
 from core.request import seserequest as ssreq

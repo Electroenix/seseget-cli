@@ -1,6 +1,5 @@
 import copy
 import json
-from bs4 import BeautifulSoup
 import core.config.path
 from core.metadata.video import *
 from core.metadata.vsmeta import *
