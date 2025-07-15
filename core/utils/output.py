@@ -27,6 +27,28 @@ class TQDMSafeOutput(io.TextIOWrapper):
         return getattr(self._orig_stream, name)
 
 
+class ProgressBar(tqdm):
+    def __init__(self, title, total, disable=True):
+        super().__init__(
+            desc=title,
+            total=total,
+            unit='iB',
+            unit_scale=True,
+            unit_divisor=1024,
+            file=sys.__stdout__,
+            leave=False,
+            disable=disable
+        )
+
+    def set_total(self, total):
+        self.total = total
+        self.refresh()
+
+    def set_downloaded(self, downloaded):
+        self.n = downloaded
+        self.refresh()
+
+
 # 初始化（兼容Windows ANSI）
 try:
     import colorama

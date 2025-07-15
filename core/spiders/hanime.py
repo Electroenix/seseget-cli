@@ -197,9 +197,9 @@ def download(url):
         metadata = video_info.metadata
 
         SESE_PRINT('video name: %s' % video_name)
-        SESE_PRINT('thumbnail url: %s' % video_thumbnail_url)
-        SESE_PRINT('cover url: %s' % cover_url)
-        SESE_PRINT('download url: %s' % video_download_url)
+        # SESE_PRINT('thumbnail url: %s' % video_thumbnail_url)
+        # SESE_PRINT('cover url: %s' % cover_url)
+        # SESE_PRINT('download url: %s' % video_download_url)
 
         # 创建下载目录
         middle_dir = save_path + '%s' % make_filename_valid(metadata.artist)  # 中间目录，主要用来分类同一个作者的作品

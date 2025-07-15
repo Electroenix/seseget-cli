@@ -5,21 +5,51 @@ import re
 from typing import Dict
 import jmcomic
 from bs4 import BeautifulSoup
-from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient
+from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, catch_exception, JmImageDetail
 from core.metadata.comic import ChapterInfo, ComicInfo, comic_to_epub
 from core.request import seserequest as ssreq
 from core.config import path
 from core.utils.file_utils import *
 from core.utils.trace import *
 from core.config.config_manager import config
-from core.request.downloadtask import ProgressCallback
+from core.request.downloadtask import TaskDLProgress, ProgressStatus
 
 
 class SeseJmDownloader(JmDownloader):
     """继承JmDownloader类，加入漫画下载过程追踪和处理功能"""
     def __init__(self, option: JmOption):
         super().__init__(option)
-        self.progress_callback: ProgressCallback = None
+        self.progress: TaskDLProgress = None
+
+    @catch_exception
+    def download_by_image_detail(self, image: JmImageDetail):
+        img_save_path = self.option.decide_image_filepath(image)
+
+        image.save_path = img_save_path
+        image.exists = jmcomic.file_exists(img_save_path)
+
+        self.before_image(image, img_save_path)
+
+        if image.skip:
+            self.after_image(image, img_save_path)
+            return
+
+        # let option decide use_cache and decode_image
+        use_cache = self.option.decide_download_cache(image)
+        decode_image = self.option.decide_download_image_decode(image)
+
+        # skip download
+        if use_cache is True and image.exists:
+            self.after_image(image, img_save_path)
+            return
+
+        self.client.download_by_image_detail(
+            image,
+            img_save_path,
+            decode_image=decode_image,
+        )
+
+        self.after_image(image, img_save_path)
 
     def before_photo(self, photo: jmcomic.JmPhotoDetail):
         jmcomic.jm_log('photo.before',
@@ -27,20 +57,31 @@ class SeseJmDownloader(JmDownloader):
                        f'标题: [{photo.name}], '
                        f'图片数为[{len(photo)}]'
                        )
-        if self.progress_callback is not None:
-            self.progress_callback(photo.name, total=len(photo), status="downloading")
+        if self.progress is not None:
+            self.progress.set_progress_count(len(photo))
 
     def after_photo(self, photo: jmcomic.JmPhotoDetail):
         jmcomic.jm_log('photo.after',
                        f'章节下载完成: [{photo.id}] ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
-        if self.progress_callback is not None:
-            self.progress_callback(photo.name, status="OK")
+
+    def before_image(self, image: jmcomic.JmImageDetail, img_save_path):
+        # if image.exists:
+        #     jmcomic.jm_log('image.before',
+        #            f'图片已存在: {image.tag} ← [{img_save_path}]'
+        #            )
+        # else:
+        #     jmcomic.jm_log('image.before',
+        #            f'图片准备下载: {image.tag}, [{image.img_url}] → [{img_save_path}]'
+        #            )
+        pass
 
     def after_image(self, image: jmcomic.JmImageDetail, img_save_path):
         # jmcomic.jm_log('image.after',
         #                f'图片下载完成: {image.tag}, [{image.img_url}] → [{img_save_path}]')
-        if self.progress_callback is not None:
-            self.progress_callback(image.from_photo.name, new_downloaded=1)
+        if self.progress is not None:
+            file_size = os.path.getsize(img_save_path)
+            self.progress.add_progress(img_save_path, total=file_size)
+            self.progress.update(img_save_path, file_size)
 
 
 class SeseJmOption(JmOption):
@@ -60,8 +101,13 @@ class SeseJmOption(JmOption):
         return option
 
 
+def seseJmLog(topic: str, msg: str):
+    SESE_PRINT(f"[{topic}] {msg}")
+
+
 # 使用自定义JmDownloader类
 jmcomic.JmModuleConfig.CLASS_DOWNLOADER = SeseJmDownloader
+jmcomic.JmModuleConfig.EXECUTOR_LOG = seseJmLog
 jm_option = SeseJmOption.default()
 
 
@@ -145,7 +191,7 @@ def get_comic_info(url, comic_info):
     comic_info.chapter_list.append(comic_chapter)
 
 
-def download_jmcomic(file_name, url, metadata, progress_callback: ProgressCallback = None):
+def download_jmcomic(file_name, url, metadata, progress: TaskDLProgress = None):
     cid = ""
     match = re.search(r"(?:album|photo)/(\d+)", url)
     if match:
@@ -158,27 +204,30 @@ def download_jmcomic(file_name, url, metadata, progress_callback: ProgressCallba
     if not os.path.exists(image_temp_dir_path):
         os.mkdir(image_temp_dir_path)
 
-    if progress_callback:
-        progress_callback(status="downloading")
+    if progress:
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
     # 创建option
     jm_option.dir_rule = DirRule("Bd", image_temp_dir_path)
 
     # 创建downloader并下载
     downloader = SeseJmDownloader(jm_option)
-    downloader.progress_callback = progress_callback  # 传递进度回调给downloader
-    print("int(cid):", int(cid))
+    downloader.progress = progress  # 传递进度回调给downloader
+    # print("int(cid):", int(cid))
     downloader.download_album(int(cid))
+    if downloader.has_download_failures:
+        SESE_TRACE(LOG_ERROR, "JM下载失败！")
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+        return
 
-    if progress_callback:
-        progress_callback(status="转换中")
+    if progress:
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
     # 下载完成，生成epub文件
     comic_to_epub(file_name, image_temp_dir_path, metadata)
 
-    if progress_callback:
-        progress_callback(status="OK")
-
+    if progress:
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
 
 def download(url):

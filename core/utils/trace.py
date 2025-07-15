@@ -1,6 +1,6 @@
 import logging
 from logging import Formatter, LogRecord, StreamHandler
-from core.utils.output_redirector import sese_stdout
+from core.utils.output import sese_stdout
 
 
 class DynamicFormatter(Formatter):

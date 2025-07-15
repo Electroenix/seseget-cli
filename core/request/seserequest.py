@@ -6,18 +6,15 @@ import shutil
 import threading
 import copy
 from curl_cffi import requests
-# import requests
-# from curl_adapter import CurlCffiAdapter
-# from requests.adapters import HTTPAdapter
-from tqdm import tqdm
 from urllib.parse import urlparse
 from typing import Dict, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from core.utils.trace import *
 from core.request import downloadtask as dltask
-from core.request.downloadtask import ProgressCallback
+from core.request.downloadtask import TaskDLProgress, ProgressStatus
 from core.metadata.comic import comic_to_epub
 from core.config.config_manager import config
+from core.utils.file_utils import get_file_basename
 
 
 class SessionManager:
@@ -120,7 +117,7 @@ def request(method, url, **kwargs):
 
 
 def _download_file(file_name, url, bar=False, auto_retry=True, retry_max=5,
-                   progress_callback: ProgressCallback = None, headers=None):
+                   progress: TaskDLProgress = None, headers=None):
     """下载单个文件"""
     retry_times = 0
     if headers is None:
@@ -148,6 +145,9 @@ def _download_file(file_name, url, bar=False, auto_retry=True, retry_max=5,
                 if f_size == int(response.headers['Content-Length']):
                     # 文件已存在，直接返回
                     SESE_TRACE(LOG_DEBUG, "检测到文件(%s)已存在" % file_name)
+                    if progress is not None:
+                        progress.add_progress(file_name, total=f_size)
+                        progress.update(file_name, f_size)
                     return 0
                 elif f_size > int(response.headers['Content-Length']):
                     # 文件大小错误，删除文件
@@ -166,39 +166,16 @@ def _download_file(file_name, url, bar=False, auto_retry=True, retry_max=5,
                 total_size = int(response.headers['Content-Length'])
                 read_size = 0
 
-                if progress_callback is not None:
-                    progress_callback(file_name, total=total_size, status="downloading")
+                if progress is not None:
+                    progress.add_progress(file_name, total=total_size)
 
-                if bar:
-                    with tqdm(
-                            desc=os.path.basename(file_name),
-                            total=total_size,
-                            unit='iB',
-                            unit_scale=True,
-                            unit_divisor=1024,
-                            file=sys.__stdout__,
-                            leave=False
-                    ) as tqdm_bar:
-                        # for data in response.iter_content(chunk_size=1024):
-                        for data in response.iter_content():  # curl_cffi not accept chunk_size
-                            size = f.write(data)
-                            tqdm_bar.update(size)
-                            read_size = read_size + size
-                            if progress_callback is not None:
-                                progress_callback(file_name, downloaded=read_size)
-                else:
-                    # for data in response.iter_content(chunk_size=1024):
-                    for data in response.iter_content():  # curl_cffi not accept chunk_size
-                        size = f.write(data)
-                        read_size = read_size + size
-                        if progress_callback is not None:
-                            progress_callback(file_name, downloaded=read_size)
+                # for data in response.iter_content(chunk_size=1024):
+                for data in response.iter_content():  # curl_cffi not accept chunk_size
+                    size = f.write(data)
+                    read_size = read_size + size
+                    if progress is not None:
+                        progress.update(file_name, size)
 
-                if read_size == total_size:
-                    if progress_callback is not None:
-                        if bar:
-                            SESE_PRINT(f"Download {file_name}[\"{url}\"] OK")
-                        progress_callback(file_name, status="OK")
                 break
         except Exception as result:
             if auto_retry:
@@ -209,8 +186,6 @@ def _download_file(file_name, url, bar=False, auto_retry=True, retry_max=5,
                     time.sleep(5)
                     continue
                 else:
-                    if progress_callback is not None:
-                        progress_callback(file_name, status="failed")
                     return -1
             else:
                 SESE_TRACE(LOG_ERROR, 'Error! info: %s' % result)
@@ -218,15 +193,13 @@ def _download_file(file_name, url, bar=False, auto_retry=True, retry_max=5,
                 if retry == 'y':
                     continue
                 else:
-                    if progress_callback is not None:
-                        progress_callback(file_name, status="failed")
                     return -1
 
     return 0
 
 
 def _download_files(file_name_list: list[str], url_list: list[str],
-                    progress_callback: ProgressCallback = None, headers=None):
+                    progress: TaskDLProgress = None, headers=None):
     """下载多个文件"""
     if len(file_name_list) != len(url_list):
         SESE_TRACE(LOG_ERROR, "文件与下载地址数量不匹配！")
@@ -243,7 +216,7 @@ def _download_files(file_name_list: list[str], url_list: list[str],
 
             # 创建下载任务
             threads_list.append(
-                pool.submit(_download_file, file_name, url, True, True, 5, progress_callback, headers))
+                pool.submit(_download_file, file_name, url, True, True, 5, progress, headers))
 
             index = index + 1
 
@@ -266,21 +239,24 @@ def download_file(file_name, url):
     return result
 
 
-def download_mp4(filename, url, progress_callback: ProgressCallback = None):
+def download_mp4(filename, url, progress: TaskDLProgress = None):
     """下载mp4视频"""
-    progress_callback(status="downloading")
+    progress.set_progress_count(1)
+    progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
-    result = _download_file(filename, url, bar=True, progress_callback=progress_callback)
+    result = _download_file(filename, url, bar=True, progress=progress)
 
     if result == 0:
-        progress_callback(status="OK")
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+        SESE_PRINT(f"{get_file_basename(filename)} Download OK!")
     else:
-        progress_callback(status="ERROR")
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+        SESE_PRINT(f"{get_file_basename(filename)} Download ERROR!")
     return result
 
 
 def download_mp4_by_merge_video_audio(filename, video_url, audio_url, headers,
-                                      progress_callback: ProgressCallback = None):
+                                      progress: TaskDLProgress = None):
     """下载视频和音频文件并合并成mp4文件"""
     dir = os.path.dirname(filename)
     cache_dir = os.path.join(dir, "cache")
@@ -291,18 +267,19 @@ def download_mp4_by_merge_video_audio(filename, video_url, audio_url, headers,
     if not os.path.exists(cache_dir):
         os.mkdir(cache_dir)
 
-    progress_callback(status="downloading")
+    progress.set_progress_count(2)
+    progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
     if _download_files(
             [audio_path, video_path],
             [audio_url, video_url],
-            progress_callback=progress_callback,
+            progress=progress,
             headers=headers) != 0:
         SESE_TRACE(LOG_ERROR, "download_files failed!")
-        progress_callback(status="ERROR")
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
         return -1
 
     SESE_PRINT("开始合并音视频文件...")
-    progress_callback(status="合并中")
+    progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
     # 开始合并音视频文件
     cmd = f'ffmpeg -hide_banner -i "{video_path}" -i "{audio_path}" -c:v copy -c:a aac -strict experimental "{filename}"'
@@ -310,7 +287,7 @@ def download_mp4_by_merge_video_audio(filename, video_url, audio_url, headers,
     os.system(cmd)
 
     SESE_PRINT(f"合并完成，保存在{filename}")
-    progress_callback(status="OK")
+    progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
     shutil.rmtree(cache_dir)
     SESE_PRINT(f"已删除缓存文件")
@@ -338,13 +315,17 @@ def _get_ts_list_from_m3u8(url):
     return ts_list
 
 
-def download_mp4_by_m3u8(filename, url, progress_callback: ProgressCallback = None):
+def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
     """下载m3u8文件，保存为mp4格式"""
     # 获取所有ts文件url
     ts_list = _get_ts_list_from_m3u8(url)
 
     ts_index = 0
     ts_threads_list = []
+
+    if progress is not None:
+        progress.set_progress_count(len(ts_list))
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
     with ThreadPoolExecutor(max_workers=10) as pool:
         for ts_url in ts_list:
@@ -365,25 +346,20 @@ def download_mp4_by_m3u8(filename, url, progress_callback: ProgressCallback = No
         totle_cnt = len(ts_threads_list)
         finish_cnt = 0
 
-        if progress_callback is not None:
-            progress_callback(total=totle_cnt, status="downloading")
-
         for thread in as_completed(ts_threads_list):
             finish_cnt = finish_cnt + 1
             SESE_PRINT('下载ts文件中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
-            if progress_callback:
-                progress_callback(downloaded=finish_cnt)
 
     SESE_PRINT('下载完成!')
-    if progress_callback:
-        progress_callback(status="合成中")
+    if progress:
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
     # ffmpeg拼接ts文件，保存为mp4
     os.system('ffmpeg -f concat -safe 0 -i "ts_temp/ts_files_list.txt" -c copy "%s"' % filename)
     shutil.rmtree('ts_temp')
 
-    if progress_callback:
-        progress_callback(status="OK")
+    if progress:
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
     return 0
 
 
@@ -398,10 +374,9 @@ def download_mp4_by_m3u8(filename, url, progress_callback: ProgressCallback = No
 #                |- 00001.jpg
 #                |- 00002.jpg
 #                |- xxxxx.jpg
-def download_epub_by_images(file_name, image_urls, metadata, progress_callback: ProgressCallback = None):
+def download_epub_by_images(file_name, image_urls, metadata, progress: TaskDLProgress = None):
     image_index = 1
     threads_list = []
-
     comic_dir = os.path.dirname(file_name)
     comic_title = os.path.splitext(file_name)[0].split("/")[-1]
     image_temp_dir_path = comic_dir + "/" + comic_title
@@ -409,47 +384,47 @@ def download_epub_by_images(file_name, image_urls, metadata, progress_callback: 
     if not os.path.exists(image_temp_dir_path):
         os.mkdir(image_temp_dir_path)
 
+    if progress is not None:
+        progress.set_progress_count(len(image_urls))
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
+
     with ThreadPoolExecutor(max_workers=10) as pool:
         for index, url in enumerate(image_urls):
             image_name = "%05d.jpg" % index
             image_path = image_temp_dir_path + "/" + image_name
 
             # 加入下载线程
-            threads_list.append(pool.submit(_download_file, image_path, url, False, True, 5, None, None))
+            threads_list.append(pool.submit(_download_file, image_path, url, False, True, 5, progress, None))
             image_index = image_index + 1
 
         # 监测下载线程状态
         totle_cnt = len(threads_list)
         finish_cnt = 0
 
-        if progress_callback is not None:
-            progress_callback(total=totle_cnt, status="downloading")
-
         for thread in as_completed(threads_list):
             if thread.result() == 0:
                 finish_cnt = finish_cnt + 1
-            if progress_callback:
-                progress_callback(downloaded=finish_cnt)
-            SESE_PRINT("%03d/%03d" % (finish_cnt, totle_cnt), end="\r")
+            # SESE_PRINT("%03d/%03d" % (finish_cnt, totle_cnt), end="\n")
 
     if finish_cnt == totle_cnt:
         SESE_PRINT("下载完成！")
     else:
         SESE_PRINT("下载失败！")
-        if progress_callback:
-            progress_callback(status="ERROR")
+        if progress:
+            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
         return
 
-    if progress_callback:
-        progress_callback(status="转换中")
+    if progress:
+        # progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
     # 下载完成，生成epub文件
     comic_to_epub(file_name, image_temp_dir_path, metadata)
 
-    if progress_callback:
-        progress_callback(status="OK")
+    # if progress:
+    #     progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
 
 def download_task(task_name, func, *args):
     dltask.download_manager.add_task(task_name, func, *args)
-    SESE_PRINT('download task running!')
+    # SESE_PRINT('download task running!')

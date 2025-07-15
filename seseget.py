@@ -4,7 +4,7 @@ from core.spiders import hanime
 from core.spiders import wnacg
 from core.spiders import bilibili
 from core.spiders import youtube
-from core.spiders import jmcomic
+from core.spiders import jm_comic
 from core.config.settings import STATION
 from core.utils.trace import *
 from core.request.downloadtask import download_manager
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         elif station == STATION["youtube"]:
             youtube.download(url)
         elif station == STATION["jmcomic"]:
-            jmcomic.download(url)
+            jm_comic.download(url)
         else:
             SESE_PRINT(f"unknown station: {station}")
 

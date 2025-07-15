@@ -91,8 +91,7 @@ def _get_video_info_by_yt_dlp(video_url):
     if match:
         vid = match.group(1)
 
-    ydl_client = seseytdlp.YDLClient()
-    info = ydl_client.get_info(video_url)
+    info = seseytdlp.get_info(video_url)
 
     if not info:
         SESE_TRACE(LOG_ERROR, "video info is None!")

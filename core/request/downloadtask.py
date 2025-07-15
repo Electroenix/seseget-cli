@@ -2,21 +2,32 @@ from threading import Lock
 import uuid
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import functools
-from typing import Callable, TypeAlias, Protocol
+from typing import Callable
 import inspect
+import traceback
 from core.utils.trace import *
 from core.utils.file_utils import *
-import traceback
+from core.utils.output import ProgressBar
+
+
+class ProgressStatus:
+    PROGRESS_STATUS_WAIT = "WAIT"  # 等待中
+    PROGRESS_STATUS_DOWNLOADING = "DOWNLOAD"  # 下载中
+    PROGRESS_STATUS_PROCESS = "PROCESS"  # 处理中
+    PROGRESS_STATUS_DOWNLOAD_OK = "OK"  # 下载完成
+    PROGRESS_STATUS_DOWNLOAD_ERROR = "ERR"  # 下载失败
 
 
 class FileDLProgress:
     """单个文件下载进度"""
-    def __init__(self):
+
+    def __init__(self, name, total=0):
+        self.filename: str = name  # 文件名
         self.downloaded: int = 0  # 已下载字节数
-        self.total: int = 0  # 总字节数（未知时为-1）
+        self.total: int = total  # 总字节数（未知时为-1）
         self.percent: float = 0.0  # 下载百分比
         self.speed: float = 0.0  # 下载速度（KB/s）
-        self.status: str = "pending"  # 状态：pending/running/paused/error/completed
+        self.status: str = ProgressStatus.PROGRESS_STATUS_WAIT  # 状态: ProgressStatus
         self.error: str = ""  # 错误信息
         self._lock = Lock()
 
@@ -27,7 +38,9 @@ class FileDLProgress:
             for k, v in kwargs.items():
                 if hasattr(self, k):
                     setattr(self, k, v)
-                if k == "downloaded" or k == "total":
+                if k == "total":
+                    need_update_percent = True
+                if k == "downloaded":
                     need_update_percent = True
 
             if need_update_percent:
@@ -37,87 +50,127 @@ class FileDLProgress:
 
 class TaskDLProgress:
     """下载任务进度"""
-    def __init__(self):
-        self.progress = FileDLProgress()  # 记录下载任务总进度
-        self.file_progress_dict: dict[str, FileDLProgress] = {}  # 记录每个文件的进度
-        self._lock = Lock()
 
-    def add_progress(self, file_name: str):
+    def __init__(self, name):
+        self.name = name  # 下载任务名
+        self.total_progress = FileDLProgress(name)  # 记录下载任务总进度
+        self.progress_dict: dict[str, FileDLProgress] = {}  # 记录每个文件的进度
+        self.progress_count = 0  # 文件总数
+        self.finish_count = 0  # 文件下载完成数
+        self.current_progress: FileDLProgress | None = None  # 当前显示的文件进度
+        self.bar: ProgressBar = ProgressBar(name, 0, False)  # 进度条
+        self._lock = Lock()
+        self._update_lock = Lock()
+
+    def set_progress_count(self, count):
+        """设置下载文件总数，必须在add_progress之前调用"""
+        self.progress_count = count
+
+    def add_progress(self, file_name: str, total):
         """添加新文件下载进度"""
         with self._lock:
             file_base_name = get_file_basename(file_name)
-            if file_base_name not in self.file_progress_dict:
-                self.file_progress_dict[file_base_name] = FileDLProgress()
-                SESE_TRACE(LOG_DEBUG, f"add_progress[{file_base_name}]")
+            if file_base_name not in self.progress_dict:
+                if len(self.progress_dict) < self.progress_count:
+                    progress = FileDLProgress(file_base_name, total=total)
+                    self.progress_dict[file_base_name] = progress
+                    # SESE_TRACE(LOG_INFO, f"add_progress[{len(self.progress_dict)}][{file_base_name}], total[{total}]")
+                    progress.update(total=total)
+                    self.total_progress.update(total=self.total_progress.total + total)
+                else:
+                    SESE_TRACE(LOG_WARNING, f"Download file count over preset! Set {self.progress_count} but \
+                                                add {len(self.progress_dict) + 1}")
 
     def get_progress(self, file_name: str) -> FileDLProgress:
         """获取指定文件的进度对象"""
         with self._lock:
             file_base_name = get_file_basename(file_name)
-            return self.file_progress_dict.get(file_base_name)
+            return self.progress_dict.get(file_base_name)
 
-    def _update_progress_by_file_progress_dict(self):
-        """遍历所有文件进度更新下载任务总进度"""
-        total = 0
-        downloaded = 0
-        for k, v in self.file_progress_dict.items():
-            total = total + v.total
-            downloaded = downloaded + v.downloaded
-
-        self.progress.update(downloaded=downloaded, total=total)
-
-    def update(self, file_name, **kwargs):
-        """下载进度更新
-
+    def _update_progress(self, file_name: str | None = None, downloaded=0):
+        """
+        更新下载任务总进度
         Args:
-            file_name: if None: 更新下载任务总进度, if not None: 更新文件下载进度.
+            file_name: 更新进度的文件名
+            downloaded: 更新后的已下载数据量
 
         """
-        if file_name is None:
-            # 更新下载任务进度
-            progress = self.progress
-            progress.update(**kwargs)
-        else:
-            # 更新文件下载进度
-            file_base_name = get_file_basename(file_name)
-            if file_base_name not in self.file_progress_dict:
-                self.add_progress(file_base_name)  # 添加新文件进度对象
+        with self._update_lock:
+            BAR_SHOW_TOTAL_PROGRESS = False  # True: 显示所有下载文件的总进度，  False: 显示当前正在下载的文件的进度
 
-            progress = self.get_progress(file_base_name)
+            if file_name:
+                # SESE_PRINT(f"_update_progress[{file_name}]")
+                file_base_name = get_file_basename(file_name)
+                progress = self.get_progress(file_base_name)
+                new_downloaded = downloaded - progress.downloaded
+                progress.update(downloaded=downloaded)
+                self.total_progress.update(downloaded=self.total_progress.downloaded + new_downloaded)
 
-            if 'new_downloaded' in kwargs:  # new_downloaded更新至downloaded
-                new_downloaded = kwargs.pop('new_downloaded')
-                downloaded = progress.downloaded + new_downloaded
-                kwargs["downloaded"] = downloaded
+                # SESE_PRINT(f"update progress [{file_base_name}] {downloaded}/{progress.total}")
+                if progress.total == progress.downloaded:
+                    self.finish_count = self.finish_count + 1
 
-            progress.update(**kwargs)
-            self._update_progress_by_file_progress_dict()
+                if self.current_progress is None and progress.downloaded > 0:
+                    # 如果current_progress为None，则将current_progress设置成当前更新文件
+                    self.current_progress = progress
 
-    def progress_callback(self, file_name: str = None, /, *, downloaded: int = None, new_downloaded: int = None, total: int = None, status: str = None):
-        """下载进度更新回调
+                if self.current_progress is not None and \
+                        file_base_name == self.current_progress.filename:
+                    # 如果更新的文件是current_progress记录的文件，则更新进度
+                    if not BAR_SHOW_TOTAL_PROGRESS:
+                        self.bar.set_total(self.current_progress.total)
+                        self.bar.set_downloaded(self.current_progress.downloaded)
 
-        Args:
-            file_name: if None: 更新下载任务总进度, if not None: 更新文件下载进度
-            downloaded: 已下载大小
-            new_downloaded: 新增下载大小
-            total: 总大小
-            status: 下载状态
+                    if self.current_progress.total == self.current_progress.downloaded:
+                        # 判断current_progress记录文件是否下载完成，若是，则置None
+                        self.current_progress = None
 
+                if BAR_SHOW_TOTAL_PROGRESS:
+                    self.bar.set_total(self.total_progress.total)
+                    self.bar.set_downloaded(self.total_progress.downloaded)
+
+            # 更新标题
+            title_max_len = 32
+            status = f"[{self.total_progress.status}]"
+            statistics = f"[{self.finish_count}/{self.progress_count}] "
+            total_len = len(self.name) + len(statistics) + len(status)
+            if total_len <= title_max_len:
+                title = status + statistics + self.name
+            else:
+                title = status + statistics + self.name[:title_max_len - (len(statistics) + len(status)) - 3] + "..."
+
+            self.bar.set_description(title)
+
+    def set_status(self, status):
+        """设置任务状态"""
+        self.total_progress.update(status=status)
+        self._update_progress()
+
+        if status == ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK:
+            self.bar.close()
+        elif status == ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR:
+            self.bar.close()
+
+    def set_downloaded(self, file_name, downloaded):
         """
+        更新进度
+        Args:
+            file_name:  文件名
+            downloaded: 已下载数据量
+        """
+        self._update_progress(file_name, downloaded)
 
-        if downloaded is not None:
-            self.update(file_name, downloaded=downloaded)
-        if new_downloaded is not None:
-            self.update(file_name, new_downloaded=new_downloaded)
-        if total is not None:
-            self.update(file_name, total=total)
-        if status is not None:
-            self.update(file_name, status=status)
-
-
-class ProgressCallback(Protocol):
-    def __call__(self, file_name: str = None, /, *, downloaded: int = None, new_downloaded: int = None, total: int = None, status: str = None) -> None:
-        ...
+    def update(self, file_name, n):
+        """
+        更新进度
+        Args:
+            file_name: 文件名
+            n: 新增数据量
+        """
+        file_base_name = get_file_basename(file_name)
+        progress = self.get_progress(file_base_name)
+        downloaded = progress.downloaded + n
+        self._update_progress(file_name, downloaded)
 
 
 class DownloadTask:
@@ -126,7 +179,8 @@ class DownloadTask:
     def __init__(self, task_id: str, name: str):
         self.id: str = task_id
         self.name: str = name
-        self.task_progress: TaskDLProgress = TaskDLProgress()
+        self.task_progress: TaskDLProgress = TaskDLProgress(name)
+        self.thread = None
 
 
 class DownloadManager:
@@ -138,7 +192,6 @@ class DownloadManager:
         self.id_to_task = {}  # 新增ID映射字典
         self._tasks_lock = Lock()
         self.task_pool = ThreadPoolExecutor(max_workers=max_concurrent)
-        self.threads = []
 
         # ID生成配置
         self._id_counter = 0
@@ -161,24 +214,23 @@ class DownloadManager:
 
         # 使用functools.partial包装函数和参数
         # 自动注入进度回调参数（如果函数支持）
-        wrapped_func = self._wrap_download_func(func, task.task_progress.progress_callback)
+        wrapped_func = self._wrap_download_func(func, task.task_progress)
 
-        thread = self.task_pool.submit(wrapped_func, *args)
-        thread.add_done_callback(self._handle_exception)
-        self.threads.append(thread)
+        task.thread = self.task_pool.submit(wrapped_func, *args)
+        task.thread.add_done_callback(self._handle_exception)
         SESE_PRINT(f"创建下载任务[task_id: {task_id}, name: {name}]")
         return task
 
     @staticmethod
     def _wrap_download_func(
             original_func: Callable,
-            progress_callback: ProgressCallback
+            progress: TaskDLProgress
     ) -> Callable:
-        """向original_func中注入关键字参数progress_callback（如果函数支持）"""
+        """向original_func中注入关键字参数progress（如果函数支持）"""
         sig = inspect.signature(original_func)
 
         # 检查参数是否存在
-        param = sig.parameters.get('progress_callback')
+        param = sig.parameters.get('progress')
         if param and (
                 param.default != inspect.Parameter.empty  # 有默认值
                 or
@@ -187,7 +239,7 @@ class DownloadManager:
             # 使用 partial 绑定回调
             return functools.partial(
                 original_func,
-                progress_callback=progress_callback
+                progress=progress
             )
         else:
             return original_func
@@ -211,14 +263,14 @@ class DownloadManager:
             return self.tasks.copy()
 
     def wait_finish(self):
-        wait(self.threads, return_when=ALL_COMPLETED)
+        wait([task.thread for task in self.tasks], return_when=ALL_COMPLETED)
         self.task_pool.shutdown()
 
     def kill(self):
         self.task_pool.shutdown(wait=False)
 
     def all_done(self):
-        return all(future.done() for future in self.threads)
+        return all(future.done() for future in [task.thread for task in self.tasks])
 
 
 download_manager = DownloadManager(max_concurrent=3)
