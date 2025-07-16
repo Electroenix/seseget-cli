@@ -2,21 +2,15 @@ import os
 import re
 
 
-def make_filename_valid(path):
+def make_filename_valid(filename):
     """使文件名合法化,不能对路径名使用,会把'\\'去掉"""
-    path = path.replace('/', '')
-    path = path.replace('\\', '')
-    path = path.replace(':', '')
-    path = path.replace('*', '')
-    path = path.replace('?', '')
-    path = path.replace('<', '')
-    path = path.replace('>', '')
-    path = path.replace('"', '')
-    path = path.replace('|', '')
-    path = path.rstrip()
-    path = path.rstrip('.')
+    replace = " "
+    filename = re.sub(r'[\x00-\x1f\x7f]', replace, filename)
+    filename = re.sub(r'[\\/*?:<">|]', replace, filename)
+    filename = filename.strip()
+    filename = filename.rstrip('.')
 
-    return path
+    return filename
 
 
 # 命名不重复的目录名

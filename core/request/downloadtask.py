@@ -66,8 +66,16 @@ class TaskDLProgress:
         """设置下载文件总数，必须在add_progress之前调用"""
         self.progress_count = count
 
-    def add_progress(self, file_name: str, total):
-        """添加新文件下载进度"""
+    def add_progress(self, file_name: str, total: int = 0):
+        """
+        添加新文件下载进度
+        Args:
+            file_name: 下载文件名
+            total: 下载文件总大小，可以暂时缺省，之后使用 set_total 设置
+
+        Returns:
+
+        """
         with self._lock:
             file_base_name = get_file_basename(file_name)
             if file_base_name not in self.progress_dict:
@@ -102,32 +110,34 @@ class TaskDLProgress:
                 # SESE_PRINT(f"_update_progress[{file_name}]")
                 file_base_name = get_file_basename(file_name)
                 progress = self.get_progress(file_base_name)
-                new_downloaded = downloaded - progress.downloaded
-                progress.update(downloaded=downloaded)
-                self.total_progress.update(downloaded=self.total_progress.downloaded + new_downloaded)
 
-                # SESE_PRINT(f"update progress [{file_base_name}] {downloaded}/{progress.total}")
-                if progress.total == progress.downloaded:
-                    self.finish_count = self.finish_count + 1
+                if progress:
+                    new_downloaded = downloaded - progress.downloaded
+                    progress.update(downloaded=downloaded)
+                    self.total_progress.update(downloaded=self.total_progress.downloaded + new_downloaded)
 
-                if self.current_progress is None and progress.downloaded > 0:
-                    # 如果current_progress为None，则将current_progress设置成当前更新文件
-                    self.current_progress = progress
+                    # SESE_PRINT(f"update progress [{file_base_name}] {downloaded}/{progress.total}")
+                    if progress.total == progress.downloaded:
+                        self.finish_count = self.finish_count + 1
 
-                if self.current_progress is not None and \
-                        file_base_name == self.current_progress.filename:
-                    # 如果更新的文件是current_progress记录的文件，则更新进度
-                    if not BAR_SHOW_TOTAL_PROGRESS:
-                        self.bar.set_total(self.current_progress.total)
-                        self.bar.set_downloaded(self.current_progress.downloaded)
+                    if self.current_progress is None and progress.downloaded > 0:
+                        # 如果current_progress为None，则将current_progress设置成当前更新文件
+                        self.current_progress = progress
 
-                    if self.current_progress.total == self.current_progress.downloaded:
-                        # 判断current_progress记录文件是否下载完成，若是，则置None
-                        self.current_progress = None
+                    if self.current_progress is not None and \
+                            file_base_name == self.current_progress.filename:
+                        # 如果更新的文件是current_progress记录的文件，则更新进度
+                        if not BAR_SHOW_TOTAL_PROGRESS:
+                            self.bar.set_total(self.current_progress.total)
+                            self.bar.set_downloaded(self.current_progress.downloaded)
 
-                if BAR_SHOW_TOTAL_PROGRESS:
-                    self.bar.set_total(self.total_progress.total)
-                    self.bar.set_downloaded(self.total_progress.downloaded)
+                        if self.current_progress.total == self.current_progress.downloaded:
+                            # 判断current_progress记录文件是否下载完成，若是，则置None
+                            self.current_progress = None
+
+                    if BAR_SHOW_TOTAL_PROGRESS:
+                        self.bar.set_total(self.total_progress.total)
+                        self.bar.set_downloaded(self.total_progress.downloaded)
 
             # 更新标题
             title_max_len = 32
@@ -151,6 +161,13 @@ class TaskDLProgress:
         elif status == ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR:
             self.bar.close()
 
+    def set_total(self, file_name, total):
+        file_base_name = get_file_basename(file_name)
+        progress = self.get_progress(file_base_name)
+        if progress:
+            progress.update(total=total)
+            self.total_progress.update(total=sum(p.total for p in self.progress_dict.values()))
+
     def set_downloaded(self, file_name, downloaded):
         """
         更新进度
@@ -169,8 +186,9 @@ class TaskDLProgress:
         """
         file_base_name = get_file_basename(file_name)
         progress = self.get_progress(file_base_name)
-        downloaded = progress.downloaded + n
-        self._update_progress(file_name, downloaded)
+        if progress:
+            downloaded = progress.downloaded + n
+            self._update_progress(file_name, downloaded)
 
 
 class DownloadTask:

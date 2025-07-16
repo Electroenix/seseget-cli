@@ -10,6 +10,7 @@ from tempfile import TemporaryDirectory
 from core.config.config_manager import config
 from core.utils.trace import *
 from core.config.path import BASE_DIR
+from core.utils.file_utils import make_filename_valid
 
 kcc_c2e_path = BASE_DIR / "core/thirdparty/kcc/kcc-c2e.py"  # kcc_c2e转换工具路径
 kcc_lock = threading.Lock()  # 避免KCC运行时冲突
@@ -155,7 +156,7 @@ def comic_to_epub(file_name: str, image_path: str, metadata: ComicMetaData):
     with kcc_lock:
         # 调用kcc-c2e转换图片为epub格式
         cmd = '%s %s "%s" -t "%s" -f KFX -o "%s" -m --forcecolor -n' % (
-            sys.executable, kcc_c2e_path, image_path, metadata.title, file_name)
+            sys.executable, kcc_c2e_path, image_path, make_filename_valid(metadata.title), file_name)
         os.system(f'{cmd}')
 
     # 更新epub中的metadata
