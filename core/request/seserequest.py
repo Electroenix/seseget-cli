@@ -15,6 +15,7 @@ from core.request.downloadtask import TaskDLProgress, ProgressStatus
 from core.metadata.comic import comic_to_epub
 from core.config.config_manager import config
 from core.utils.file_utils import get_file_basename
+from core.utils.subprocess_utils import exec_cmd
 
 
 class SessionManager:
@@ -282,9 +283,8 @@ def download_mp4_by_merge_video_audio(filename, video_url, audio_url, headers,
     progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
     # 开始合并音视频文件
-    cmd = f'ffmpeg -hide_banner -i "{video_path}" -i "{audio_path}" -c:v copy -c:a aac -strict experimental "{filename}"'
-    # 调用命令
-    os.system(cmd)
+    exec_cmd(["ffmpeg", "-hide_banner", "-i", f"{video_path}", "-i", f"{audio_path}", "-c:v", "copy", "-c:a", "aac",
+              "-strict", "experimental", f"{filename}"])
 
     SESE_PRINT(f"合并完成，保存在{filename}")
     progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
@@ -355,7 +355,7 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
         progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
     # ffmpeg拼接ts文件，保存为mp4
-    os.system('ffmpeg -f concat -safe 0 -i "ts_temp/ts_files_list.txt" -c copy "%s"' % filename)
+    exec_cmd(["ffmpeg", "-f", "concat", "-safe", "0", "-i", "ts_temp/ts_files_list.txt", "-c", "copy", filename])
     shutil.rmtree('ts_temp')
 
     if progress:
@@ -415,14 +415,13 @@ def download_epub_by_images(file_name, image_urls, metadata, progress: TaskDLPro
         return
 
     if progress:
-        # progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
     # 下载完成，生成epub文件
     comic_to_epub(file_name, image_temp_dir_path, metadata)
 
-    # if progress:
-    #     progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+    if progress:
+        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
 
 def download_task(task_name, func, *args):
