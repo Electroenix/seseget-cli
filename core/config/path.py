@@ -4,7 +4,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # 配置文件路径
-config_path = BASE_DIR / "conf/conf.json"
+config_dir = BASE_DIR / "conf"
+config_path = str(config_dir) + "/conf.json"
 default_config_path = BASE_DIR / "core/config/default_conf.json"
 
 # 下载资源路径
@@ -31,6 +32,10 @@ jmcomic_data_local_path = str(data_path) + "/jmcomic"
 
 # 创建目录
 def mk_sys_dir():
+    # 配置文件目录
+    if not os.path.exists(config_dir):
+        os.mkdir(config_dir)
+
     # 下载资源目录
     if not os.path.exists(data_path):
         os.mkdir(data_path)
