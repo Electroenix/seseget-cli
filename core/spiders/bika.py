@@ -9,6 +9,7 @@ from core.utils.trace import *
 from core.metadata.comic import ChapterInfo, ComicInfo
 from core.request import seserequest as ssreq
 from core.utils.file_utils import *
+from core.utils.file_process import create_source_info_file
 
 
 # 用来存储从bika获取到的数据
@@ -258,6 +259,9 @@ def download(bika_context, url, chapter=None):
         SESE_PRINT("\r\n正在下载第%d章" % c.id)
         task_name = bika_context.title + "_%03d_" % bika_context.chapter[c.id]["order"] + bika_context.chapter[c.id]["title"]
         ssreq.download_task(task_name, ssreq.download_epub_by_images, epub_path, image_urls, c.metadata)
+
+        # 创建source.txt文件保存下载地址
+        create_source_info_file(comic_dir, comic_info)
 
         chapter_index = chapter_index + 1
 

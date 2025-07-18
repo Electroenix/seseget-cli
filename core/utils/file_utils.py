@@ -13,8 +13,8 @@ def make_filename_valid(filename):
     return filename
 
 
-# 命名不重复的目录名
 def make_diff_dir_name(dir):
+    """命名不重复的目录名"""
     if os.path.exists(dir):
         regex_file_index = re.compile(r'(?<=_\[)\d+(?=\]$)')
         result = regex_file_index.search(dir)
@@ -35,5 +35,5 @@ def make_diff_dir_name(dir):
 
 
 def get_file_basename(path):
+    """获取完整路径中的目标文件名"""
     return os.path.basename(os.path.normpath(path))
-

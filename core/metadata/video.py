@@ -19,6 +19,7 @@ class VideoInfo:
     def __init__(self):
         self.vid = ""
         self.name = ""
+        self.view_url = ""
         self.download_url = ""
         self.cover_url = ""
         self.thumbnail_url = ""

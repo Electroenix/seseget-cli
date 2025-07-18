@@ -8,6 +8,7 @@ from core.utils.trace import *
 from core.request import seserequest as ssreq
 from core.utils.file_utils import *
 from core.request import seseytdlp
+from core.utils.file_process import create_source_info_file
 
 
 class YtbVideoInfo(VideoInfo):
@@ -203,16 +204,17 @@ def download(url):
         if ssreq.download_file(poster_path, cover_url) | \
                 ssreq.download_file(fanart_path, video_thumbnail_url) == 0:
 
-            # 创建source.txt文件保存下载地址
-            with open(download_dir + '/' + 'source.txt', 'wb') as f:
-                f.write(('video url: %s\r\n' % url).encode())
-                f.write(('thumbnail url: %s\r\n' % video_thumbnail_url).encode())
-                f.write(('cover url: %s\r\n' % cover_url).encode())
             metadata.describe = metadata.describe + '\r\n%s' % url
             metadata.back_ground_path = fanart_path
 
             # 生成metadata文件
             make_vsmeta_file(vsmeta_path, metadata)
             make_nfo_file(nfo_path, metadata)
+
+            # 创建source.txt文件保存下载地址
+            source_info = 'video url: %s\r\n' % url
+            source_info = source_info + 'thumbnail url: %s\r\n' % video_thumbnail_url
+            source_info = source_info + 'cover url: %s\r\n' % cover_url
+            create_source_info_file(download_dir, source_info)
         else:
             SESE_PRINT('download fail!')

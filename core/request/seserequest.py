@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from core.utils.trace import *
 from core.request import downloadtask as dltask
 from core.request.downloadtask import TaskDLProgress, ProgressStatus
-from core.metadata.comic import comic_to_epub
+from core.utils.file_process import comic_to_epub
 from core.config.config_manager import config
 from core.utils.file_utils import get_file_basename
 from core.utils.subprocess_utils import exec_cmd

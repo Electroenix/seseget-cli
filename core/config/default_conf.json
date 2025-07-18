@@ -24,6 +24,7 @@
     "cookie": ""
   },
   "download": {
+    "save_resource_info": false,
     "comic": {
       "leave_images": false
     }

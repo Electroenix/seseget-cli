@@ -4,6 +4,7 @@ from core.utils.file_utils import *
 from core.utils.trace import *
 from core.request import seserequest as ssreq
 from core.config import path
+from core.utils.file_process import create_source_info_file
 
 
 headers = {
@@ -115,6 +116,9 @@ def download(url, chapter=None):
         SESE_PRINT("\r\n正在下载第%d章" % c.id)
         task_name = comic_info.series_title + "_%03d_" % chapter_index
         ssreq.download_task(task_name, ssreq.download_epub_by_images, epub_path, image_urls, c.metadata)
+
+        # 创建source.txt文件保存下载地址
+        create_source_info_file(comic_dir, comic_info)
 
         chapter_index = chapter_index + 1
 

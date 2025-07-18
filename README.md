@@ -51,10 +51,10 @@ url         下载资源的url，资源详情页面的url，如视频播放页/�
 更多参数用法请参照下面的参数说明:
 ```text
 seseget.py -h
-usage: seseget.py [-h] [-s STATION] [-c CHAPTER] url
+usage: seseget.py [-h] [-s STATION] [-c CHAPTER] url [url ...]
 
 positional arguments:
-  url                   source url
+  url                   url，可接受多个url
 
 options:
   -h, --help            show this help message and exit
@@ -111,8 +111,9 @@ bilibili还不支持用户名密码登录功能，如需登录，需要自己设
 ### 下载配置
 ```text
 "download": {
+  "save_resource_info": false,      # true: 会在下载目录下生成source.txt文件保存下载资源的来源信息，false: 不生成source.txt
   "comic": {
-    "leave_images": false    # true:漫画文件生成后保留下载的图片文件，false:不保留图片
+    "leave_images": false           # true: 漫画文件生成后保留下载的图片文件，false: 不保留图片
   }
 }
 ```

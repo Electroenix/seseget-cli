@@ -5,7 +5,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # 配置文件路径
 config_path = BASE_DIR / "conf/conf.json"
-default_config_path = BASE_DIR / "conf/default_conf.json"
+default_config_path = BASE_DIR / "core/config/default_conf.json"
 
 # 下载资源路径
 data_path = BASE_DIR / "data"

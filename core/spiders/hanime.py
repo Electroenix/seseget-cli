@@ -14,6 +14,7 @@ from core.metadata.nfo import *
 from core.utils.trace import SESE_PRINT
 from core.request import seserequest as ssreq
 from core.utils.file_utils import *
+from core.utils.file_process import create_source_info_file
 
 
 headers = {
@@ -105,6 +106,7 @@ def get_video_info_from_hanime(video_url):
 
     video_info.vid = vid
     video_info.name = video_name
+    video_info.view_url = video_url
     video_info.download_url = video_download_url
     video_info.cover_url = cover_url
     video_info.thumbnail_url = video_thumbnail_url
@@ -230,17 +232,14 @@ def download(url):
         if ssreq.download_file(poster_path, cover_url) | \
                 ssreq.download_file(fanart_path, video_thumbnail_url) == 0:
 
-            # 创建source.txt文件保存下载地址
-            with open(download_dir + '/' + 'source.txt', 'wb') as f:
-                f.write(('video url: %s\r\n' % url).encode())
-                f.write(('thumbnail url: %s\r\n' % video_thumbnail_url).encode())
-                f.write(('cover url: %s\r\n' % cover_url).encode())
-                f.write(('download url: %s\r\n' % video_download_url).encode())
             metadata.describe = metadata.describe + '\r\n%s' % url
             metadata.back_ground_path = fanart_path
 
             # 生成metadata文件
             make_vsmeta_file(vsmeta_path, metadata)
             make_nfo_file(nfo_path, metadata)
+
+            # 创建source.txt文件保存下载地址
+            create_source_info_file(download_dir, video_info)
         else:
             SESE_PRINT('download fail!')

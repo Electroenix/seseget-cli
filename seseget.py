@@ -18,12 +18,12 @@ if __name__ == "__main__":
     path.mk_sys_dir()
 
     paser = argparse.ArgumentParser()
-    paser.add_argument("urls", nargs="+", help="url列表，可接受多个url")
+    paser.add_argument("url", nargs="+", help="url，可接受多个url")
     paser.add_argument("-s", "--station", help="站点名，支持[bika/hanime/wnacg/bilibili/youtube/jmcomic]")
     paser.add_argument("-c", "--chapter", help="章节号，仅bika支持，指定下载章节号，多个章节请使用逗号分隔, 未指定章节则下载全部章节")
 
     args = paser.parse_args()
-    urls = args.urls
+    urls = args.url
     station = args.station
 
     for url in urls:

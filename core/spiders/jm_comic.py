@@ -8,13 +8,15 @@ import requests
 from bs4 import BeautifulSoup
 from common import Postman
 from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, JmApiClient, catch_exception, JmImageDetail, jm_log
-from core.metadata.comic import ChapterInfo, ComicInfo, comic_to_epub
+from core.metadata.comic import ChapterInfo, ComicInfo
+from core.utils.file_process import comic_to_epub
 from core.request import seserequest as ssreq
 from core.config import path
 from core.utils.file_utils import *
 from core.utils.trace import *
 from core.config.config_manager import config
 from core.request.downloadtask import TaskDLProgress, ProgressStatus
+from core.utils.file_process import create_source_info_file
 
 
 class SeseJmStreamResponse:
@@ -427,5 +429,8 @@ def download(url):
         SESE_PRINT("\r\n正在下载第%d章" % c.id)
         task_name = comic_info.series_title + "_%03d_" % chapter_index
         ssreq.download_task(task_name, download_jmcomic, epub_path, url, c.metadata)
+
+        # 创建source.txt文件保存下载地址
+        create_source_info_file(comic_dir, comic_info)
 
         chapter_index = chapter_index + 1
