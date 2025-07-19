@@ -4,7 +4,7 @@ from core.utils.file_utils import *
 from core.utils.trace import *
 from core.request import seserequest as ssreq
 from core.config import path
-from core.utils.file_process import create_source_info_file
+from core.utils.file_process import make_source_info_file
 
 
 headers = {
@@ -118,7 +118,7 @@ def download(url, chapter=None):
         ssreq.download_task(task_name, ssreq.download_epub_by_images, epub_path, image_urls, c.metadata)
 
         # 创建source.txt文件保存下载地址
-        create_source_info_file(comic_dir, comic_info)
+        make_source_info_file(comic_dir, comic_info)
 
         chapter_index = chapter_index + 1
 

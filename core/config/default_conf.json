@@ -27,6 +27,12 @@
     "save_resource_info": false,
     "comic": {
       "leave_images": false
+    },
+    "video": {
+      "metadata_file": {
+        "nfo": true,
+        "vsmeta": false
+      }
     }
   }
 }

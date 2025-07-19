@@ -9,13 +9,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import core.config.path
 from core.metadata.video import *
-from core.metadata.vsmeta import *
-from core.metadata.nfo import *
 from core.utils.trace import SESE_PRINT
 from core.request import seserequest as ssreq
 from core.utils.file_utils import *
-from core.utils.file_process import create_source_info_file
-
+from core.utils.file_process import make_source_info_file, make_video_metadata_file
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
@@ -220,8 +217,6 @@ def download(url):
         poster_path = download_dir + '/' + 'poster.jpg'  # 封面图保存路径
         fanart_path = download_dir + '/' + 'fanart.jpg'  # 背景图保存路径
         video_path = download_dir + '/' + make_filename_valid('%s.mp4' % video_name)  # 视频保存路径
-        vsmeta_path = download_dir + '/' + make_filename_valid('%s.mp4.vsmeta' % video_name)  # vsmeta文件保存路径
-        nfo_path = download_dir + '/' + make_filename_valid('%s.nfo' % video_name)  # nfo文件保存路径
 
         # 创建下载任务
         if '.m3u8' in video_download_url.split('/')[-1]:
@@ -236,10 +231,9 @@ def download(url):
             metadata.back_ground_path = fanart_path
 
             # 生成metadata文件
-            make_vsmeta_file(vsmeta_path, metadata)
-            make_nfo_file(nfo_path, metadata)
+            make_video_metadata_file(download_dir, video_name, metadata)
 
             # 创建source.txt文件保存下载地址
-            create_source_info_file(download_dir, video_info)
+            make_source_info_file(download_dir, video_info)
         else:
             SESE_PRINT('download fail!')

@@ -8,13 +8,27 @@ from core.config.config_manager import config
 from core.utils.file_utils import make_filename_valid
 from core.utils.subprocess_utils import exec_cmd
 from core.metadata.comic import ComicInfo, ComicMetaData, update_metadate
-from core.metadata.video import VideoInfo
+from core.metadata.video import VideoInfo, VideoMetaData
+from core.metadata.vsmeta import *
+from core.metadata.nfo import *
 
 kcc_c2e_path = BASE_DIR / "core/thirdparty/kcc/kcc-c2e.py"  # kcc_c2e转换工具路径
 kcc_lock = threading.Lock()  # 避免KCC运行时冲突
 
 
-def create_source_info_file(save_dir, resource_info):
+def make_video_metadata_file(save_dir, video_name, metadata: VideoMetaData):
+    metadata_file = config["download"]["video"]["metadata_file"]
+
+    if metadata_file["nfo"]:
+        nfo_path = save_dir + '/' + make_filename_valid('%s.nfo' % video_name)  # nfo文件保存路径
+        make_nfo_file(nfo_path, metadata)
+
+    if metadata_file["vsmeta"]:
+        vsmeta_path = save_dir + '/' + make_filename_valid('%s.mp4.vsmeta' % video_name)  # vsmeta文件保存路径
+        make_vsmeta_file(vsmeta_path, metadata)
+
+
+def make_source_info_file(save_dir, resource_info):
     """创建保存下载资源的来源信息的文件"""
     if config["download"]["save_resource_info"]:
         content = ""

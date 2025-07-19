@@ -16,7 +16,7 @@ from core.utils.file_utils import *
 from core.utils.trace import *
 from core.config.config_manager import config
 from core.request.downloadtask import TaskDLProgress, ProgressStatus
-from core.utils.file_process import create_source_info_file
+from core.utils.file_process import make_source_info_file
 
 
 class SeseJmStreamResponse:
@@ -431,6 +431,6 @@ def download(url):
         ssreq.download_task(task_name, download_jmcomic, epub_path, url, c.metadata)
 
         # 创建source.txt文件保存下载地址
-        create_source_info_file(comic_dir, comic_info)
+        make_source_info_file(comic_dir, comic_info)
 
         chapter_index = chapter_index + 1
