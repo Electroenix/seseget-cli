@@ -10,38 +10,25 @@ from core.utils.trace import *
 class ComicMetaData:
     """comic元数据，以EPUB文件中元数据的标签命名"""
     def __init__(self):
-        self.title = ""
-        self.creator = ""
-        self.publisher = ""
-        self.date = ""
-        self.description = ""
-        self.language = ""
-        self.subjects = []
+        self.series = ""    # 系列名
+        self.title = ""     # 章节名
+        self.number = ""    # 章节号
+        self.creator = ""   # 作者
+        self.publisher = ""     # 出版商
+        self.year = ""      # 发布日期: 年
+        self.month = ""      # 发布日期: 月
+        self.day = ""       # 发布日期: 日
+        self.description = ""   # 剧情简介
+        self.language = ""  # 语言
+        self.subjects = []  # 标签
 
 
 class ChapterInfo:
     """漫画章节信息，存储章节名，章节号以及漫画元数据"""
     def __init__(self):
-        self.title = ""
+        self.title = ""  # 章节名
         self.id = 0
         self.metadata = ComicMetaData()
-
-    def print_info(self):
-        print("ChapterInfo:")
-        print("\ttitle: ", end="")
-        print(self.title)
-        print("\tid: ", end="")
-        print(self.id)
-        print("\tmetadata.title: ", end="")
-        print(self.metadata.title)
-        print("\tmetadata.language: ", end="")
-        print(self.metadata.language)
-        print("\tmetadata.creator: ", end="")
-        print(self.metadata.creator)
-        print("\tmetadata.subjects: ", end="")
-        print(self.metadata.subjects)
-        print("\tmetadata.description: ", end="")
-        print(self.metadata.description)
 
     
 class ComicInfo:
@@ -50,30 +37,23 @@ class ComicInfo:
         self.view_url = ""
         self.cid = ""
         self.cover = ""
-        self.series_title = ""  # 系列名
+        self.title = ""  # 系列名
         self.author = ""  # 作者
         self.genres = []  # 标签
         self.description = ""
         self.chapter_list: list[ChapterInfo] = []  # 漫画列表，可能有多个章节，以列表形式存储
 
     def print_info(self):
-        print("ComicInfo:")
-        print("\tview_url: ", end="")
-        print(self.view_url)
-        print("\tcid: ", end="")
-        print(self.cid)
-        print("\tseries_title: ", end="")
-        print(self.series_title)
-        print("\tauthor: ", end="")
-        print(self.author)
-        print("\tgenres: ", end="")
-        print(self.genres)
-        print("\tchapter_list: ", end="")
-        print(self.chapter_list)
+        print(f"cid: {self.cid}")
+        print(f"系列: {self.title}")
+        print(f"作者: {self.author}")
+        print(f"标签: {self.genres}")
+        print(f"简介: {self.description}")
+        print(f"已获取章节数: {len(self.chapter_list)}")
 
 
 # 更新epub文件中的metadata
-def update_metadate(epub_path, output_path, metadata: ComicMetaData):
+def update_epub_metadate(epub_path, output_path, metadata: ComicMetaData):
     with TemporaryDirectory() as extract_path:
         try:
             with zipfile.ZipFile(epub_path, 'r') as zf:
@@ -98,12 +78,14 @@ def update_metadate(epub_path, output_path, metadata: ComicMetaData):
                 "creator": metadata.creator,
                 "description": metadata.description,
                 "language": metadata.language,
+                "date":  f"{metadata.year}-{metadata.month}-{metadata.day}" if metadata.year and metadata.month and metadata.day else "",
                 "subject": metadata.subjects
             }
 
             metadata_elem = root_elem.find("opf:metadata", ns)
             for tag, value in metadata_dc.items():
-                if value is None:
+                if not value:
+                    SESE_TRACE(LOG_WARNING, f"No metadata: {tag}")
                     continue
 
                 # 查找并删除已存在元素
@@ -117,10 +99,29 @@ def update_metadate(epub_path, output_path, metadata: ComicMetaData):
                     elem = etree.SubElement(metadata_elem, QName(ns['dc'], tag))
                     elem.text = tag_value
 
+            if metadata.series:
+                elem = etree.SubElement(metadata_elem, "meta")
+                elem.set("property", "belongs-to-collection")
+                elem.set("id", "series")
+                elem.text = metadata.series
+
+                elem = etree.SubElement(metadata_elem, "meta")
+                elem.set("refines", "#series")
+                elem.set("property", "collection-type")
+                elem.text = "series"
+
+                elem = etree.SubElement(metadata_elem, "meta")
+                elem.set("refines", "#series")
+                elem.set("property", "group-position")
+                elem.text = f"{metadata.number}"
+            else:
+                SESE_TRACE(LOG_WARNING, f"No metadata: series")
+                pass
+
             opf_tree.write(opf_path, encoding='utf-8', xml_declaration=True, pretty_print=True)
 
             with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as new_zf:
-                for root, _, files in os.walk(extract_path):
+                for root, dirs, files in os.walk(extract_path):
                     for file in files:
                         file_path = os.path.join(root, file)
                         arcname = os.path.relpath(file_path, extract_path)
@@ -131,6 +132,39 @@ def update_metadate(epub_path, output_path, metadata: ComicMetaData):
             if os.path.exists(output_path):
                 os.remove(output_path)
             raise
+
+
+def make_cbz_comic_info_xml(output_dir, metadata: ComicMetaData):
+    output_path = output_dir + "/" + "ComicInfo.xml"
+    tag_dict = {
+        "Series": metadata.series,
+        "Title": metadata.title,
+        "Number": metadata.number,
+        "Writer": metadata.creator,
+        "Summary": metadata.description,
+        "Year": metadata.year,
+        "Month": metadata.month,
+        "Day": metadata.day,
+        "LanguageISO": metadata.language,
+        "Tags": ",".join(metadata.subjects),
+        "Manga": "YesAndRightToLeft"  # 阅读方向：从右到左
+    }
+
+    nsmap = {
+        "xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "xsd": "http://www.w3.org/2001/XMLSchema"
+    }
+    comic_info = etree.Element("ComicInfo", nsmap=nsmap)
+
+    for tag, value in tag_dict.items():
+        if not value:
+            SESE_TRACE(LOG_WARNING, f"No metadata: {tag}")
+            continue
+        elem = etree.SubElement(comic_info, tag)
+        elem.text = str(value)
+
+    tree = etree.ElementTree(comic_info)
+    tree.write(output_path, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
 
 if __name__ == "__main__":
@@ -168,4 +202,4 @@ if __name__ == "__main__":
         print("[%s], " % s, end="")
     print()
 
-    update_metadate(file_path, output_file, comic_meta)
+    update_epub_metadate(file_path, output_file, comic_meta)

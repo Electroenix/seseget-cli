@@ -26,7 +26,8 @@
   "download": {
     "save_resource_info": false,
     "comic": {
-      "leave_images": false
+      "leave_images": false,
+      "format": "cbz"
     },
     "video": {
       "metadata_file": {

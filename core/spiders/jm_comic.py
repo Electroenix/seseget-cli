@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from common import Postman
 from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, JmApiClient, catch_exception, JmImageDetail, jm_log
 from core.metadata.comic import ChapterInfo, ComicInfo
-from core.utils.file_process import comic_to_epub
+from core.utils.file_process import make_comic
 from core.request import seserequest as ssreq
 from core.config import path
 from core.utils.file_utils import *
@@ -332,6 +332,7 @@ def get_comic_info(url, comic_info):
     comic_author = " & ".join(authors)
     comic_desc = descrip_soup.string.lstrip().removeprefix("叙述：")
     comic_date = date_published_soup.get("content")
+    date_match = re.search(r"^(\d+?)-(\d+?)-(\d+?)$", comic_date)
 
     comic_tag_list = []
     for t in web_tags_tag_list:
@@ -348,33 +349,34 @@ def get_comic_info(url, comic_info):
     comic_chapter = ChapterInfo()
     comic_chapter.title = comic_title
     comic_chapter.id = 1
+    comic_chapter.metadata.series = comic_title
     comic_chapter.metadata.title = comic_title
+    comic_chapter.metadata.number = 1
     comic_chapter.metadata.language = comic_lang
     comic_chapter.metadata.creator = comic_author
     comic_chapter.metadata.subjects = comic_tag_list
     comic_chapter.metadata.description = comic_desc
-    comic_chapter.metadata.date = comic_date
-    comic_chapter.print_info()
+    comic_chapter.metadata.year = date_match.group(1)
+    comic_chapter.metadata.month = date_match.group(2)
+    comic_chapter.metadata.day = date_match.group(3)
 
     comic_info.view_url = url
     comic_info.cid = cid
     comic_info.cover = comic_cover_url
-    comic_info.series_title = comic_title
+    comic_info.title = comic_title
     comic_info.author = comic_author
     comic_info.genres = comic_tag_list
     comic_info.description = comic_desc
     comic_info.chapter_list.append(comic_chapter)
 
 
-def download_jmcomic(file_name, url, metadata, progress: TaskDLProgress = None):
+def download_jmcomic(save_dir: str, comic_title: str, url: str, chapter: ChapterInfo, progress: TaskDLProgress = None):
     cid = ""
     match = re.search(r"(?:album|photo)/(\d+)", url)
     if match:
         cid = match.group(1)
 
-    comic_dir = os.path.dirname(file_name)
-    comic_title = os.path.splitext(file_name)[0].split("/")[-1]
-    image_temp_dir_path = comic_dir + "/" + comic_title
+    image_temp_dir_path = save_dir + "/" + comic_title
 
     if not os.path.exists(image_temp_dir_path):
         os.mkdir(image_temp_dir_path)
@@ -398,7 +400,7 @@ def download_jmcomic(file_name, url, metadata, progress: TaskDLProgress = None):
         progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
     # 下载完成，生成epub文件
-    comic_to_epub(file_name, image_temp_dir_path, metadata)
+    make_comic(save_dir, comic_title, image_temp_dir_path, chapter.metadata)
 
     if progress:
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
@@ -408,29 +410,20 @@ def download(url):
     comic_info = ComicInfo()
     get_comic_info(url, comic_info)
     comic_info.print_info()
-    SESE_PRINT("系列:%s" % comic_info.series_title)
-    SESE_PRINT("作者:%s" % comic_info.author)
-    SESE_PRINT("标签:%s" % comic_info.genres)
-    SESE_PRINT("获取到%d个章节" % len(comic_info.chapter_list))
 
     save_dir = path.jmcomic_data_local_path
-    comic_dir = save_dir + "/" + make_filename_valid(comic_info.series_title)
+    comic_dir = save_dir + "/" + make_filename_valid(comic_info.title)
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
     if not os.path.exists(comic_dir):
         os.mkdir(comic_dir)
 
-    chapter_index = 1
     for c in comic_info.chapter_list:
-        epub_name = make_filename_valid(comic_info.series_title) + "_%03d.epub" % chapter_index
-        epub_path = comic_dir + "/" + epub_name
-
         # 创建下载任务
         SESE_PRINT("\r\n正在下载第%d章" % c.id)
-        task_name = comic_info.series_title + "_%03d_" % chapter_index
-        ssreq.download_task(task_name, download_jmcomic, epub_path, url, c.metadata)
+        comic_title = comic_info.title + "_%03d" % c.id
+        task_name = comic_title
+        ssreq.download_task(task_name, download_jmcomic, comic_dir, comic_title, url, c)
 
         # 创建source.txt文件保存下载地址
         make_source_info_file(comic_dir, comic_info)
-
-        chapter_index = chapter_index + 1

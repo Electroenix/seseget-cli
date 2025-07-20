@@ -194,7 +194,7 @@ def request_comic_info(bika_context, view_url, comic_info, chapter_id_list=None)
     # 获取全部章节信息
     get_comic_chapter(bika_context, cid)
 
-    comic_info.series_title = bika_context.title
+    comic_info.title = bika_context.title
     comic_info.author = bika_context.author
     comic_info.genres = bika_context.genres
 
@@ -203,16 +203,27 @@ def request_comic_info(bika_context, view_url, comic_info, chapter_id_list=None)
         chapter_id_list = range(1, len(bika_context.chapter))
 
     for chapter_id in chapter_id_list:
+        bika_chapter = bika_context.chapter[int(chapter_id)]
+        if int(chapter_id) != bika_chapter["order"]:
+            raise Exception("哔咔章节号无法匹配！")
+
         # 获取章节图片信息
-        get_comic_chapter_pages(bika_context, cid, int(chapter_id))
+        get_comic_chapter_pages(bika_context, cid, bika_chapter["order"])
 
         chapter_info = ChapterInfo()
-        chapter_info.title = bika_context.chapter[int(chapter_id)]["title"]
-        chapter_info.id = int(chapter_id)
+        chapter_info.title = bika_chapter["title"]
+        chapter_info.id = bika_chapter["order"]
 
-        chapter_info.metadata.title = bika_context.chapter[int(chapter_id)]["title"]
+        chapter_info.metadata.series = bika_context.title
+        chapter_info.metadata.title = bika_chapter["title"]
+        chapter_info.metadata.number = bika_chapter["order"]
         chapter_info.metadata.creator = bika_context.author
         chapter_info.metadata.subjects = bika_context.genres
+
+        date_match = re.search(r"^(\d+)-(\d+)-(\d+)", bika_chapter["updated_at"])
+        chapter_info.metadata.year = date_match.group(1)
+        chapter_info.metadata.month = date_match.group(2)
+        chapter_info.metadata.day = date_match.group(3)
 
         if "英語 ENG" in bika_context.genres:
             chapter_info.metadata.language = "en"
@@ -231,23 +242,15 @@ def download(bika_context, url, chapter=None):
     # 请求bika数据
     comic_info = ComicInfo()
     request_comic_info(bika_context, url, comic_info, chapter)
-    SESE_PRINT("系列:%s" % comic_info.series_title)
-    SESE_PRINT("作者:%s" % comic_info.author)
-    SESE_PRINT("标签:%s" % comic_info.genres)
-    SESE_PRINT("获取到%d个章节" % len(comic_info.chapter_list))
+    comic_info.print_info()
 
-    comic_dir = str(comic_save_path) + "/" + make_filename_valid(comic_info.series_title)
+    comic_dir = str(comic_save_path) + "/" + make_filename_valid(comic_info.title)
     if not os.path.exists(comic_save_path):
         os.mkdir(comic_save_path)
     if not os.path.exists(comic_dir):
         os.mkdir(comic_dir)
 
-    chapter_index = 1
     for c in comic_info.chapter_list:
-        # 配置下载路径
-        epub_name = make_filename_valid(bika_context.title) + "_%03d.epub" % bika_context.chapter[c.id]["order"]
-        epub_path = comic_dir + "/" + epub_name
-
         # 获取图片url列表
         image_urls = []
         for page in bika_context.chapter[c.id]["pages"]:
@@ -257,11 +260,10 @@ def download(bika_context, url, chapter=None):
 
         # 创建下载任务
         SESE_PRINT("\r\n正在下载第%d章" % c.id)
-        task_name = bika_context.title + "_%03d_" % bika_context.chapter[c.id]["order"] + bika_context.chapter[c.id]["title"]
-        ssreq.download_task(task_name, ssreq.download_epub_by_images, epub_path, image_urls, c.metadata)
+        comic_title = make_filename_valid(comic_info.title + "_%03d" % c.id)
+        task_name = comic_title
+        ssreq.download_task(task_name, ssreq.download_comic_capter, comic_dir, comic_title, image_urls, c)
 
         # 创建source.txt文件保存下载地址
         make_source_info_file(comic_dir, comic_info)
-
-        chapter_index = chapter_index + 1
 

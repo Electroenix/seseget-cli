@@ -41,14 +41,17 @@ def get_comic_info(url, comic_info):
     # 请求详情页
     response = ssreq.request("GET", url, headers=headers)
 
+    # 关键元素
     soup = BeautifulSoup(response.text, 'html.parser')
-
-    soup_bodywrap = soup.find('div', attrs={'id': 'bodywrap'})
-    comic_title = soup_bodywrap.find("h2").string
-    comic_cover_url = "https://" + soup_bodywrap.find("img").get("src").lstrip("/")
-
-    soup_info = soup_bodywrap.find("div", attrs={"class": "asTBcell uwconn"})
+    soup_userwrap = soup.find_all('div', attrs={'id': 'bodywrap'})[0]
+    soup_cc = soup.find_all('div', attrs={'id': 'bodywrap'})[1]
+    soup_info = soup_userwrap.find("div", attrs={"class": "asTBcell uwconn"})
     tag_soup_list = soup_info.find_all("a", attrs={"class": "tagshow"})
+    soup_uinfo = soup_userwrap.find("div", attrs={"class": "asTBcell uwuinfo"})
+    soup_date = soup_cc.find('div', text=re.compile(r"上傳於"))
+
+    comic_title = soup_userwrap.find("h2").string
+    comic_cover_url = "https://" + soup_userwrap.find("img").get("src").lstrip("/")
 
     comic_tag_list = []
     for t in tag_soup_list:
@@ -64,24 +67,27 @@ def get_comic_info(url, comic_info):
         comic_lang = "zh"
 
     comic_desc = re.search(r"(?<=<p>簡介：)[\s\S]*?(?=</p>)", str(soup_info)).group()
-
-    soup_uinfo = soup_bodywrap.find("div", attrs={"class": "asTBcell uwuinfo"})
     comic_author = soup_uinfo.find("p").string
+    date_match = re.search(r"(\d+)-(\d+)-(\d+)", soup_date.string)
 
     comic_chapter = ChapterInfo()
     comic_chapter.title = comic_title
     comic_chapter.id = 1
+    comic_chapter.metadata.series = comic_title
     comic_chapter.metadata.title = comic_title
+    comic_chapter.metadata.number = 1
     comic_chapter.metadata.language = comic_lang
     comic_chapter.metadata.creator = comic_author
     comic_chapter.metadata.subjects = comic_tag_list
     comic_chapter.metadata.description = comic_desc
-    comic_chapter.print_info()
+    comic_chapter.metadata.year = date_match.group(1)
+    comic_chapter.metadata.month = date_match.group(2)
+    comic_chapter.metadata.day = date_match.group(3)
 
     comic_info.view_url = url
     comic_info.cid = cid
     comic_info.cover = comic_cover_url
-    comic_info.series_title = comic_title
+    comic_info.title = comic_title
     comic_info.author = comic_author
     comic_info.genres = comic_tag_list
     comic_info.description = comic_desc
@@ -93,33 +99,25 @@ def download(url, chapter=None):
     comic_info = ComicInfo()
     get_comic_info(url, comic_info)
     comic_info.print_info()
-    SESE_PRINT("系列:%s" % comic_info.series_title)
-    SESE_PRINT("作者:%s" % comic_info.author)
-    SESE_PRINT("标签:%s" % comic_info.genres)
-    SESE_PRINT("获取到%d个章节" % len(comic_info.chapter_list))
 
     save_dir = path.wnacg_data_local_path
-    comic_dir = save_dir + "/" + make_filename_valid(comic_info.series_title)
+    comic_dir = save_dir + "/" + make_filename_valid(comic_info.title)
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
     if not os.path.exists(comic_dir):
         os.mkdir(comic_dir)
 
-    chapter_index = 1
     for c in comic_info.chapter_list:
-        epub_name = make_filename_valid(comic_info.series_title) + "_%03d.epub" % chapter_index
-        epub_path = comic_dir + "/" + epub_name
 
         image_urls = get_image_url_list(url)
 
         # 创建下载任务
         SESE_PRINT("\r\n正在下载第%d章" % c.id)
-        task_name = comic_info.series_title + "_%03d_" % chapter_index
-        ssreq.download_task(task_name, ssreq.download_epub_by_images, epub_path, image_urls, c.metadata)
+        comic_title = make_filename_valid(comic_info.title + "_%03d" % c.id)
+        task_name = comic_title
+        ssreq.download_task(task_name, ssreq.download_comic_capter, comic_dir, comic_title, image_urls, c)
 
         # 创建source.txt文件保存下载地址
         make_source_info_file(comic_dir, comic_info)
-
-        chapter_index = chapter_index + 1
 
 

@@ -1,13 +1,15 @@
+import os
 import sys
 import shutil
 import threading
+import zipfile
 
 from core.config.path import BASE_DIR
 from core.utils.trace import *
 from core.config.config_manager import config
 from core.utils.file_utils import make_filename_valid
 from core.utils.subprocess_utils import exec_cmd
-from core.metadata.comic import ComicInfo, ComicMetaData, update_metadate
+from core.metadata.comic import ComicInfo, ComicMetaData, update_epub_metadate, make_cbz_comic_info_xml
 from core.metadata.video import VideoInfo, VideoMetaData
 from core.metadata.vsmeta import *
 from core.metadata.nfo import *
@@ -49,15 +51,41 @@ def make_source_info_file(save_dir, resource_info):
             f.write(content.encode())
 
 
-def comic_to_epub(file_name: str, image_path: str, metadata: ComicMetaData):
+def make_cbz(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
     """
-    下载的漫画图片合成EPUB电子书文件
+    下载的漫画图片合成CBZ文件
     Args:
-        file_name: 合成的EPUB文件名，如”xxxx.epub“
+        save_dir: 漫画保存的目录路径
+        comic_title: 漫画名，基于此名字创建文件名
         image_path: 图片文件夹路径
         metadata: 漫画元数据对象
 
     """
+    file_name = save_dir + "/" + comic_title + ".cbz"
+    SESE_PRINT("打包图片为CBZ格式...")
+
+    make_cbz_comic_info_xml(image_path, metadata)
+    with zipfile.ZipFile(file_name, "w") as cbz:
+        for root, dirs, files in os.walk(image_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, image_path)
+                cbz.write(file_path, arcname)
+
+    SESE_PRINT("打包完成, 漫画保存在%s" % file_name)
+
+
+def make_epub(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
+    """
+    下载的漫画图片合成EPUB电子书文件
+    Args:
+        save_dir: 漫画保存的目录路径
+        comic_title: 漫画名，基于此名字创建文件名
+        image_path: 图片文件夹路径
+        metadata: 漫画元数据对象
+
+    """
+    file_name = save_dir + "/" + comic_title + ".epub"
     SESE_PRINT("kcc-c2e开始转换epub...")
 
     with kcc_lock:
@@ -66,10 +94,25 @@ def comic_to_epub(file_name: str, image_path: str, metadata: ComicMetaData):
                   "-f", "KFX", "-o", file_name, "-m", "--forcecolor", "-n"])
 
     # 更新epub中的metadata
-    update_metadate(file_name, file_name, metadata)
+    update_epub_metadate(file_name, file_name, metadata)
     SESE_PRINT("转换完成, 漫画保存在%s" % file_name)
 
-    # 删除图片文件夹
-    if not config["download"]["comic"]["leave_images"]:
-        shutil.rmtree(image_path)
-        SESE_PRINT('已删除图片缓存')
+
+def make_comic(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
+    comic_format = config["download"]["comic"]["format"]
+    try:
+        if comic_format.lower() == "epub".lower():
+            make_epub(save_dir, comic_title, image_path, metadata)
+        elif comic_format.lower() == "cbz".lower():
+            make_cbz(save_dir, comic_title, image_path, metadata)
+        else:
+            raise ValueError(f"Invalid comic format: {comic_format}! Please check your config.")
+
+    except Exception as e:
+        raise
+
+    finally:
+        # 删除图片文件夹
+        if not config["download"]["comic"]["leave_images"]:
+            shutil.rmtree(image_path)
+            SESE_PRINT('已删除图片缓存')

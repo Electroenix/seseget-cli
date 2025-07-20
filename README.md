@@ -113,7 +113,14 @@ bilibili还不支持用户名密码登录功能，如需登录，需要自己设
 "download": {
   "save_resource_info": false,      # true: 会在下载目录下生成source.txt文件保存下载资源的来源信息，false: 不生成source.txt
   "comic": {
-    "leave_images": false           # true: 漫画文件生成后保留下载的图片文件，false: 不保留图片
+    "leave_images": false,          # true: 漫画文件生成后保留下载的图片文件，false: 不保留图片
+    "format": "cbz"                 # 漫画文件保存格式，支持 ”cbz“, "epub"
+  },
+  "video": {
+    "metadata_file": {              # 视频元数据文件格式, 通过修改 true/false 控制是否保存此格式文件
+      "nfo": true,                  # 常用格式，支持emby识别
+      "vsmeta": false               # 支持群晖VideoStation识别
+    }
   }
 }
 ```
@@ -128,8 +135,7 @@ data                                # 下载目录
     └── artist                      # 作者目录
         └── video                   # 视频目录
             ├── video.mp4           # 视频文件
-            ├── video.mp4.vsmeta    # 群晖VideoStation的元数据文件
-            ├── video.nfo           # emby的元数据文件
+            ├── video.nfo           # 元数据文件
             ├── fanart.jpg          # 背景图片
             ├── poster.jpg          # 封面图片
             └── source.txt          # 下载来源信息
@@ -142,9 +148,10 @@ data                                # 下载目录
 data                                # 下载目录
 └── station                         # 站点目录
     └── comic                       # 漫画目录
-        ├── comic_001.epub          # 第一话
-        ├── comic_002.epub          # 第二话
+        ├── comic_001.cbz           # 第一话
+        ├── comic_002.cbz           # 第二话
             ...
-        └── comic_xxx.epub          # 第xxx话
+        ├── comic_xxx.cbz           # 第xxx话
+        └── source.txt              # 下载来源信息
 ```
 > - 将comic目录复制到媒体库，komga需要在应用内手动更新识别

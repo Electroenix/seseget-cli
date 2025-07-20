@@ -9,10 +9,12 @@ from curl_cffi import requests
 from urllib.parse import urlparse
 from typing import Dict, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from core.metadata.comic import ChapterInfo
 from core.utils.trace import *
 from core.request import downloadtask as dltask
 from core.request.downloadtask import TaskDLProgress, ProgressStatus
-from core.utils.file_process import comic_to_epub
+from core.utils.file_process import make_comic
 from core.config.config_manager import config
 from core.utils.file_utils import get_file_basename
 from core.utils.subprocess_utils import exec_cmd
@@ -363,23 +365,20 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
     return 0
 
 
-# 下载漫画
-# dir - 漫画保存目录
-#    目录结构
-#        |- dir/  漫画系列名
-#            |- series_title_001.epub  保存的epub格式的漫画
-#            |- series_title_002.epub
-#            |- series_title_xxx.epub
-#            |- chapter_title/  以章节名命名的文件夹，临时存放下载的图片，转换成epub格式后就会被删除
-#                |- 00001.jpg
-#                |- 00002.jpg
-#                |- xxxxx.jpg
-def download_epub_by_images(file_name, image_urls, metadata, progress: TaskDLProgress = None):
+def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: ChapterInfo, progress: TaskDLProgress = None):
+    """
+    下载漫画章节
+    Args:
+        save_dir: 漫画保存目录
+        comic_title: 漫画系列名
+        image_urls: 存放漫画图片的url列表
+        chapter: 存放章节信息的对象
+        progress: 控制下载进度的对象
+
+    """
     image_index = 1
     threads_list = []
-    comic_dir = os.path.dirname(file_name)
-    comic_title = os.path.splitext(file_name)[0].split("/")[-1]
-    image_temp_dir_path = comic_dir + "/" + comic_title
+    image_temp_dir_path = save_dir + "/" + comic_title  # 漫画图片的临时保存目录
 
     if not os.path.exists(image_temp_dir_path):
         os.mkdir(image_temp_dir_path)
@@ -417,8 +416,8 @@ def download_epub_by_images(file_name, image_urls, metadata, progress: TaskDLPro
     if progress:
         progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
-    # 下载完成，生成epub文件
-    comic_to_epub(file_name, image_temp_dir_path, metadata)
+    # 图片下载完成，打包成漫画文件
+    make_comic(save_dir, comic_title, image_temp_dir_path, chapter.metadata)
 
     if progress:
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
