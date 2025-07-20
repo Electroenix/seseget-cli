@@ -266,7 +266,8 @@ class SeseJmOption(JmOption):
         try:
             option.update_cookies(json.loads(config["jmcomic"]["login"]["cookie"]))
         except json.JSONDecodeError:
-            SESE_TRACE(LOG_WARNING, "load jmcomic cookie failed!")
+            # SESE_TRACE(LOG_WARNING, "load jmcomic cookie failed!")
+            pass
         # option.client['domain'] = ["18comic.vip"]
         # option.client['impl'] = "sese_jm_client"
         option.plugins['login'] = [{'plugin': 'login', 'kwargs': {'username': config["jmcomic"]["login"]["username"],

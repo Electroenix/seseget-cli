@@ -32,7 +32,7 @@ def make_video_metadata_file(save_dir, video_name, metadata: VideoMetaData):
 
 def make_source_info_file(save_dir, resource_info):
     """创建保存下载资源的来源信息的文件"""
-    if config["download"]["save_resource_info"]:
+    if config["download"]["save_source_info"]:
         content = ""
         if isinstance(resource_info, VideoInfo):
             content = content + 'video url: %s\r\n' % resource_info.view_url

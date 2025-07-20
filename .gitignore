@@ -207,7 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 # Custom
-/conf/conf.json
+/conf/conf.yaml
 /data
 /tmp
 *.bak

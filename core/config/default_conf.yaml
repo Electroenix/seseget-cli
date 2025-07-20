@@ -1,0 +1,46 @@
+# 全局配置
+common:
+  proxy:
+    # 设置代理地址
+    # 格式: [协议]://[主机]:[端口]
+    # 如 http://127.0.0.1:7890
+    address: ''
+    proxy_enable: false  # true:使用代理, false:不使用代理
+
+# 哔咔配置
+bika:
+  username: ''  # 用户名
+  password: ''  # 密码
+  # 以下为保存的cookie数据，无需修改
+  nonce: ''
+  token: ''
+
+# 禁漫配置
+jmcomic:
+  login:
+    username: ''  # 用户名
+    password: ''  # 密码
+    # 以下为保存的cookie数据，无需修改
+    cookie: ''
+
+# bilibili配置
+bilibili:
+  # B站cookie需要自己配置
+  cookie: ''
+
+# 下载配置
+download:
+  # true: 会在下载目录下生成source.txt文件保存下载资源的来源信息，false: 不生成source.txt
+  save_source_info: false
+
+  # 漫画下载配置
+  comic:
+    leave_images: false  # true: 保留下载的原始图片，false: 不保留图片
+    format: 'cbz'  # 漫画文件保存格式，支持 ”cbz“, "epub"
+
+  # 视频下载配置
+  video:
+    # 视频元数据文件格式, 通过修改 true/false 控制是否保存此格式文件
+    metadata_file:
+      nfo: true  # 常用格式，支持emby识别
+      vsmeta: false  # 支持群晖VideoStation识别

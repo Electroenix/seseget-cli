@@ -65,64 +65,66 @@ options:
 ```
 
 ## 配置
-初次运行脚本会生成```conf/conf.json```文件，修改文件中配置并保存，下次运行将会应用新的配置
+初次运行脚本会生成```conf/conf.yaml```文件，修改文件中配置并保存，下次运行将会应用新的配置
 ### 代理配置
 一些网站可能需要代理访问，可以在这里设置
-```text
-"common": {
-  "proxy": {
-    "address": "",           # 设置代理地址，如http://127.0.0.1:7890
-    "proxy_enable": false    # true:使用代理, false:不使用代理
-  }
-}
+```yaml
+common:
+  proxy:
+    # 设置代理地址
+    # 格式: [协议]://[主机]:[端口]
+    # 如 http://127.0.0.1:7890
+    address: ''
+    proxy_enable: false  # true:使用代理, false:不使用代理
 ```
 
 ### 哔咔配置
-哔咔需要登录才能下载，在```conf/conf.json```中设置用户名和密码
-```text
-"bika": {
-  "username": "",    # 用户名
-  "password": "",    # 密码
-  # 下面是cookie相关，登录后会自动保存
-  "nonce": "",
-  "token": ""
-},
+哔咔需要登录才能下载，在```conf/conf.yaml```中设置用户名和密码
+```yaml
+bika:
+  username: ''  # 用户名
+  password: ''  # 密码
+  # 以下为保存的cookie数据，无需修改
+  nonce: ''
+  token: ''
 ```
 
 ### JMcomic配置
-```text
-"jmcomic": {
-  "login": {
-    "username": "",    # 用户名
-    "password": "",    # 密码
-    "cookie": ""       # cookie，登录后自动保存
-  }
-},
+```yaml
+jmcomic:
+  login:
+    username: ''  # 用户名
+    password: ''  # 密码
+    # 以下为保存的cookie数据，无需修改
+    cookie: ''
+}
 ```
 
 ### bilibili配置
 bilibili还不支持用户名密码登录功能，如需登录，需要自己设置cookie
-```text
-"bilibili": {
-  "cookie": ""
-},
+```yaml
+bilibili:
+  # B站cookie需要自己配置
+  cookie: ''
 ```
 
 ### 下载配置
-```text
-"download": {
-  "save_resource_info": false,      # true: 会在下载目录下生成source.txt文件保存下载资源的来源信息，false: 不生成source.txt
-  "comic": {
-    "leave_images": false,          # true: 漫画文件生成后保留下载的图片文件，false: 不保留图片
-    "format": "cbz"                 # 漫画文件保存格式，支持 ”cbz“, "epub"
-  },
-  "video": {
-    "metadata_file": {              # 视频元数据文件格式, 通过修改 true/false 控制是否保存此格式文件
-      "nfo": true,                  # 常用格式，支持emby识别
-      "vsmeta": false               # 支持群晖VideoStation识别
-    }
-  }
-}
+```yaml
+download:
+  # true: 会在下载目录下生成source.txt文件保存下载资源的来源信息，false: 不生成source.txt
+  save_source_info: false
+
+  # 漫画下载配置
+  comic:
+    leave_images: false  # true: 保留下载的原始图片，false: 不保留图片
+    format: 'cbz'  # 漫画文件保存格式，支持 ”cbz“, "epub"
+
+  # 视频下载配置
+  video:
+    # 视频元数据文件格式, 通过修改 true/false 控制是否保存此格式文件
+    metadata_file:
+      nfo: true  # 常用格式，支持emby识别
+      vsmeta: false  # 支持群晖VideoStation识别
 ```
 
 ## 文件说明

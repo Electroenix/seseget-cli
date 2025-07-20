@@ -36,6 +36,7 @@ typing-extensions = "==4.12.2"
 urllib3 = "==2.3.0"
 yt-dlp = "*"
 colorama = "*"
+"ruamel.yaml" = "*"
 
 [dev-packages]
 pip-licenses = "*"

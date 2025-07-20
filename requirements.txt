@@ -10,7 +10,7 @@ commonx==0.6.37
 curl-cffi==0.10.0; python_version >= '3.9'
 distro==1.9.0; python_version >= '3.6'
 idna==3.10; python_version >= '3.6'
-jmcomic==2.6.0; python_version >= '3.7'
+jmcomic==2.6.2; python_version >= '3.7'
 lxml==5.3.1; python_version >= '3.6'
 mozjpeg-lossless-optimization==1.1.5
 natsort==8.4.0; python_version >= '3.7'
@@ -21,6 +21,8 @@ pycryptodome==3.22.0; python_version >= '2.7' and python_version not in '3.0, 3.
 python-slugify==8.0.4; python_version >= '3.7'
 pyyaml==6.0.2; python_version >= '3.8'
 requests==2.32.3; python_version >= '3.8'
+ruamel.yaml==0.18.14; python_version >= '3.8'
+ruamel.yaml.clib==0.2.12; python_version < '3.14' and platform_python_implementation == 'CPython'
 soupsieve==2.6; python_version >= '3.8'
 text-unidecode==1.3
 tqdm==4.67.1; python_version >= '3.7'
