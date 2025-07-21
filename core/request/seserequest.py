@@ -59,8 +59,23 @@ class SessionManager:
             # PRINTLOG("当前session列表：", list(self._sessions.keys()))
             return self._sessions[host]
 
-    def request(self, method: str, url: str, **kwargs) -> requests.Response:
+    def request(self, method: requests.HttpMethod, url: str, **kwargs) -> requests.Response:
         """发起请求，自动路由到对应主机的 Session"""
+        if "headers" not in kwargs:
+            kwargs["headers"] = copy.copy(ss_headers)
+        SESE_TRACE(LOG_DEBUG, f'headers: {kwargs["headers"]}')
+        if "proxies" not in kwargs:
+            proxy_config = config["common"]["proxy"]
+            if proxy_config["proxy_enable"] and proxy_config["address"]:
+                proxies = {
+                    "http": proxy_config["address"],
+                    "https": proxy_config["address"],
+                }
+                kwargs["proxies"] = copy.copy(proxies)
+        SESE_TRACE(LOG_DEBUG, f'proxy["{kwargs["proxies"]}"]')
+        if "impersonate" not in kwargs:
+            kwargs["impersonate"] = "chrome110"
+
         parsed_url = urlparse(url)
         host = parsed_url.netloc  # 提取主机名（如 'api.example.com'）
         session = self._get_session_for_host(host)
@@ -83,24 +98,20 @@ ss_session = SessionManager()
 
 
 def request(method, url, **kwargs):
-    """发送单个请求"""
-    if "headers" not in kwargs:
-        kwargs["headers"] = copy.copy(ss_headers)
-    if "proxies" not in kwargs:
-        proxy_config = config["common"]["proxy"]
-        if proxy_config["proxy_enable"] and proxy_config["address"]:
-            proxies = {
-                "http": proxy_config["address"],
-                "https": proxy_config["address"],
-            }
-            kwargs["proxies"] = copy.copy(proxies)
-            SESE_TRACE(LOG_DEBUG, f'proxy["{proxy_config["address"]}"]')
-    if "impersonate" not in kwargs:
-        kwargs["impersonate"] = "chrome110"
+    """
+    发送请求
+    Args:
+        method: 请求方法
+        url: 请求地址
+        **kwargs: 附加参数，将传递给实际发送请求的函数
 
-    retry_times = 0
+    Returns: 响应对象
+
+    """
     retry_max = 3
+    retry_times = 0
     response = None
+
     while True:
         try:
             response = ss_session.request(method, url, **kwargs)
@@ -119,67 +130,92 @@ def request(method, url, **kwargs):
     return response
 
 
-def _download_file(file_name, url, bar=False, auto_retry=True, retry_max=5,
-                   progress: TaskDLProgress = None, headers=None):
-    """下载单个文件"""
+def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = None, **kwargs):
+    """
+    下载单个文件
+    Args:
+        file_name: 文件名，完整路径
+        url: 下载地址
+        auto_retry: 下载异常时是否自动重试
+        progress: 控制下载进度的对象
+        **kwargs: 附加参数，将传递给实际发送请求的函数
+
+    """
+    retry_max = 3
     retry_times = 0
-    if headers is None:
-        headers = copy.copy(ss_headers)
 
     while True:
         try:
-            with open(file_name, 'ab') as f:
-                f_size = os.stat(file_name).st_size
+            f_size = 0
+            if os.path.exists(file_name):
+                f_size = os.path.getsize(file_name)
 
-                proxies = None
-                proxy_config = config["common"]["proxy"]
-                if proxy_config["proxy_enable"] and proxy_config["address"]:
-                    proxies = {
-                        "http": proxy_config["address"],
-                        "https": proxy_config["address"],
-                    }
-                    SESE_TRACE(LOG_DEBUG, f'proxy["{proxy_config["address"]}"]')
+            if f_size > 0:
+                # 如果本地已存在文件，设置从断点开始继续下载
+                if "headers" not in kwargs:
+                    kwargs["headers"] = copy.copy(ss_headers)
+                kwargs["headers"]['Range'] = 'bytes=%d-' % f_size
+            elif "headers" in kwargs and "Range" in kwargs["headers"]:
+                # 文件不存在但是设置了Range，则去除Range字段
+                kwargs["headers"].pop("Range")
 
-                response = ss_session.request("HEAD", url=url, headers=headers, stream=True, proxies=proxies)
+            response = ss_session.request("GET", url=url, stream=True, **kwargs)
 
-                if int(response.headers['Content-Length']) <= 0:
-                    SESE_TRACE(LOG_DEBUG, "资源Content-Length大小错误-%d" % int(response.headers['Content-Length']))
-                    return -1
-                if f_size == int(response.headers['Content-Length']):
-                    # 文件已存在，直接返回
-                    SESE_TRACE(LOG_DEBUG, "检测到文件(%s)已存在" % file_name)
-                    if progress is not None:
-                        progress.add_progress(file_name, total=f_size)
-                        progress.update(file_name, f_size)
-                    return 0
-                elif f_size > int(response.headers['Content-Length']):
-                    # 文件大小错误，删除文件
-                    SESE_TRACE(LOG_ERROR, "文件大小错误，删除文件(f_size:%d, Content-Length:%d)" %
-                               (f_size, int(response.headers['Content-Length'])))
-                    f.close()
+            total_size = 0
+            read_size = 0
+            file_mode = ''
+
+            try:
+                if response.status_code == 200:
+                    # 非续传模式或服务器不支持续传
+                    file_mode = 'wb'  # 覆盖模式
+                    SESE_TRACE(LOG_DEBUG, f"respone[200], Content-Length: {response.headers['Content-Length']}")
+                    total_size = int(response.headers['Content-Length'])
+
+                elif response.status_code == 206:
+                    # 续传模式
+                    file_mode = 'ab'  # 追加模式
+                    SESE_TRACE(LOG_DEBUG, f"respone[206], Content-Length: {response.headers['Content-Length']}")
+                    total_size = f_size + int(response.headers['Content-Length'])
+
+                elif response.status_code == 416:
+                    # 文件超出Range范围
+                    remote_file_size = int(response.headers['Content-Range'].split("/")[-1])
+                    if f_size == remote_file_size:
+                        # 文件已经完整，直接return
+                        SESE_TRACE(LOG_DEBUG, "检测到文件(%s)已存在" % file_name)
+                        if progress is not None:
+                            progress.add_progress(file_name, total=f_size)
+                            progress.update(file_name, f_size)
+                        response.close()
+                        return 0
+                    # 文件大小错误，删除文件并重试下载
+                    SESE_TRACE(LOG_ERROR, f"文件大小错误，删除文件重新下载，file: {file_name}, (f_size:{f_size}, remote_file_size:{remote_file_size})")
                     os.remove(file_name)
+                    response.close()
                     continue
 
-                # 设置从断点开始继续下载
-                headers['Range'] = 'bytes=%d-' % f_size
-
-                response = ss_session.request("GET", url=url, headers=headers, stream=True, proxies=proxies)
                 response.raise_for_status()
-
-                total_size = int(response.headers['Content-Length'])
-                read_size = 0
 
                 if progress is not None:
                     progress.add_progress(file_name, total=total_size)
 
-                # for data in response.iter_content(chunk_size=1024):
-                for data in response.iter_content():  # curl_cffi not accept chunk_size
-                    size = f.write(data)
-                    read_size = read_size + size
-                    if progress is not None:
-                        progress.update(file_name, size)
+                with open(file_name, file_mode) as f:
+                    # for data in response.iter_content(chunk_size=1024):
+                    for data in response.iter_content():  # curl_cffi not accept chunk_size
+                        size = f.write(data)
+                        read_size = read_size + size
+                        if progress is not None:
+                            progress.update(file_name, size)
 
-                break
+                    break
+
+            except Exception:
+                raise
+
+            finally:
+                response.close()
+
         except Exception as result:
             if auto_retry:
                 if retry_times < retry_max:
@@ -202,14 +238,11 @@ def _download_file(file_name, url, bar=False, auto_retry=True, retry_max=5,
 
 
 def _download_files(file_name_list: list[str], url_list: list[str],
-                    progress: TaskDLProgress = None, headers=None):
+                    progress: TaskDLProgress = None, **kwargs):
     """下载多个文件"""
     if len(file_name_list) != len(url_list):
         SESE_TRACE(LOG_ERROR, "文件与下载地址数量不匹配！")
         return -1
-
-    if headers is None:
-        headers = copy.copy(ss_headers)
 
     threads_list = []
     with ThreadPoolExecutor(max_workers=10) as pool:
@@ -219,7 +252,7 @@ def _download_files(file_name_list: list[str], url_list: list[str],
 
             # 创建下载任务
             threads_list.append(
-                pool.submit(_download_file, file_name, url, True, True, 5, progress, headers))
+                pool.submit(_download_file, file_name, url, True, progress, **kwargs))
 
             index = index + 1
 
@@ -247,7 +280,7 @@ def download_mp4(filename, url, progress: TaskDLProgress = None):
     progress.set_progress_count(1)
     progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
-    result = _download_file(filename, url, bar=True, progress=progress)
+    result = _download_file(filename, url, progress=progress)
 
     if result == 0:
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
@@ -339,7 +372,7 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
 
             # 加入下载线程
             ts_threads_list.append(
-                pool.submit(_download_file, 'ts_temp/%s' % f_ts_name, ts_url, False, True, 5, None, None))
+                pool.submit(_download_file, 'ts_temp/%s' % f_ts_name, ts_url, True, None))
 
             with open('ts_temp/ts_files_list.txt', 'a') as f_ts_files_list:
                 f_ts_files_list.write('file \'%s\'\r\n' % f_ts_name)
@@ -393,7 +426,7 @@ def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: 
             image_path = image_temp_dir_path + "/" + image_name
 
             # 加入下载线程
-            threads_list.append(pool.submit(_download_file, image_path, url, False, True, 5, progress, None))
+            threads_list.append(pool.submit(_download_file, image_path, url, True, progress))
             image_index = image_index + 1
 
         # 监测下载线程状态
