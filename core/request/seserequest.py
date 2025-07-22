@@ -7,6 +7,7 @@ import threading
 import copy
 from curl_cffi import requests
 from urllib.parse import urlparse
+from urllib.request import getproxies
 from typing import Dict, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -26,15 +27,7 @@ class SessionManager:
     def __init__(self):
         # 存储不同主机的 Session 对象 {host: Session}
         self._sessions: Dict[str, requests.Session] = {}
-        # 线程锁确保线程安全
         self._lock = threading.Lock()
-        # 各主机的预定义配置 {host: {config_key: value}}
-        self._host_configs: Dict[str, dict] = {}
-
-    def register_host_config(self, host: str, **config):
-        """为指定主机注册配置（如 headers、auth、proxies）"""
-        with self._lock:
-            self._host_configs[host] = config
 
     def _get_session_for_host(self, host: str) -> requests.Session:
         """获取或创建指定主机的 Session"""
@@ -42,21 +35,9 @@ class SessionManager:
             if host not in self._sessions:
                 # 创建新 Session 并应用配置
                 session = requests.Session()
-                # 应用预注册的主机配置
-                config = self._host_configs.get(host, {})
-                for key, value in config.items():
-                    if hasattr(session, key):
-                        setattr(session, key, value)
-                # 配置连接池（可按需调整）
-                # adapter = HTTPAdapter(
-                #     pool_connections=5,
-                #     pool_maxsize=10,
-                #     max_retries=3
-                # )
-                # session.mount('https://', adapter)
-                # session.mount('http://', adapter)
+
                 self._sessions[host] = session
-            # PRINTLOG("当前session列表：", list(self._sessions.keys()))
+            # SESE_PRINT(f"当前session列表：{list(self._sessions.keys())}")
             return self._sessions[host]
 
     def request(self, method: requests.HttpMethod, url: str, **kwargs) -> requests.Response:
@@ -66,20 +47,27 @@ class SessionManager:
         SESE_TRACE(LOG_DEBUG, f'headers: {kwargs["headers"]}')
         if "proxies" not in kwargs:
             proxy_config = config["common"]["proxy"]
-            if proxy_config["proxy_enable"] and proxy_config["address"]:
+            if proxy_config:
                 proxies = {
-                    "http": proxy_config["address"],
-                    "https": proxy_config["address"],
+                    "http": proxy_config,
+                    "https": proxy_config,
                 }
-                kwargs["proxies"] = copy.copy(proxies)
-        SESE_TRACE(LOG_DEBUG, f'proxy["{kwargs["proxies"]}"]')
+                kwargs["proxies"] = proxies
+            else:
+                sys_proxies = getproxies()
+                proxies = {
+                    "http": sys_proxies.get("http"),
+                    "https": sys_proxies.get("https"),
+                }
+                kwargs["proxies"] = proxies
+            SESE_TRACE(LOG_DEBUG, f'proxy: {kwargs["proxies"]}')
         if "impersonate" not in kwargs:
             kwargs["impersonate"] = "chrome110"
 
         parsed_url = urlparse(url)
         host = parsed_url.netloc  # 提取主机名（如 'api.example.com'）
         session = self._get_session_for_host(host)
-        # 发起请求（可在此处添加统一异常处理）
+
         return session.request(method, url, **kwargs)
 
     def close_all(self):
@@ -219,20 +207,20 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
         except Exception as result:
             if auto_retry:
                 if retry_times < retry_max:
-                    SESE_TRACE(LOG_ERROR, 'Error! info: %s' % result)
-                    SESE_PRINT("GET %s Failed, Retry(%d)..." % (url, retry_times))
+                    SESE_TRACE(LOG_DEBUG, 'Error! info: %s' % result)
+                    SESE_TRACE(LOG_DEBUG, "GET %s Failed, Retry(%d)..." % (url, retry_times))
                     retry_times = retry_times + 1
                     time.sleep(5)
                     continue
                 else:
-                    return -1
+                    raise
             else:
                 SESE_TRACE(LOG_ERROR, 'Error! info: %s' % result)
                 retry = input('下载失败，是否重新下载(y/n)')
                 if retry == 'y':
                     continue
                 else:
-                    return -1
+                    raise
 
     return 0
 
@@ -258,12 +246,18 @@ def _download_files(file_name_list: list[str], url_list: list[str],
 
         SESE_PRINT("已提交所有下载任务！")
 
-        while True:
-            # 检查所有任务是否完成
-            all_done = all(future.done() for future in threads_list)
-            if all_done:
-                break
-            time.sleep(1)
+        try:
+            for thread in as_completed(threads_list):
+                exception = thread.exception()
+                if exception:
+                    raise exception
+
+        except Exception as e:
+            SESE_TRACE(LOG_ERROR, f"下载失败！info: {e}")
+            for f in threads_list:
+                f.cancel()
+            pool.shutdown(wait=False, cancel_futures=True)
+            raise
 
     SESE_PRINT("全部文件下载完成！")
     return 0
@@ -377,13 +371,20 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
             with open('ts_temp/ts_files_list.txt', 'a') as f_ts_files_list:
                 f_ts_files_list.write('file \'%s\'\r\n' % f_ts_name)
 
-        # 监测下载线程状态
-        totle_cnt = len(ts_threads_list)
-        finish_cnt = 0
+        try:
+            for thread in as_completed(ts_threads_list):
+                exception = thread.exception()
+                if exception:
+                    raise exception
 
-        for thread in as_completed(ts_threads_list):
-            finish_cnt = finish_cnt + 1
-            SESE_PRINT('下载ts文件中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
+        except Exception as e:
+            SESE_TRACE(LOG_ERROR, f"下载失败！info: {e}")
+            if progress:
+                progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+            for f in ts_threads_list:
+                f.cancel()
+            pool.shutdown(wait=False, cancel_futures=True)
+            raise
 
     SESE_PRINT('下载完成!')
     if progress:
@@ -429,23 +430,22 @@ def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: 
             threads_list.append(pool.submit(_download_file, image_path, url, True, progress))
             image_index = image_index + 1
 
-        # 监测下载线程状态
-        totle_cnt = len(threads_list)
-        finish_cnt = 0
+        try:
+            for thread in as_completed(threads_list):
+                exception = thread.exception()
+                if exception:
+                    raise exception
 
-        for thread in as_completed(threads_list):
-            if thread.result() == 0:
-                finish_cnt = finish_cnt + 1
-            # SESE_PRINT("%03d/%03d" % (finish_cnt, totle_cnt), end="\n")
+        except Exception as e:
+            SESE_TRACE(LOG_ERROR, f"下载失败！info: {e}")
+            if progress:
+                progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+            for f in threads_list:
+                f.cancel()
+            pool.shutdown(wait=False, cancel_futures=True)
+            raise
 
-    if finish_cnt == totle_cnt:
-        SESE_PRINT("下载完成！")
-    else:
-        SESE_PRINT("下载失败！")
-        if progress:
-            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
-        return
-
+    SESE_PRINT("下载完成！")
     if progress:
         progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
