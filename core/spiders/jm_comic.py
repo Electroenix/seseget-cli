@@ -311,14 +311,10 @@ def get_comic_info(url, comic_info):
     jm_login()
     client = jm_option.new_jm_client(impl=JmHtmlClient)
     response = client.get_jm_html(url)
-
-    html_encode = re.search(r"const html = base64DecodeUtf8\(\"([\s\S].*?)\"\);", response.text).group(1)
-    html = base64.b64decode(html_encode).decode()
-    soup = BeautifulSoup(html, 'html.parser')
+    soup = BeautifulSoup(response.text, 'html.parser')
 
     # 关键元素
-    container = soup.find('div', attrs={'class': 'container'})
-    panel_body = container.find_all('div', attrs={'class': 'panel-body'})[1]
+    panel_body = soup.find_all('div', attrs={'class': 'panel-body'})[1]
     cover_soup = panel_body.find("div", attrs={"id": "album_photo_cover"}).find("img", attrs={"itemprop": "image"})
     web_tags_tag_list = panel_body.find("span", attrs={"data-type": "tags"}).find_all("a", attrs={"name": "vote_"})
     author_soup = panel_body.find("span", attrs={"data-type": "author"}).find_all("a")

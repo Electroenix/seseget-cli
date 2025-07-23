@@ -21,11 +21,11 @@ kcc_lock = threading.Lock()  # 避免KCC运行时冲突
 def make_video_metadata_file(save_dir, video_name, metadata: VideoMetaData):
     metadata_file = config["download"]["video"]["metadata_file"]
 
-    if metadata_file["nfo"]:
+    if "nfo" in metadata_file:
         nfo_path = save_dir + '/' + make_filename_valid('%s.nfo' % video_name)  # nfo文件保存路径
         make_nfo_file(nfo_path, metadata)
 
-    if metadata_file["vsmeta"]:
+    if "vsmeta" in metadata_file:
         vsmeta_path = save_dir + '/' + make_filename_valid('%s.mp4.vsmeta' % video_name)  # vsmeta文件保存路径
         make_vsmeta_file(vsmeta_path, metadata)
 
@@ -101,12 +101,11 @@ def make_epub(save_dir: str, comic_title: str, image_path: str, metadata: ComicM
 def make_comic(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
     comic_format = config["download"]["comic"]["format"]
     try:
-        if comic_format.lower() == "epub".lower():
+        if "epub" in comic_format:
             make_epub(save_dir, comic_title, image_path, metadata)
-        elif comic_format.lower() == "cbz".lower():
+
+        if "cbz" in comic_format:
             make_cbz(save_dir, comic_title, image_path, metadata)
-        else:
-            raise ValueError(f"Invalid comic format: {comic_format}! Please check your config.")
 
     except Exception as e:
         raise

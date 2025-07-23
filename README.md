@@ -72,29 +72,28 @@ common:
   # 设置代理地址, 默认使用系统代理
   # 格式: [协议]://[主机]:[端口]
   # 如 http://127.0.0.1:7890
-  proxy: ''
+  proxy: ""
 ```
 
 ### 哔咔配置
 哔咔需要登录才能下载，在```conf/conf.yaml```中设置用户名和密码
 ```yaml
 bika:
-  username: ''  # 用户名
-  password: ''  # 密码
+  username: ""  # 用户名
+  password: ""  # 密码
   # 以下为保存的cookie数据，无需修改
-  nonce: ''
-  token: ''
+  nonce: ""
+  token: ""
 ```
 
 ### JMcomic配置
 ```yaml
 jmcomic:
   login:
-    username: ''  # 用户名
-    password: ''  # 密码
+    username: ""  # 用户名
+    password: ""  # 密码
     # 以下为保存的cookie数据，无需修改
-    cookie: ''
-}
+    cookie: ""
 ```
 
 ### bilibili配置
@@ -102,7 +101,7 @@ bilibili还不支持用户名密码登录功能，如需登录，需要自己设
 ```yaml
 bilibili:
   # B站cookie需要自己配置
-  cookie: ''
+  cookie: ""
 ```
 
 ### 下载配置
@@ -113,15 +112,19 @@ download:
 
   # 漫画下载配置
   comic:
-    leave_images: false  # true: 保留下载的原始图片，false: 不保留图片
-    format: 'cbz'  # 漫画文件保存格式，支持 ”cbz“, "epub"
+    # true: 保留下载的原始图片，false: 不保留图片
+    leave_images: false
+    # 漫画文件保存格式
+    format:
+    - cbz
+    #- epub
 
   # 视频下载配置
   video:
-    # 视频元数据文件格式, 通过修改 true/false 控制是否保存此格式文件
+    # 视频元数据文件格式
     metadata_file:
-      nfo: true  # 常用格式，支持emby识别
-      vsmeta: false  # 支持群晖VideoStation识别
+    - nfo    # 常用格式，支持emby识别
+    #- vsmeta    # 支持群晖VideoStation识别
 ```
 
 ## 文件说明
