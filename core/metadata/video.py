@@ -18,13 +18,14 @@ class VideoMetaData:
 class VideoInfo:
     def __init__(self):
         self.vid = ""
-        self.name = ""
-        self.view_url = ""
-        self.download_url = ""
-        self.cover_url = ""
-        self.thumbnail_url = ""
-        self.metadata = VideoMetaData()
-        self.series_info = []
+        self.name = ""              # 视频标题
+        self.view_url = ""          # 网页地址
+        self.download_url = ""      # 下载地址
+        self.cover_url = ""         # 封面地址
+        self.thumbnail_url = ""     # 缩略图地址
+        self.metadata = VideoMetaData()     # 元数据
+        self.series_info = []       # 系列视频信息
+        self.video_dir = ""         # 本地保存目录
 
 
 class VideoInfoCache:

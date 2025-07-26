@@ -1,8 +1,4 @@
-STATION = {
-    "bika": "bika",             # 哔咔
-    "hanime": "hanime",         # hanime.me
-    "wnacg": "wnacg",           # 绅士漫画
-    "bilibili": "bilibili",     # 哔哩哔哩
-    "youtube": "youtube",       # 油管
-    "jmcomic": "jmcomic",       # 禁漫天堂
-}
+
+
+# 包含所有站点Fetcher的包，注册器会注册其中可注册的所有Fetcher类
+sites_fetcher_package = "core.spiders"

@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from common import Postman
 from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, JmApiClient, catch_exception, JmImageDetail, jm_log
 from core.metadata.comic import ChapterInfo, ComicInfo
+from core.request.fetcher import FetcherRegistry, ComicFetcher
 from core.utils.file_process import make_comic
 from core.request import seserequest as ssreq
 from core.config import path
@@ -257,6 +258,7 @@ class SeseJmDownloader(JmDownloader):
 
 class SeseJmOption(JmOption):
     """自定义JmOption, 修改部分默认配置"""
+
     def __init__(self, dir_rule: Dict, download: Dict, client: Dict, plugins: Dict):
         super().__init__(dir_rule, download, client, plugins)
 
@@ -284,143 +286,140 @@ jmcomic.JmModuleConfig.CLASS_DOWNLOADER = SeseJmDownloader
 jmcomic.JmModuleConfig.EXECUTOR_LOG = seseJmLog
 jmcomic.JmModuleConfig.CLASS_OPTION = SeseJmOption
 jmcomic.JmModuleConfig.register_client(SeseJmClient)
-jm_option = jmcomic.JmModuleConfig.option_class().default()
 
 
-def jm_login():
-    try:
-        if config["jmcomic"]["login"]["username"] and config["jmcomic"]["login"]["password"]:
-            jm_option.call_all_plugin("login")
-            cookie = jm_option.client.src_dict["postman"]["meta_data"]["cookies"]
-            if cookie:
-                config["jmcomic"]["login"]["cookie"] = json.dumps(cookie)
-    except Exception as result:
-        SESE_TRACE(LOG_WARNING, f"JM登录失败, info: {result}")
+@FetcherRegistry.register("jmcomic")
+class JmComicFetcher(ComicFetcher):
+    station_dir = path.jmcomic_data_local_path
 
+    def __init__(self):
+        self.jm_option = jmcomic.JmModuleConfig.option_class().default()
 
-def get_comic_info(url, comic_info):
-    cid = ""
-    match = re.search(r"(?:album|photo)/(\d+)", url)
-    if match:
-        cid = match.group(1)
+    def jm_login(self):
+        try:
+            if config["jmcomic"]["login"]["username"] and config["jmcomic"]["login"]["password"]:
+                self.jm_option.call_all_plugin("login")
+                cookie = self.jm_option.client.src_dict["postman"]["meta_data"]["cookies"]
+                if cookie:
+                    config["jmcomic"]["login"]["cookie"] = json.dumps(cookie)
+        except Exception as result:
+            SESE_TRACE(LOG_WARNING, f"JM登录失败, info: {result}")
 
-    # 生成详情页url
-    url = f"/album/{cid}"
+    def get_info(self, url, **kwargs) -> ComicInfo:
+        cid = ""
+        match = re.search(r"(?:album|photo)/(\d+)", url)
+        if match:
+            cid = match.group(1)
 
-    # 请求详情页
-    jm_login()
-    client = jm_option.new_jm_client(impl=JmHtmlClient)
-    response = client.get_jm_html(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
+        # 生成详情页url
+        url = f"/album/{cid}"
 
-    # 关键元素
-    panel_body = soup.find_all('div', attrs={'class': 'panel-body'})[1]
-    cover_soup = panel_body.find("div", attrs={"id": "album_photo_cover"}).find("img", attrs={"itemprop": "image"})
-    web_tags_tag_list = panel_body.find("span", attrs={"data-type": "tags"}).find_all("a", attrs={"name": "vote_"})
-    author_soup = panel_body.find("span", attrs={"data-type": "author"}).find_all("a")
-    descrip_soup = panel_body.find("h2", text=re.compile(r"叙述："))
-    date_published_soup = panel_body.find("span", attrs={"itemprop": "datePublished"}, text=re.compile(r"上架日期"))
+        # 请求详情页
+        self.jm_login()
+        client = self.jm_option.new_jm_client(impl=JmHtmlClient)
+        response = client.get_jm_html(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-    comic_title = soup.find("h1").string
-    comic_cover_url = cover_soup.get("src")
-    authors = []
-    for author_element in author_soup:
-        authors.append(author_element.string)
-    comic_author = " & ".join(authors)
-    comic_desc = descrip_soup.string.lstrip().removeprefix("叙述：")
-    comic_date = date_published_soup.get("content")
-    date_match = re.search(r"^(\d+?)-(\d+?)-(\d+?)$", comic_date)
+        # 关键元素
+        panel_body = soup.find_all('div', attrs={'class': 'panel-body'})[1]
+        cover_soup = panel_body.find("div", attrs={"id": "album_photo_cover"}).find("img", attrs={"itemprop": "image"})
+        web_tags_tag_list = panel_body.find("span", attrs={"data-type": "tags"}).find_all("a", attrs={"name": "vote_"})
+        author_soup = panel_body.find("span", attrs={"data-type": "author"}).find_all("a")
+        descrip_soup = panel_body.find("h2", text=re.compile(r"叙述："))
+        date_published_soup = panel_body.find("span", attrs={"itemprop": "datePublished"}, text=re.compile(r"上架日期"))
 
-    comic_tag_list = []
-    for t in web_tags_tag_list:
-        comic_tag_list.append(t.string)
+        comic_title = soup.find("h1").string
+        comic_cover_url = cover_soup.get("src")
+        authors = []
+        for author_element in author_soup:
+            authors.append(author_element.string)
+        comic_author = " & ".join(authors)
+        comic_desc = descrip_soup.string.lstrip().removeprefix("叙述：")
+        comic_date = date_published_soup.get("content")
+        date_match = re.search(r"^(\d+?)-(\d+?)-(\d+?)$", comic_date)
 
-    comic_lang = "zh"
-    if "中文" in comic_tag_list:
+        comic_tag_list = []
+        for t in web_tags_tag_list:
+            comic_tag_list.append(t.string)
+
         comic_lang = "zh"
-    elif "日文" in comic_tag_list:
-        comic_lang = "ja"
-    elif "英文" in comic_tag_list:
-        comic_lang = "en"
+        if "中文" in comic_tag_list:
+            comic_lang = "zh"
+        elif "日文" in comic_tag_list:
+            comic_lang = "ja"
+        elif "英文" in comic_tag_list:
+            comic_lang = "en"
 
-    comic_chapter = ChapterInfo()
-    comic_chapter.title = comic_title
-    comic_chapter.id = 1
-    comic_chapter.metadata.series = comic_title
-    comic_chapter.metadata.title = comic_title
-    comic_chapter.metadata.number = 1
-    comic_chapter.metadata.language = comic_lang
-    comic_chapter.metadata.creator = comic_author
-    comic_chapter.metadata.subjects = comic_tag_list
-    comic_chapter.metadata.description = comic_desc
-    comic_chapter.metadata.year = date_match.group(1)
-    comic_chapter.metadata.month = date_match.group(2)
-    comic_chapter.metadata.day = date_match.group(3)
+        comic_info = ComicInfo()
+        comic_info.view_url = url
+        comic_info.cid = cid
+        comic_info.cover = comic_cover_url
+        comic_info.title = comic_title
+        comic_info.author = comic_author
+        comic_info.genres = comic_tag_list
+        comic_info.description = comic_desc
 
-    comic_info.view_url = url
-    comic_info.cid = cid
-    comic_info.cover = comic_cover_url
-    comic_info.title = comic_title
-    comic_info.author = comic_author
-    comic_info.genres = comic_tag_list
-    comic_info.description = comic_desc
-    comic_info.chapter_list.append(comic_chapter)
+        comic_chapter = ChapterInfo()
+        comic_chapter.title = comic_title
+        comic_chapter.id = 1
+        comic_chapter.metadata.series = comic_title
+        comic_chapter.metadata.title = comic_title
+        comic_chapter.metadata.number = 1
+        comic_chapter.metadata.language = comic_lang
+        comic_chapter.metadata.creator = comic_author
+        comic_chapter.metadata.subjects = comic_tag_list
+        comic_chapter.metadata.description = comic_desc
+        comic_chapter.metadata.year = date_match.group(1)
+        comic_chapter.metadata.month = date_match.group(2)
+        comic_chapter.metadata.day = date_match.group(3)
+        comic_chapter.comic_info = comic_info
 
+        comic_info.chapter_list.append(comic_chapter)
 
-def download_jmcomic(save_dir: str, comic_title: str, url: str, chapter: ChapterInfo, progress: TaskDLProgress = None):
-    cid = ""
-    match = re.search(r"(?:album|photo)/(\d+)", url)
-    if match:
-        cid = match.group(1)
+        return comic_info
 
-    image_temp_dir_path = save_dir + "/" + comic_title
+    def download_jmcomic(self, save_dir: str, comic_title: str, url: str, chapter: ChapterInfo,
+                         progress: TaskDLProgress = None):
+        cid = ""
+        match = re.search(r"(?:album|photo)/(\d+)", url)
+        if match:
+            cid = match.group(1)
 
-    if not os.path.exists(image_temp_dir_path):
-        os.mkdir(image_temp_dir_path)
+        image_temp_dir_path = save_dir + "/" + comic_title
 
-    if progress:
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
+        if not os.path.exists(image_temp_dir_path):
+            os.mkdir(image_temp_dir_path)
 
-    # 创建option
-    jm_option.dir_rule = DirRule("Bd", image_temp_dir_path)
+        if progress:
+            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
-    # 创建downloader并下载
-    downloader = SeseJmDownloader(jm_option, progress)  # 传递进度回调给downloader
-    # print("int(cid):", int(cid))
-    downloader.download_album(int(cid))
-    if downloader.has_download_failures:
-        SESE_TRACE(LOG_ERROR, "JM下载失败！")
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
-        return
+        # 创建option
+        self.jm_option.dir_rule = DirRule("Bd", image_temp_dir_path)
 
-    if progress:
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
+        # 创建downloader并下载
+        downloader = SeseJmDownloader(self.jm_option, progress)  # 传递进度回调给downloader
+        # print("int(cid):", int(cid))
+        downloader.download_album(int(cid))
+        if downloader.has_download_failures:
+            SESE_TRACE(LOG_ERROR, "JM下载失败！")
+            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+            return
 
-    # 下载完成，生成epub文件
-    make_comic(save_dir, comic_title, image_temp_dir_path, chapter.metadata)
+        if progress:
+            progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
-    if progress:
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+        # 下载完成，生成漫画文件
+        make_comic(save_dir, comic_title, image_temp_dir_path, chapter.metadata)
 
+        if progress:
+            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
-def download(url):
-    comic_info = ComicInfo()
-    get_comic_info(url, comic_info)
-    comic_info.print_info()
+    def _start_download(self, chapter: ChapterInfo):
+        comic_info = chapter.comic_info
 
-    save_dir = path.jmcomic_data_local_path
-    comic_dir = save_dir + "/" + make_filename_valid(comic_info.title)
-    if not os.path.exists(save_dir):
-        os.mkdir(save_dir)
-    if not os.path.exists(comic_dir):
-        os.mkdir(comic_dir)
-
-    for c in comic_info.chapter_list:
         # 创建下载任务
-        SESE_PRINT("\r\n正在下载第%d章" % c.id)
-        comic_title = comic_info.title + "_%03d" % c.id
+        SESE_PRINT("\r\n正在下载第%d章" % chapter.id)
+        comic_title = comic_info.title + "_%03d" % chapter.id
         task_name = comic_title
-        ssreq.download_task(task_name, download_jmcomic, comic_dir, comic_title, url, c)
-
-        # 创建source.txt文件保存下载地址
-        make_source_info_file(comic_dir, comic_info)
+        ssreq.download_task(task_name, self.download_jmcomic,
+                            comic_info.comic_dir, comic_title, comic_info.view_url, chapter)

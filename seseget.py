@@ -1,17 +1,12 @@
 import argparse
 
 from core.config import init
-from core.spiders import bika
-from core.spiders import hanime
-from core.spiders import wnacg
-from core.spiders import bilibili
-from core.spiders import youtube
-from core.spiders import jm_comic
-from core.config.settings import STATION
+from core.config import settings
 from core.utils.trace import *
 from core.request.downloadtask import download_manager
+from core.request.fetcher import FetcherRegistry
 
-
+FetcherRegistry.discover(settings.sites_fetcher_package)
 if __name__ == "__main__":
     paser = argparse.ArgumentParser()
     paser.add_argument("url", nargs="+", help="url，可接受多个url")
@@ -23,23 +18,13 @@ if __name__ == "__main__":
     station = args.station
 
     for url in urls:
-        if station == STATION["bika"]:
-            chapter = []
+        fetcher = FetcherRegistry.get_fetcher(station)
+        if station == "bika":
+            chapter = None
             if args.chapter:
                 chapter = args.chapter.split(",")
-            bika_context = bika.create_context()
-            bika.download(bika_context, url, chapter)
-        elif station == STATION["hanime"]:
-            hanime.download(url)
-        elif station == STATION["wnacg"]:
-            wnacg.download(url)
-        elif station == STATION["bilibili"]:
-            bilibili.download(url)
-        elif station == STATION["youtube"]:
-            youtube.download(url)
-        elif station == STATION["jmcomic"]:
-            jm_comic.download(url)
+            fetcher.download(url, chapter_id_list=chapter)
         else:
-            SESE_PRINT(f"unknown station: {station}")
+            fetcher.download(url)
 
     download_manager.wait_finish()

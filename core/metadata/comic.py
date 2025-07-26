@@ -29,6 +29,8 @@ class ChapterInfo:
         self.title = ""  # 章节名
         self.id = 0
         self.metadata = ComicMetaData()
+        self.image_urls: list[str] = []     # 漫画图片url列表
+        self.comic_info: ComicInfo = None   # 所属的ComicInfo对象, 下载时会引用，务必赋值
 
     
 class ComicInfo:
@@ -42,6 +44,7 @@ class ComicInfo:
         self.genres = []  # 标签
         self.description = ""
         self.chapter_list: list[ChapterInfo] = []  # 漫画列表，可能有多个章节，以列表形式存储
+        self.comic_dir = ""     # 本地保存目录
 
     def print_info(self):
         print(f"cid: {self.cid}")
