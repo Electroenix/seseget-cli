@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Dict, Type, Optional, List
+from typing import Dict, Type, Optional
 
 from core.metadata.comic import ComicInfo, ChapterInfo
 from core.metadata.video import VideoInfo, VideoInfoCache
@@ -40,7 +40,7 @@ class AbstractFetcher(ABC):
 
 class VideoFetcher(AbstractFetcher):
     """视频抓取器基类，已实现视频下载标准流程，子类需要实现get_info函数获取必须的视频信息"""
-    station_dir = ""  # 站点目录，需要在子类中指定目录
+    site_dir = ""  # 站点目录，需要在子类中指定目录
 
     def __init__(self):
         self.video_info_cache = VideoInfoCache(10)
@@ -48,7 +48,7 @@ class VideoFetcher(AbstractFetcher):
     def _make_save_dir(self, video_info: VideoInfo):
         # 视频下载目录说明
         # data  # 下载目录
-        # └── station  # 站点目录
+        # └── site  # 站点目录
         #     └── artist  # 作者目录
         #         └── video  # 视频目录
         #             ├── video.mp4  # 视频文件
@@ -56,17 +56,17 @@ class VideoFetcher(AbstractFetcher):
         #             ├── fanart.jpg  # 背景图片
         #             ├── poster.jpg  # 封面图片
         #             └── source.txt  # 下载来源信息
-        if not self.station_dir:
+        if not self.site_dir:
             raise ValueError("未指定下载目录!")
 
-        artist_dir = self.__class__.station_dir + '%s' % make_filename_valid(video_info.metadata.artist)  # 中间目录，主要用来分类同一个作者的作品
+        artist_dir = self.__class__.site_dir + '%s' % make_filename_valid(video_info.metadata.artist)  # 中间目录，主要用来分类同一个作者的作品
         video_info.video_dir = '%s/%s' % (artist_dir, make_filename_valid(video_info.name))  # 下载目录，以视频名命名
 
         # 如果目录已经存在，生成不同的目录名，避免视频名相同导致被覆盖
         video_info.video_dir = make_diff_dir_name(video_info.video_dir)
 
-        if not os.path.exists(self.__class__.station_dir):
-            os.mkdir(self.__class__.station_dir)
+        if not os.path.exists(self.__class__.site_dir):
+            os.mkdir(self.__class__.site_dir)
         if not os.path.exists(artist_dir):
             os.mkdir(artist_dir)
         if not os.path.exists(video_info.video_dir):
@@ -103,6 +103,7 @@ class VideoFetcher(AbstractFetcher):
     def download(self, url, **kwargs):
         # 获取视频信息
         video_info = self.get_info(url)
+        video_info.print_info()
 
         # 创建目录
         self._make_save_dir(video_info)
@@ -119,12 +120,12 @@ class VideoFetcher(AbstractFetcher):
 
 class ComicFetcher(AbstractFetcher):
     """漫画抓取器基类，已实现漫画下载标准流程，子类需要实现get_info函数获取必须的漫画信息"""
-    station_dir = ""  # 站点目录，需要在子类中指定目录
+    site_dir = ""  # 站点目录，需要在子类中指定目录
 
     def _make_save_path(self, comic_info: ComicInfo):
         # 漫画下载目录说明
         # data  # 下载目录
-        # └── station  # 站点目录
+        # └── site  # 站点目录
         #     └── comic  # 漫画目录
         #         ├── comic_001.cbz  # 第一话
         #         ├── comic_002.cbz  # 第二话
@@ -132,10 +133,10 @@ class ComicFetcher(AbstractFetcher):
         #
         #         ├── comic_xxx.cbz  # 第xxx话
         #         └── source.txt  # 下载来源信息
-        if not self.station_dir:
+        if not self.site_dir:
             raise ValueError("未指定下载目录!")
 
-        comic_info.comic_dir = self.station_dir + "/" + make_filename_valid(comic_info.title)
+        comic_info.comic_dir = self.site_dir + "/" + make_filename_valid(comic_info.title)
 
         # 如果目录已经存在，生成不同的目录名，避免视频名相同导致被覆盖
         comic_info.comic_dir = make_diff_dir_name(comic_info.comic_dir)
@@ -146,7 +147,7 @@ class ComicFetcher(AbstractFetcher):
         comic_info = chapter.comic_info
 
         # 创建下载任务
-        SESE_PRINT("\r\n正在下载第%d章" % chapter.id)
+        SESE_PRINT("正在下载第%d章" % chapter.id)
         comic_title = make_filename_valid(comic_info.title + "_%03d" % chapter.id)
         task_name = comic_title
         ssreq.download_task(task_name, ssreq.download_comic_capter,

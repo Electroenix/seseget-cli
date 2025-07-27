@@ -17,10 +17,20 @@ class YtbVideoInfo(VideoInfo):
         self.video_view = ""
         self.video_like = ""
 
+    def print_info(self):
+        SESE_PRINT(f"vid: {self.vid}")
+        SESE_PRINT(f"标题: {self.metadata.title}")
+        SESE_PRINT(f"简介: {self.metadata.describe}")
+        SESE_PRINT(f"作者: {self.metadata.artist}")
+        SESE_PRINT(f"日期: {self.metadata.public_time}")
+        SESE_PRINT(f"标签: {self.metadata.tag_list}")
+        SESE_PRINT(f"播放: {self.video_view}")
+        SESE_PRINT(f"点赞: {self.video_like}")
+
 
 @FetcherRegistry.register("youtube")
 class YoutubeFetcher(VideoFetcher):
-    station_dir = core.config.path.youtube_data_local_path + "/"
+    site_dir = core.config.path.youtube_data_local_path + "/"
     GET_INFO_BY_HTML = 1
 
     @staticmethod
@@ -49,14 +59,6 @@ class YoutubeFetcher(VideoFetcher):
         video_tags = [json_data['microformat']['playerMicroformatRenderer']['category'], json_data['microformat']['playerMicroformatRenderer']['ownerChannelName']]
 
         video_view = json_data['microformat']['playerMicroformatRenderer']['viewCount']  # 播放量
-
-        SESE_PRINT(f"vid: {vid}")
-        SESE_PRINT(f"标题: {video_title}")
-        SESE_PRINT(f"简介: {video_descript}")
-        SESE_PRINT(f"作者: {video_author}")
-        SESE_PRINT(f"日期: {video_date}")
-        SESE_PRINT(f"标签: {video_tags}")
-        SESE_PRINT(f"播放: {video_view}")
 
         # 元数据
         metadata = VideoMetaData()
@@ -115,15 +117,6 @@ class YoutubeFetcher(VideoFetcher):
 
         video_view = str(info["view_count"])  # 播放量
         video_like = str(info["like_count"])  # 点赞
-
-        SESE_PRINT(f"vid: {vid}")
-        SESE_PRINT(f"标题: {video_title}")
-        SESE_PRINT(f"简介: {video_descript}")
-        SESE_PRINT(f"作者: {video_author}")
-        SESE_PRINT(f"日期: {video_date}")
-        SESE_PRINT(f"标签: {video_tags}")
-        SESE_PRINT(f"播放: {video_view}")
-        SESE_PRINT(f"点赞: {video_like}")
 
         # 元数据
         metadata = VideoMetaData()

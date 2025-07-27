@@ -42,24 +42,23 @@ pip install -r requirements.txt
 ## 使用
 一般指定下载站点和资源页面url就可以下载资源 (一些站点需要登录，请查看**配置**章节先修改相关配置)
 ```text
-seseget.py -s [STATION] url
+seseget.py -s [SITE] url
 
-STATION     下载资源的站点，支持以下值：bika/hanime/wnacg/bilibili/youtube/jmcomic  
+SITE     下载资源的站点，支持以下值：bika/hanime/wnacg/bilibili/youtube/jmcomic  
 url         下载资源的url，资源详情页面的url，如视频播放页/漫画详情页
 ```
 
 更多参数用法请参照下面的参数说明:
 ```text
 seseget.py -h
-usage: seseget.py [-h] [-s STATION] [-c CHAPTER] url [url ...]
+usage: seseget.py [-h] [-s SITE] [-c CHAPTER] url [url ...]
 
 positional arguments:
   url                   url，可接受多个url
 
 options:
   -h, --help            show this help message and exit
-  -s STATION, --station STATION
-                        站点名，支持[bika/hanime/wnacg/bilibili/youtube/jmcomic]
+  -s SITE, --site SITE  站点名，支持[bika/hanime/wnacg/bilibili/youtube/jmcomic]
   -c CHAPTER, --chapter CHAPTER
                         章节号，仅bika支持，指定下载章节号，多个章节请使用逗号分隔, 未指定章节则下载全部章节
 ```
@@ -133,7 +132,7 @@ download:
 - 下载视频
 ```text
 data                                # 下载目录
-└── station                         # 站点目录
+└── site                         # 站点目录
     └── artist                      # 作者目录
         └── video                   # 视频目录
             ├── video.mp4           # 视频文件
@@ -148,7 +147,7 @@ data                                # 下载目录
 - 下载漫画
 ```text
 data                                # 下载目录
-└── station                         # 站点目录
+└── site                         # 站点目录
     └── comic                       # 漫画目录
         ├── comic_001.cbz           # 第一话
         ├── comic_002.cbz           # 第二话

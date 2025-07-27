@@ -1,4 +1,3 @@
-import os
 import copy
 import re
 import json
@@ -17,7 +16,7 @@ from core.utils.file_utils import *
 
 @FetcherRegistry.register("hanime")
 class HanimeFetcher(VideoFetcher):
-    station_dir = core.config.path.hanime_data_local_path + "/"
+    site_dir = core.config.path.hanime_data_local_path + "/"
 
     @staticmethod
     # 从html数据中获取数据到metadata

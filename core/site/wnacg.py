@@ -4,15 +4,13 @@ from bs4 import BeautifulSoup
 from core.metadata.comic import ChapterInfo, ComicInfo
 from core.request.fetcher import FetcherRegistry, ComicFetcher
 from core.utils.file_utils import *
-from core.utils.trace import *
 from core.request import seserequest as ssreq
 from core.config import path
-from core.utils.file_process import make_source_info_file
 
 
 @FetcherRegistry.register("wnacg")
 class WnacgFetcher(ComicFetcher):
-    station_dir = path.wnacg_data_local_path
+    site_dir = path.wnacg_data_local_path
 
     def _get_image_urls(self, url: str) -> List[str]:
         cid = re.search(r"\d+(?=\.html)", url).group()

@@ -1,6 +1,5 @@
 import time
 import hmac
-import os.path
 from hashlib import sha256
 from typing import List
 from urllib.parse import urlparse, parse_qs
@@ -11,7 +10,6 @@ from core.utils.trace import *
 from core.metadata.comic import ChapterInfo, ComicInfo
 from core.request import seserequest as ssreq
 from core.utils.file_utils import *
-from core.utils.file_process import make_source_info_file
 
 
 # 用来存储从bika获取到的数据
@@ -202,7 +200,7 @@ class BikaClient:
 
 @FetcherRegistry.register("bika")
 class BikaFetcher(ComicFetcher):
-    station_dir = core.config.path.bika_data_local_path
+    site_dir = core.config.path.bika_data_local_path
 
     def _get_image_urls(self, bika_context: BikaComicInfo, chapter: ChapterInfo) -> List[str]:
         # 获取图片url列表

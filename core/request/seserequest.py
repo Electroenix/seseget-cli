@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 import re
 import shutil
@@ -8,7 +7,7 @@ import copy
 from curl_cffi import requests
 from urllib.parse import urlparse
 from urllib.request import getproxies
-from typing import Dict, Callable
+from typing import Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from core.metadata.comic import ChapterInfo

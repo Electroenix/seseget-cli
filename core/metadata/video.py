@@ -1,5 +1,7 @@
 from collections import OrderedDict
 
+from core.utils.trace import SESE_PRINT
+
 
 class VideoMetaData:
     """视频元数据"""
@@ -26,6 +28,12 @@ class VideoInfo:
         self.metadata = VideoMetaData()     # 元数据
         self.series_info = []       # 系列视频信息
         self.video_dir = ""         # 本地保存目录
+
+    def print_info(self):
+        SESE_PRINT(f"标题: {self.name}")
+        SESE_PRINT(f"作者: {self.metadata.artist}")
+        SESE_PRINT(f"标签: {self.metadata.tag_list}")
+        SESE_PRINT(f"简介: {self.metadata.describe}")
 
 
 class VideoInfoCache:

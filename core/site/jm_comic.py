@@ -290,7 +290,7 @@ jmcomic.JmModuleConfig.register_client(SeseJmClient)
 
 @FetcherRegistry.register("jmcomic")
 class JmComicFetcher(ComicFetcher):
-    station_dir = path.jmcomic_data_local_path
+    site_dir = path.jmcomic_data_local_path
 
     def __init__(self):
         self.jm_option = jmcomic.JmModuleConfig.option_class().default()

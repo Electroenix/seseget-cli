@@ -8,7 +8,7 @@ from core.utils.trace import *
 from core.request import seserequest as ssreq
 from core.utils.file_utils import *
 from core.config.config_manager import config
-from core.utils.file_process import make_source_info_file, make_video_metadata_file
+from core.utils.file_process import make_source_info_file
 
 
 # 视频信息
@@ -23,10 +23,23 @@ class BiliVideoInfo(VideoInfo):
         self.video_fav = ""
         self.video_share = ""
 
+    def print_info(self):
+        SESE_PRINT(f"BV号: {self.vid}")
+        SESE_PRINT(f"标题: {self.metadata.title}")
+        SESE_PRINT(f"简介: {self.metadata.describe}")
+        SESE_PRINT(f"up主: {self.metadata.artist}")
+        SESE_PRINT(f"日期: {self.metadata.public_time}")
+        SESE_PRINT(f"标签: {self.metadata.tag_list}")
+        SESE_PRINT(f"播放: {self.video_view}")
+        SESE_PRINT(f"点赞: {self.video_like}")
+        SESE_PRINT(f"投币: {self.video_coin}")
+        SESE_PRINT(f"收藏: {self.video_fav}")
+        SESE_PRINT(f"转发: {self.video_share}")
+
 
 @FetcherRegistry.register("bilibili")
 class BilibiliFetcher(VideoFetcher):
-    station_dir = core.config.path.bili_data_local_path + "/"
+    site_dir = core.config.path.bili_data_local_path + "/"
     headers = {
         "Referer": "",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -72,18 +85,6 @@ class BilibiliFetcher(VideoFetcher):
         video_coin = video_coin_info.text  # 投币
         video_fav = video_fav_info.text  # 收藏
         video_share = video_share_info.text  # 转发
-
-        SESE_PRINT(f"BV号: {vid}")
-        SESE_PRINT(f"标题: {video_title}")
-        SESE_PRINT(f"简介: {video_descript}")
-        SESE_PRINT(f"up主: {video_author}")
-        SESE_PRINT(f"日期: {video_date}")
-        SESE_PRINT(f"标签: {video_tags}")
-        SESE_PRINT(f"播放: {video_view}")
-        SESE_PRINT(f"点赞: {video_like}")
-        SESE_PRINT(f"投币: {video_coin}")
-        SESE_PRINT(f"收藏: {video_fav}")
-        SESE_PRINT(f"转发: {video_share}")
 
         # 元数据
         metadata = VideoMetaData()
