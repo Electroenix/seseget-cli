@@ -5,7 +5,7 @@ from core.config import settings
 from core.request.downloadtask import download_manager
 from core.request.fetcher import FetcherRegistry
 
-FetcherRegistry.discover(settings.sites_fetcher_package)
+FetcherRegistry.discover(settings.SITE_FETCHERS_PACKAGE)
 if __name__ == "__main__":
     paser = argparse.ArgumentParser()
     paser.add_argument("url", nargs="+", help="url，可接受多个url")

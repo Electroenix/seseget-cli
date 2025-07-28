@@ -30,7 +30,7 @@ class YtbVideoInfo(VideoInfo):
 
 @FetcherRegistry.register("youtube")
 class YoutubeFetcher(VideoFetcher):
-    site_dir = core.config.path.youtube_data_local_path + "/"
+    site_dir = core.config.path.YOUTUBE_DATA_LOCAL_DIR + "/"
     GET_INFO_BY_HTML = 1
 
     @staticmethod

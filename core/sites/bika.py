@@ -200,7 +200,7 @@ class BikaClient:
 
 @FetcherRegistry.register("bika")
 class BikaFetcher(ComicFetcher):
-    site_dir = core.config.path.bika_data_local_path
+    site_dir = core.config.path.BIKA_DATA_LOCAL_DIR
 
     def _get_image_urls(self, bika_context: BikaComicInfo, chapter: ChapterInfo) -> List[str]:
         # 获取图片url列表

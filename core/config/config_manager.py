@@ -6,7 +6,7 @@ from ruamel.yaml import YAML
 import shutil
 
 from core.utils.trace import *
-from core.config.path import config_path, default_config_path
+from core.config.path import CONFIG_PATH, DEFAULT_CONFIG_PATH
 
 
 class ObservableDict(UserDict):
@@ -73,8 +73,8 @@ class ObservableDict(UserDict):
 class ConfigManager:
     _instance = None
     _config: ObservableDict = None
-    _config_path: str = config_path
-    _default_config_path: str = default_config_path
+    _config_path: str = CONFIG_PATH
+    _default_config_path: str = DEFAULT_CONFIG_PATH
     _yaml = YAML()
     _yaml.preserve_quotes = True
 
