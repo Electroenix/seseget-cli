@@ -14,22 +14,9 @@ class AbstractFetcher(ABC):
     """站点抓取器基类"""
 
     @abstractmethod
-    def get_info(self, url, **kwargs):
-        """
-        获取资源信息
-        Args:
-            **kwargs:
-            url: 请求资源地址
-
-        Returns: 返回一个包含资源信息的对象
-
-        """
-        pass
-
-    @abstractmethod
     def download(self, url, **kwargs):
         """
-        下载资源
+        实现资源下载的完整流程，包括抓取信息，下载和文件处理
         Args:
             url: 请求资源地址
             **kwargs: 可选配置参数
@@ -88,7 +75,8 @@ class VideoFetcher(AbstractFetcher):
     def _make_source_info_file(self, video_info: VideoInfo):
         make_source_info_file(video_info.video_dir, video_info)
 
-    def _start_download(self, video_info: VideoInfo):
+    def _download_resource(self, video_info: VideoInfo):
+        """下载资源，此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
 
         if '.m3u8' in video_info.download_url.split('/')[-1]:
@@ -97,19 +85,28 @@ class VideoFetcher(AbstractFetcher):
             ssreq.download_task(video_info.name, ssreq.download_mp4, video_path, video_info.download_url)
 
     @abstractmethod
-    def get_info(self, url, **kwargs) -> VideoInfo:
+    def _fetch_info(self, url, **kwargs) -> VideoInfo:
+        """抓取资源信息，子类需要实现该功能"""
         pass
 
     def download(self, url, **kwargs):
+        default_params = {
+            "no_download": False,
+        }
+        params = {**default_params, **kwargs}
+
         # 获取视频信息
-        video_info = self.get_info(url)
+        video_info = self._fetch_info(url)
         video_info.print_info()
+
+        if params["no_download"]:
+            return
 
         # 创建目录
         self._make_save_dir(video_info)
 
         # 创建下载任务
-        self._start_download(video_info)
+        self._download_resource(video_info)
 
         # 创建视频元数据文件
         self._make_metadata_file(video_info)
@@ -143,7 +140,8 @@ class ComicFetcher(AbstractFetcher):
         if not os.path.exists(comic_info.comic_dir):
             os.mkdir(comic_info.comic_dir)
 
-    def _start_download(self, chapter: ChapterInfo):
+    def _download_resource(self, chapter: ChapterInfo):
+        """下载资源，此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
         comic_info = chapter.comic_info
 
         # 创建下载任务
@@ -157,15 +155,23 @@ class ComicFetcher(AbstractFetcher):
         make_source_info_file(comic_info.comic_dir, comic_info)
 
     @abstractmethod
-    def get_info(self, url, **kwargs) -> ComicInfo:
+    def _fetch_info(self, url, **kwargs) -> ComicInfo:
+        """抓取资源信息，子类需要实现该功能"""
         pass
 
     def download(self, url, **kwargs):
-        chapter_id_list = kwargs.get("chapter_id_list", None)
+        default_params = {
+            "no_download": False,
+            "chapter_id_list": None
+        }
+        params = {**default_params, **kwargs}
 
         # 请求漫画详细信息
-        comic_info = self.get_info(url, chapter_id_list=chapter_id_list)
+        comic_info = self._fetch_info(url, chapter_id_list=params["chapter_id_list"])
         comic_info.print_info()
+
+        if params["no_download"]:
+            return
 
         # 创建下载目录
         self._make_save_path(comic_info)
@@ -173,7 +179,7 @@ class ComicFetcher(AbstractFetcher):
         # 遍历全部漫画章节
         for chapter in comic_info.chapter_list:
             # 创建下载任务
-            self._start_download(chapter)
+            self._download_resource(chapter)
 
             # 创建source.txt文件保存下载地址
             self._make_source_info_file(comic_info)
@@ -191,7 +197,7 @@ class FetcherRegistry:
             if not issubclass(fetcher_class, AbstractFetcher):
                 raise TypeError(f"{fetcher_class} 必须继承自 AbstractFetcher")
             cls._registry[site_name] = fetcher_class
-            SESE_TRACE(LOG_INFO, f"注册Fetcher类{fetcher_class}")
+            SESE_TRACE(LOG_DEBUG, f"注册Fetcher类{fetcher_class}")
             return fetcher_class
 
         return decorator

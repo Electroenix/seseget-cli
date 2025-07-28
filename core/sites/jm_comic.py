@@ -305,7 +305,7 @@ class JmComicFetcher(ComicFetcher):
         except Exception as result:
             SESE_TRACE(LOG_WARNING, f"JM登录失败, info: {result}")
 
-    def get_info(self, url, **kwargs) -> ComicInfo:
+    def _fetch_info(self, url, **kwargs) -> ComicInfo:
         cid = ""
         match = re.search(r"(?:album|photo)/(\d+)", url)
         if match:
@@ -414,7 +414,7 @@ class JmComicFetcher(ComicFetcher):
         if progress:
             progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
-    def _start_download(self, chapter: ChapterInfo):
+    def _download_resource(self, chapter: ChapterInfo):
         comic_info = chapter.comic_info
 
         # 创建下载任务

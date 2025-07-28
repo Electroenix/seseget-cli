@@ -51,7 +51,7 @@ url         下载资源的url，资源详情页面的url，如视频播放页/�
 更多参数用法请参照下面的参数说明:
 ```text
 seseget.py -h
-usage: seseget.py [-h] [-s SITE] [-c CHAPTER] url [url ...]
+usage: seseget.py [-h] [-s SITE] [-c CHAPTER] [--no-download] url [url ...]
 
 positional arguments:
   url                   url，可接受多个url
@@ -61,6 +61,7 @@ options:
   -s SITE, --site SITE  站点名，支持[bika/hanime/wnacg/bilibili/youtube/jmcomic]
   -c CHAPTER, --chapter CHAPTER
                         章节号，仅bika支持，指定下载章节号，多个章节请使用逗号分隔, 未指定章节则下载全部章节
+  --no-download         不下载资源，仅显示资源信息
 ```
 
 ## 配置

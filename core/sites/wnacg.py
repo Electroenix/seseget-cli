@@ -33,7 +33,7 @@ class WnacgFetcher(ComicFetcher):
 
         return image_url_list
 
-    def get_info(self, url, **kwargs) -> ComicInfo:
+    def _fetch_info(self, url, **kwargs) -> ComicInfo:
         cid = re.search(r"\d+(?=\.html)", url).group()
         base_url = url.replace("/" + url.split("/")[-1], "")
 

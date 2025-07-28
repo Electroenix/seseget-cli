@@ -47,7 +47,7 @@ class BilibiliFetcher(VideoFetcher):
     }
 
     # 通过视频页面url请求bilibili,获取视频信息和下载地址
-    def get_info(self, url, **kwargs):
+    def _fetch_info(self, url, **kwargs):
         vid = ""
         match = re.search(r'https?://www\.bilibili\.com/video/([^/?]+)', url)
         if match:
@@ -123,7 +123,7 @@ class BilibiliFetcher(VideoFetcher):
 
         return copy.deepcopy(video_info)
 
-    def _start_download(self, video_info: VideoInfo):
+    def _download_resource(self, video_info: VideoInfo):
         if not isinstance(video_info, BiliVideoInfo):
             raise TypeError(f"video_info类型({type(video_info)})错误！不是BiliVideoInfo")
 

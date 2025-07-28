@@ -183,7 +183,7 @@ class BikaClient:
         # 获取全部章节信息
         self.get_comic_chapter(cid)
 
-        # 若未指定章节，则默认下载全部章节
+        # 若未指定章节，则默认下载全部章节seseget.py -s bika https://manhuabika.com/pcomicview/?cid=687cddee0b1b8d238cc93549 --no-download
         if not chapter_id_list:
             chapter_id_list = range(1, len(self.context.chapter))
 
@@ -212,7 +212,7 @@ class BikaFetcher(ComicFetcher):
 
         return image_urls
 
-    def get_info(self, url, **kwargs) -> ComicInfo:
+    def _fetch_info(self, url, **kwargs) -> ComicInfo:
         chapter_id_list = kwargs.get("chapter_id_list", None)
 
         view_url_parse = urlparse(url)

@@ -142,13 +142,13 @@ class YoutubeFetcher(VideoFetcher):
 
         return copy.deepcopy(video_info)
 
-    def get_info(self, url, **kwargs):
+    def _fetch_info(self, url, **kwargs):
         if self.__class__.GET_INFO_BY_HTML:
             return self._get_video_info_by_html(url)
         else:
             return self._get_video_info_by_yt_dlp(url)
 
-    def _start_download(self, video_info: VideoInfo):
+    def _download_resource(self, video_info: VideoInfo):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
 
         ssreq.download_task(video_info.name,
