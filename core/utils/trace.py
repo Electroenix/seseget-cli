@@ -1,6 +1,7 @@
 import logging
 from logging import Formatter, LogRecord, StreamHandler
 from core.utils.output import sese_stdout
+from core.config import settings
 
 
 class DynamicFormatter(Formatter):
@@ -9,12 +10,14 @@ class DynamicFormatter(Formatter):
     def __init__(self):
         # 定义不同等级的格式模板
         super().__init__()
+        asctime_str = "[%(asctime)s] " if settings.LOG_SHOW_TIMESTAMP else ""
+        levelname_str = "[%(levelname)s] " if settings.LOG_SHOW_LEVEL else ""
         self._formats = {
-            logging.DEBUG: "[%(asctime)s] [%(filename)s:%(lineno)d] [%(levelname)s] %(message)s",
-            logging.INFO: "[%(asctime)s] [%(levelname)s] %(message)s",
-            logging.WARNING: "[%(asctime)s] [%(levelname)s] %(message)s",
-            logging.ERROR: "[%(asctime)s] [%(filename)s:%(lineno)d] [%(levelname)s] %(message)s",
-            logging.CRITICAL: "[%(asctime)s] [%(filename)s:%(lineno)d] [%(levelname)s] %(message)s"
+            logging.DEBUG: asctime_str + levelname_str + "[%(filename)s:%(lineno)d] %(message)s",
+            logging.INFO: asctime_str + levelname_str + "%(message)s",
+            logging.WARNING: asctime_str + levelname_str + "%(message)s",
+            logging.ERROR: asctime_str + levelname_str + "[%(filename)s:%(lineno)d] %(message)s",
+            logging.CRITICAL: asctime_str + levelname_str + "[%(filename)s:%(lineno)d] %(message)s"
         }
 
         # 统一日期格式
@@ -69,7 +72,7 @@ class NoNewlineHandler(StreamHandler):
 # 配置日志系统
 def setup_logger():
     logger = logging.getLogger("sese_trace")
-    logger.setLevel(logging.INFO)  # 设置日志级别
+    logger.setLevel(settings.LOG_LEVEL)  # 设置日志级别
 
     # 创建控制台处理器
     handler = NoNewlineHandler()
