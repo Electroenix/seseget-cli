@@ -7,6 +7,7 @@ def make_filename_valid(filename):
     replace = " "
     filename = re.sub(r'[\x00-\x1f\x7f]', replace, filename)
     filename = re.sub(r'[\\/*?:<">|]', replace, filename)
+    filename = re.sub(r'\s+', replace, filename)
     filename = filename.strip()
     filename = filename.rstrip('.')
 

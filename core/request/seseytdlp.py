@@ -92,6 +92,7 @@ def download_by_yt_dlp(filename, url, progress: TaskDLProgress = None):
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            progress.init_progress()
             progress.set_progress_count(2)
             progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
             error_code = ydl.download([url])

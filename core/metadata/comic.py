@@ -47,12 +47,12 @@ class ComicInfo:
         self.comic_dir = ""     # 本地保存目录
 
     def print_info(self):
-        print(f"cid: {self.cid}")
-        print(f"系列: {self.title}")
-        print(f"作者: {self.author}")
-        print(f"标签: {self.genres}")
-        print(f"简介: {self.description}")
-        print(f"已获取章节数: {len(self.chapter_list)}")
+        SESE_PRINT(f"cid: {self.cid}")
+        SESE_PRINT(f"系列: {self.title}")
+        SESE_PRINT(f"作者: {self.author}")
+        SESE_PRINT(f"标签: {self.genres}")
+        SESE_PRINT(f"简介: {self.description}")
+        SESE_PRINT(f"已获取章节数: {len(self.chapter_list)}")
 
 
 # 更新epub文件中的metadata

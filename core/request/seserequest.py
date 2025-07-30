@@ -69,6 +69,12 @@ class SessionManager:
 
         return session.request(method, url, **kwargs)
 
+    def get(self, url: str, **kwargs):
+        return self.request("GET", url, **kwargs)
+
+    def post(self, url: str, **kwargs):
+        return self.request("POST", url, **kwargs)
+
     def close_all(self):
         """关闭所有 Session 释放资源"""
         with self._lock:
@@ -270,6 +276,7 @@ def download_file(file_name, url):
 
 def download_mp4(filename, url, progress: TaskDLProgress = None):
     """下载mp4视频"""
+    progress.init_progress()
     progress.set_progress_count(1)
     progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
@@ -296,6 +303,7 @@ def download_mp4_by_merge_video_audio(filename, video_url, audio_url, headers,
     if not os.path.exists(cache_dir):
         os.mkdir(cache_dir)
 
+    progress.init_progress()
     progress.set_progress_count(2)
     progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
     if _download_files(
@@ -352,6 +360,7 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
     ts_threads_list = []
 
     if progress is not None:
+        progress.init_progress()
         progress.set_progress_count(len(ts_list))
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
@@ -417,6 +426,7 @@ def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: 
         os.mkdir(image_temp_dir_path)
 
     if progress is not None:
+        progress.init_progress()
         progress.set_progress_count(len(image_urls))
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 

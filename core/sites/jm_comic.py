@@ -17,7 +17,18 @@ from core.utils.file_utils import *
 from core.utils.trace import *
 from core.config.config_manager import config
 from core.request.downloadtask import TaskDLProgress, ProgressStatus
-from core.utils.file_process import make_source_info_file
+
+
+class JMChapterInfo(ChapterInfo):
+    def __init__(self):
+        super().__init__()
+        self.url = ""   # 章节的url
+
+
+class JMComicInfo(ComicInfo):
+    def __init__(self):
+        super().__init__()
+        self.chapter_list: list[JMChapterInfo] = []
 
 
 class SeseJmStreamResponse:
@@ -84,6 +95,12 @@ class SeseJmClient(JmApiClient):
 
     def set_progress(self, progress: TaskDLProgress):
         self.progress = progress
+
+    # def get(self, url, **kwargs):
+    #     return self.request_with_retry(ssreq.ss_session.get, url, **kwargs)
+    #
+    # def post(self, url, **kwargs):
+    #     return self.request_with_retry(ssreq.ss_session.post, url, **kwargs)
 
     def request_with_retry(self,
                            request,
@@ -226,17 +243,18 @@ class SeseJmDownloader(JmDownloader):
         self.after_image(image, img_save_path)
 
     def before_photo(self, photo: jmcomic.JmPhotoDetail):
-        jmcomic.jm_log('photo.before',
-                       f'开始下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}]), '
-                       f'标题: [{photo.name}], '
-                       f'图片数为[{len(photo)}]'
-                       )
+        # jmcomic.jm_log('photo.before',
+        #                f'开始下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}]), '
+        #                f'标题: [{photo.name}], '
+        #                f'图片数为[{len(photo)}]'
+        #                )
         if self.progress is not None:
             self.progress.set_progress_count(len(photo))
 
     def after_photo(self, photo: jmcomic.JmPhotoDetail):
-        jmcomic.jm_log('photo.after',
-                       f'章节下载完成: [{photo.id}] ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
+        # jmcomic.jm_log('photo.after',
+        #                f'章节下载完成: [{photo.id}] ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
+        pass
 
     def before_image(self, image: jmcomic.JmImageDetail, img_save_path):
         # if image.exists:
@@ -259,8 +277,15 @@ class SeseJmDownloader(JmDownloader):
 class SeseJmOption(JmOption):
     """自定义JmOption, 修改部分默认配置"""
 
-    def __init__(self, dir_rule: Dict, download: Dict, client: Dict, plugins: Dict):
-        super().__init__(dir_rule, download, client, plugins)
+    def __init__(self,
+                 dir_rule: Dict,
+                 download: Dict,
+                 client: Dict,
+                 plugins: Dict,
+                 filepath=None,
+                 call_after_init_plugin=True,
+                 ):
+        super().__init__(dir_rule, download, client, plugins, filepath, call_after_init_plugin)
 
     @classmethod
     def default(cls) -> 'JmOption':
@@ -293,6 +318,7 @@ class JmComicFetcher(ComicFetcher):
     site_dir = path.JMCOMIC_DATA_LOCAL_DIR
 
     def __init__(self):
+        super().__init__()
         self.jm_option = jmcomic.JmModuleConfig.option_class().default()
 
     def jm_login(self):
@@ -305,7 +331,9 @@ class JmComicFetcher(ComicFetcher):
         except Exception as result:
             SESE_TRACE(LOG_WARNING, f"JM登录失败, info: {result}")
 
-    def _fetch_info(self, url, **kwargs) -> ComicInfo:
+    def _fetch_info(self, url, **kwargs):
+        chapter_id_list = kwargs.get("chapter_id_list", None)
+
         cid = ""
         match = re.search(r"(?:album|photo)/(\d+)", url)
         if match:
@@ -327,6 +355,7 @@ class JmComicFetcher(ComicFetcher):
         author_soup = panel_body.find("span", attrs={"data-type": "author"}).find_all("a")
         descrip_soup = panel_body.find("h2", text=re.compile(r"叙述："))
         date_published_soup = panel_body.find("span", attrs={"itemprop": "datePublished"}, text=re.compile(r"上架日期"))
+        episode_soup = panel_body.find("div", attrs={"class": "episode"})
 
         comic_title = soup.find("h1").string
         comic_cover_url = cover_soup.get("src")
@@ -350,7 +379,25 @@ class JmComicFetcher(ComicFetcher):
         elif "英文" in comic_tag_list:
             comic_lang = "en"
 
-        comic_info = ComicInfo()
+        photo_list = []
+        if episode_soup:
+            # 如果存在章节列表，则收集所有章节信息
+            photo_soups = episode_soup.find_all("a")
+            for photo_soup in photo_soups:
+                photo_info = {
+                    "href": photo_soup.get("href"),
+                    "title": photo_soup.find("h3").string
+                }
+                photo_list.append(photo_info)
+        else:
+            # 如果不存在章节列表，则设置唯一的章节信息
+            photo_info = {
+                "href": url,
+                "title": comic_title
+            }
+            photo_list.append(photo_info)
+
+        comic_info = JMComicInfo()
         comic_info.view_url = url
         comic_info.cid = cid
         comic_info.cover = comic_cover_url
@@ -359,22 +406,28 @@ class JmComicFetcher(ComicFetcher):
         comic_info.genres = comic_tag_list
         comic_info.description = comic_desc
 
-        comic_chapter = ChapterInfo()
-        comic_chapter.title = comic_title
-        comic_chapter.id = 1
-        comic_chapter.metadata.series = comic_title
-        comic_chapter.metadata.title = comic_title
-        comic_chapter.metadata.number = 1
-        comic_chapter.metadata.language = comic_lang
-        comic_chapter.metadata.creator = comic_author
-        comic_chapter.metadata.subjects = comic_tag_list
-        comic_chapter.metadata.description = comic_desc
-        comic_chapter.metadata.year = date_match.group(1)
-        comic_chapter.metadata.month = date_match.group(2)
-        comic_chapter.metadata.day = date_match.group(3)
-        comic_chapter.comic_info = comic_info
+        for index, photo_info in enumerate(photo_list):
+            chapter_id = index + 1
+            if chapter_id in chapter_id_list:
+                comic_chapter = JMChapterInfo()
+                comic_chapter.id = chapter_id
+                comic_chapter.metadata.series = comic_title
+                comic_chapter.metadata.title = make_filename_valid(photo_info["title"])
+                comic_chapter.metadata.number = chapter_id
+                comic_chapter.metadata.language = comic_lang
+                comic_chapter.metadata.creator = comic_author
+                comic_chapter.metadata.subjects = comic_tag_list
+                comic_chapter.metadata.description = comic_desc
+                comic_chapter.metadata.year = date_match.group(1)
+                comic_chapter.metadata.month = date_match.group(2)
+                comic_chapter.metadata.day = date_match.group(3)
+                comic_chapter.comic_info = comic_info
+                comic_chapter.url = photo_info["href"]
+                comic_chapter.title = make_filename_valid(photo_info["title"])
 
-        comic_info.chapter_list.append(comic_chapter)
+                comic_info.chapter_list.append(comic_chapter)
+
+        # print(f"chapter_list: {[{'url': chapter.url, 'title': chapter.title} for chapter in comic_info.chapter_list]}")
 
         return comic_info
 
@@ -391,19 +444,19 @@ class JmComicFetcher(ComicFetcher):
             os.mkdir(image_temp_dir_path)
 
         if progress:
+            progress.init_progress()
             progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
         # 创建option
         self.jm_option.dir_rule = DirRule("Bd", image_temp_dir_path)
 
         # 创建downloader并下载
-        downloader = SeseJmDownloader(self.jm_option, progress)  # 传递进度回调给downloader
-        # print("int(cid):", int(cid))
-        downloader.download_album(int(cid))
+        downloader = SeseJmDownloader(self.jm_option.copy_option(), progress)  # 传递进度回调给downloader
+        downloader.download_photo(int(cid))
         if downloader.has_download_failures:
             SESE_TRACE(LOG_ERROR, "JM下载失败！")
             progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
-            return
+            return -1
 
         if progress:
             progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
@@ -414,12 +467,26 @@ class JmComicFetcher(ComicFetcher):
         if progress:
             progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
-    def _download_resource(self, chapter: ChapterInfo):
-        comic_info = chapter.comic_info
+        return 0
 
-        # 创建下载任务
-        SESE_PRINT("\r\n正在下载第%d章" % chapter.id)
-        comic_title = comic_info.title + "_%03d" % chapter.id
-        task_name = comic_title
-        ssreq.download_task(task_name, self.download_jmcomic,
-                            comic_info.comic_dir, comic_title, comic_info.view_url, chapter)
+    # def _download_resource(self, chapter: ChapterInfo):
+    #     comic_info = chapter.comic_info
+    #
+    #     if not isinstance(chapter, JMChapterInfo):
+    #         raise TypeError(f"chapter类型({type(chapter)})错误！不是JMChapterInfo")
+    #
+    #     # 创建下载任务
+    #     SESE_PRINT("正在下载第%d章" % chapter.id)
+    #     comic_title = comic_info.title + "_%03d" % chapter.id
+    #     task_name = comic_title
+    #     ssreq.download_task(task_name, self.download_jmcomic,
+    #                         comic_info.comic_dir, comic_title, chapter.url, chapter)
+
+    def _download_comic_capter(self, comic_title: str, chapter: ChapterInfo, progress: ssreq.TaskDLProgress = None):
+        if not isinstance(chapter, JMChapterInfo):
+            raise TypeError(f"chapter类型({type(chapter)})错误！不是JMChapterInfo")
+
+        comic_info = chapter.comic_info
+        with self.chapter_lock:
+            res = self.download_jmcomic(comic_info.comic_dir, comic_title, chapter.url, chapter, progress)
+        return res

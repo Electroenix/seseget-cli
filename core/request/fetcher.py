@@ -1,4 +1,5 @@
 import os
+import threading
 from abc import ABC, abstractmethod
 from typing import Dict, Type, Optional
 
@@ -119,6 +120,9 @@ class ComicFetcher(AbstractFetcher):
     """漫画抓取器基类，已实现漫画下载标准流程，子类需要实现get_info函数获取必须的漫画信息"""
     site_dir = ""  # 站点目录，需要在子类中指定目录
 
+    def __init__(self):
+        self.chapter_lock = threading.Lock()    # 由于漫画下载通常要下载大量图片，提供一个锁控制同时只能下载一个章节，避免请求被拒
+
     def _make_save_path(self, comic_info: ComicInfo):
         # 漫画下载目录说明
         # data  # 下载目录
@@ -140,6 +144,15 @@ class ComicFetcher(AbstractFetcher):
         if not os.path.exists(comic_info.comic_dir):
             os.mkdir(comic_info.comic_dir)
 
+    def _download_comic_capter(self, comic_title: str, chapter: ChapterInfo, progress: ssreq.TaskDLProgress = None):
+        """下载漫画章节，子类可以根据需要选择继承或重写"""
+        comic_info = chapter.comic_info
+
+        # 控制同时只能下载一个章节，避免请求过多被拒
+        with self.chapter_lock:
+            res = ssreq.download_comic_capter(comic_info.comic_dir, comic_title, chapter.image_urls, chapter, progress)
+        return res
+
     def _download_resource(self, chapter: ChapterInfo):
         """下载资源，此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
         comic_info = chapter.comic_info
@@ -148,8 +161,7 @@ class ComicFetcher(AbstractFetcher):
         SESE_PRINT("正在下载第%d章" % chapter.id)
         comic_title = make_filename_valid(comic_info.title + "_%03d" % chapter.id)
         task_name = comic_title
-        ssreq.download_task(task_name, ssreq.download_comic_capter,
-                            comic_info.comic_dir, comic_title, chapter.image_urls, chapter)
+        ssreq.download_task(task_name, self._download_comic_capter, comic_title, chapter)
 
     def _make_source_info_file(self, comic_info: ComicInfo):
         make_source_info_file(comic_info.comic_dir, comic_info)

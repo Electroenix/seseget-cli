@@ -58,9 +58,13 @@ class TaskDLProgress:
         self.progress_count = 0  # 文件总数
         self.finish_count = 0  # 文件下载完成数
         self.current_progress: FileDLProgress | None = None  # 当前显示的文件进度
-        self.bar: ProgressBar = ProgressBar(name, 0, False)  # 进度条
+        self.bar: ProgressBar | None = None  # 进度条
         self._lock = Lock()
         self._update_lock = Lock()
+
+    def init_progress(self):
+        if not self.bar:
+            self.bar = ProgressBar(self.name, 0, False)
 
     def set_progress_count(self, count):
         """设置下载文件总数，必须在add_progress之前调用"""

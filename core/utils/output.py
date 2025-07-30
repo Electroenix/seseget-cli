@@ -1,8 +1,10 @@
 import sys
 import io
+import threading
+
 from tqdm import tqdm
 
-
+output_lock = threading.Lock()
 class TQDMSafeOutput(io.TextIOWrapper):
     def __init__(self, orig_stream):
         # 代理原始流的所有属性
@@ -15,9 +17,16 @@ class TQDMSafeOutput(io.TextIOWrapper):
         )
         self._orig_stream = orig_stream
 
-    def write(self, msg):
+    def write(self, msg: str):
         if msg:
-            tqdm.write(msg, file=sys.__stdout__, end="")
+            with output_lock:
+                lines = msg.split("\n")
+                for index, line in enumerate(lines):
+                    if index < len(lines) - 1:
+                        tqdm.write(line, file=sys.__stdout__, end="\n")
+                    elif line:
+                        tqdm.write(line, file=sys.__stdout__, end="")
+                    self.flush()
 
     def flush(self):
         self._orig_stream.flush()
@@ -37,16 +46,19 @@ class ProgressBar(tqdm):
             unit_divisor=1024,
             file=sys.__stdout__,
             leave=False,
-            disable=disable
+            disable=disable,
+            dynamic_ncols=True
         )
 
     def set_total(self, total):
         self.total = total
-        self.refresh()
+        with output_lock:
+            self.refresh()
 
     def set_downloaded(self, downloaded):
         self.n = downloaded
-        self.refresh()
+        with output_lock:
+            self.refresh()
 
 
 # 初始化（兼容Windows ANSI）
@@ -58,4 +70,3 @@ except ImportError:
     pass
 
 sese_stdout = TQDMSafeOutput(sys.__stdout__)
-
