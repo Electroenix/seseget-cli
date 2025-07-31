@@ -92,7 +92,7 @@ class HanimeFetcher(VideoFetcher):
 
         SESE_PRINT('\n下载完成!')
 
-    def _fetch_info(self, url, **kwargs):
+    def _fetch_info(self, url, **kwargs) -> VideoInfo:
         view_url_parse = urlparse(url)
         vid = parse_qs(view_url_parse.query)["v"][0]
 

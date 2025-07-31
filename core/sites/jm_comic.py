@@ -289,7 +289,7 @@ jmcomic.JmModuleConfig.register_client(SeseJmClient)
 
 
 @FetcherRegistry.register("jmcomic")
-class JmComicFetcher(ComicFetcher):
+class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
     site_dir = path.JMCOMIC_DATA_LOCAL_DIR
 
     def __init__(self):
@@ -306,7 +306,7 @@ class JmComicFetcher(ComicFetcher):
         except Exception as result:
             SESE_TRACE(LOG_WARNING, f"JM登录失败, info: {result}")
 
-    def _fetch_info(self, url, **kwargs):
+    def _fetch_info(self, url, **kwargs) -> JMComicInfo:
         chapter_id_list = kwargs.get("chapter_id_list", None)
 
         cid = ""
@@ -408,7 +408,7 @@ class JmComicFetcher(ComicFetcher):
 
         return comic_info
 
-    def download_jmcomic(self, save_dir: str, comic_title: str, url: str, chapter: ChapterInfo,
+    def download_jmcomic(self, save_dir: str, comic_title: str, url: str, chapter: JMChapterInfo,
                          progress: TaskDLProgress = None):
         cid = ""
         match = re.search(r"(?:album|photo)/(\d+)", url)
@@ -446,10 +446,7 @@ class JmComicFetcher(ComicFetcher):
 
         return 0
 
-    def _download_comic_capter(self, comic_title: str, chapter: ChapterInfo, progress: ssreq.TaskDLProgress = None):
-        if not isinstance(chapter, JMChapterInfo):
-            raise TypeError(f"chapter类型({type(chapter)})错误！不是JMChapterInfo")
-
+    def _download_comic_capter(self, comic_title: str, chapter: JMChapterInfo, progress: ssreq.TaskDLProgress = None):
         comic_info = chapter.comic_info
         with self.chapter_lock:
             res = self.download_jmcomic(comic_info.comic_dir, comic_title, chapter.url, chapter, progress)

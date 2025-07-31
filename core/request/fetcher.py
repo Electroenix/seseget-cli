@@ -1,7 +1,7 @@
 import os
 import threading
 from abc import ABC, abstractmethod
-from typing import Dict, Type, Optional
+from typing import Dict, Type, Optional, TypeVar, Generic
 
 from core.metadata.comic import ComicInfo, ChapterInfo
 from core.metadata.video import VideoInfo, VideoInfoCache
@@ -26,14 +26,19 @@ class AbstractFetcher(ABC):
         pass
 
 
-class VideoFetcher(AbstractFetcher):
+T_VideoInfo = TypeVar('T_VideoInfo', bound=VideoInfo)
+T_ComicInfo = TypeVar('T_ComicInfo', bound=ComicInfo)
+T_ChapterInfo = TypeVar('T_ChapterInfo', bound=ChapterInfo)
+
+
+class VideoFetcher(AbstractFetcher, Generic[T_VideoInfo]):
     """视频抓取器基类，已实现视频下载标准流程，子类需要实现get_info函数获取必须的视频信息"""
     site_dir = ""  # 站点目录，需要在子类中指定目录
 
     def __init__(self):
         self.video_info_cache = VideoInfoCache(10)
 
-    def _make_save_dir(self, video_info: VideoInfo):
+    def _make_save_dir(self, video_info: T_VideoInfo):
         # 视频下载目录说明
         # data  # 下载目录
         # └── site  # 站点目录
@@ -60,7 +65,7 @@ class VideoFetcher(AbstractFetcher):
         if not os.path.exists(video_info.video_dir):
             os.mkdir(video_info.video_dir)
 
-    def _make_metadata_file(self, video_info: VideoInfo):
+    def _make_metadata_file(self, video_info: T_VideoInfo):
         poster_path = video_info.video_dir + '/' + 'poster.jpg'  # 封面图保存路径
         fanart_path = video_info.video_dir + '/' + 'fanart.jpg'  # 背景图保存路径
 
@@ -73,10 +78,10 @@ class VideoFetcher(AbstractFetcher):
             # 生成metadata文件
             make_video_metadata_file(video_info.video_dir, video_info.name, video_info.metadata)
 
-    def _make_source_info_file(self, video_info: VideoInfo):
+    def _make_source_info_file(self, video_info: T_VideoInfo):
         make_source_info_file(video_info.video_dir, video_info)
 
-    def _download_resource(self, video_info: VideoInfo):
+    def _download_resource(self, video_info: T_VideoInfo):
         """下载资源，此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
 
@@ -86,7 +91,7 @@ class VideoFetcher(AbstractFetcher):
             ssreq.download_task(video_info.name, ssreq.download_mp4, video_path, video_info.download_url)
 
     @abstractmethod
-    def _fetch_info(self, url, **kwargs) -> VideoInfo:
+    def _fetch_info(self, url, **kwargs) -> T_VideoInfo:
         """抓取资源信息，子类需要实现该功能"""
         pass
 
@@ -116,14 +121,14 @@ class VideoFetcher(AbstractFetcher):
         self._make_source_info_file(video_info)
 
 
-class ComicFetcher(AbstractFetcher):
+class ComicFetcher(AbstractFetcher, Generic[T_ComicInfo, T_ChapterInfo]):
     """漫画抓取器基类，已实现漫画下载标准流程，子类需要实现get_info函数获取必须的漫画信息"""
     site_dir = ""  # 站点目录，需要在子类中指定目录
 
     def __init__(self):
         self.chapter_lock = threading.Lock()    # 由于漫画下载通常要下载大量图片，提供一个锁控制同时只能下载一个章节，避免请求被拒
 
-    def _make_save_path(self, comic_info: ComicInfo):
+    def _make_save_path(self, comic_info: T_ComicInfo):
         # 漫画下载目录说明
         # data  # 下载目录
         # └── site  # 站点目录
@@ -144,7 +149,7 @@ class ComicFetcher(AbstractFetcher):
         if not os.path.exists(comic_info.comic_dir):
             os.mkdir(comic_info.comic_dir)
 
-    def _download_comic_capter(self, comic_title: str, chapter: ChapterInfo, progress: ssreq.TaskDLProgress = None):
+    def _download_comic_capter(self, comic_title: str, chapter: T_ChapterInfo, progress: ssreq.TaskDLProgress = None):
         """下载漫画章节，子类可以根据需要选择继承或重写"""
         comic_info = chapter.comic_info
 
@@ -153,7 +158,7 @@ class ComicFetcher(AbstractFetcher):
             res = ssreq.download_comic_capter(comic_info.comic_dir, comic_title, chapter.image_urls, chapter, progress)
         return res
 
-    def _download_resource(self, chapter: ChapterInfo):
+    def _download_resource(self, chapter: T_ChapterInfo):
         """下载资源，此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
         comic_info = chapter.comic_info
 
@@ -163,11 +168,11 @@ class ComicFetcher(AbstractFetcher):
         task_name = comic_title
         ssreq.download_task(task_name, self._download_comic_capter, comic_title, chapter)
 
-    def _make_source_info_file(self, comic_info: ComicInfo):
+    def _make_source_info_file(self, comic_info: T_ComicInfo):
         make_source_info_file(comic_info.comic_dir, comic_info)
 
     @abstractmethod
-    def _fetch_info(self, url, **kwargs) -> ComicInfo:
+    def _fetch_info(self, url, **kwargs) -> T_ComicInfo:
         """抓取资源信息，子类需要实现该功能"""
         pass
 

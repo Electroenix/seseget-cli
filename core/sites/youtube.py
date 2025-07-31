@@ -29,7 +29,7 @@ class YtbVideoInfo(VideoInfo):
 
 
 @FetcherRegistry.register("youtube")
-class YoutubeFetcher(VideoFetcher):
+class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
     site_dir = core.config.path.YOUTUBE_DATA_LOCAL_DIR + "/"
     GET_INFO_BY_HTML = 1
 
@@ -142,13 +142,13 @@ class YoutubeFetcher(VideoFetcher):
 
         return copy.deepcopy(video_info)
 
-    def _fetch_info(self, url, **kwargs):
+    def _fetch_info(self, url, **kwargs) -> YtbVideoInfo:
         if self.__class__.GET_INFO_BY_HTML:
             return self._get_video_info_by_html(url)
         else:
             return self._get_video_info_by_yt_dlp(url)
 
-    def _download_resource(self, video_info: VideoInfo):
+    def _download_resource(self, video_info: YtbVideoInfo):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
 
         ssreq.download_task(video_info.name,

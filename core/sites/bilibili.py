@@ -38,7 +38,7 @@ class BiliVideoInfo(VideoInfo):
 
 
 @FetcherRegistry.register("bilibili")
-class BilibiliFetcher(VideoFetcher):
+class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
     site_dir = core.config.path.BILI_DATA_LOCAL_DIR + "/"
     headers = {
         "Referer": "",
@@ -47,7 +47,7 @@ class BilibiliFetcher(VideoFetcher):
     }
 
     # 通过视频页面url请求bilibili,获取视频信息和下载地址
-    def _fetch_info(self, url, **kwargs):
+    def _fetch_info(self, url, **kwargs) -> BiliVideoInfo:
         vid = ""
         match = re.search(r'https?://www\.bilibili\.com/video/([^/?]+)', url)
         if match:
@@ -123,10 +123,7 @@ class BilibiliFetcher(VideoFetcher):
 
         return copy.deepcopy(video_info)
 
-    def _download_resource(self, video_info: VideoInfo):
-        if not isinstance(video_info, BiliVideoInfo):
-            raise TypeError(f"video_info类型({type(video_info)})错误！不是BiliVideoInfo")
-
+    def _download_resource(self, video_info: BiliVideoInfo):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
         self.headers["Referer"] = video_info.view_url
 
@@ -137,10 +134,7 @@ class BilibiliFetcher(VideoFetcher):
                             video_info.video_download_url,
                             self.headers.copy())
 
-    def _make_source_info_file(self, video_info: VideoInfo):
-        if not isinstance(video_info, BiliVideoInfo):
-            raise TypeError(f"video_info类型({type(video_info)})错误！不是BiliVideoInfo")
-
+    def _make_source_info_file(self, video_info: BiliVideoInfo):
         source_info = 'video url: %s\r\n' % video_info.view_url
         source_info = source_info + 'thumbnail url: %s\r\n' % video_info.thumbnail_url
         source_info = source_info + 'cover url: %s\r\n' % video_info.cover_url
