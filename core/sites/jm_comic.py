@@ -60,8 +60,6 @@ class SeseJmStreamResponse:
             self._encoding or 'utf-8',
             errors='replace'
         )
-        # SESE_PRINT(f"resp.text:{self._text}")
-        # SESE_PRINT(f"resp._content:{self._content.decode()}")
 
         return self._text
 
@@ -95,12 +93,6 @@ class SeseJmClient(JmApiClient):
 
     def set_progress(self, progress: TaskDLProgress):
         self.progress = progress
-
-    # def get(self, url, **kwargs):
-    #     return self.request_with_retry(ssreq.ss_session.get, url, **kwargs)
-    #
-    # def post(self, url, **kwargs):
-    #     return self.request_with_retry(ssreq.ss_session.post, url, **kwargs)
 
     def request_with_retry(self,
                            request,
@@ -243,34 +235,17 @@ class SeseJmDownloader(JmDownloader):
         self.after_image(image, img_save_path)
 
     def before_photo(self, photo: jmcomic.JmPhotoDetail):
-        # jmcomic.jm_log('photo.before',
-        #                f'开始下载章节: {photo.id} ({photo.album_id}[{photo.index}/{len(photo.from_album)}]), '
-        #                f'标题: [{photo.name}], '
-        #                f'图片数为[{len(photo)}]'
-        #                )
         if self.progress is not None:
             self.progress.set_progress_count(len(photo))
 
     def after_photo(self, photo: jmcomic.JmPhotoDetail):
-        # jmcomic.jm_log('photo.after',
-        #                f'章节下载完成: [{photo.id}] ({photo.album_id}[{photo.index}/{len(photo.from_album)}])')
         pass
 
     def before_image(self, image: jmcomic.JmImageDetail, img_save_path):
-        # if image.exists:
-        #     jmcomic.jm_log('image.before',
-        #            f'图片已存在: {image.tag} ← [{img_save_path}]'
-        #            )
-        # else:
-        #     jmcomic.jm_log('image.before',
-        #            f'图片准备下载: {image.tag}, [{image.img_url}] → [{img_save_path}]'
-        #            )
         self.progress.add_progress(image.img_url)
         pass
 
     def after_image(self, image: jmcomic.JmImageDetail, img_save_path):
-        # jmcomic.jm_log('image.after',
-        #                f'图片下载完成: {image.tag}, [{image.img_url}] → [{img_save_path}]')
         pass
 
 
@@ -293,7 +268,7 @@ class SeseJmOption(JmOption):
         try:
             option.update_cookies(json.loads(config["jmcomic"]["login"]["cookie"]))
         except json.JSONDecodeError:
-            # SESE_TRACE(LOG_WARNING, "load jmcomic cookie failed!")
+            SESE_TRACE(LOG_DEBUG, "load jmcomic cookie failed!")
             pass
         # option.client['domain'] = ["18comic.vip"]
         # option.client['impl'] = "sese_jm_client"
@@ -406,6 +381,10 @@ class JmComicFetcher(ComicFetcher):
         comic_info.genres = comic_tag_list
         comic_info.description = comic_desc
 
+        # 若未指定章节，则默认下载全部章节
+        if not chapter_id_list:
+            chapter_id_list = range(1, len(photo_list) + 1)
+
         for index, photo_info in enumerate(photo_list):
             chapter_id = index + 1
             if chapter_id in chapter_id_list:
@@ -426,8 +405,6 @@ class JmComicFetcher(ComicFetcher):
                 comic_chapter.title = make_filename_valid(photo_info["title"])
 
                 comic_info.chapter_list.append(comic_chapter)
-
-        # print(f"chapter_list: {[{'url': chapter.url, 'title': chapter.title} for chapter in comic_info.chapter_list]}")
 
         return comic_info
 
@@ -468,19 +445,6 @@ class JmComicFetcher(ComicFetcher):
             progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
         return 0
-
-    # def _download_resource(self, chapter: ChapterInfo):
-    #     comic_info = chapter.comic_info
-    #
-    #     if not isinstance(chapter, JMChapterInfo):
-    #         raise TypeError(f"chapter类型({type(chapter)})错误！不是JMChapterInfo")
-    #
-    #     # 创建下载任务
-    #     SESE_PRINT("正在下载第%d章" % chapter.id)
-    #     comic_title = comic_info.title + "_%03d" % chapter.id
-    #     task_name = comic_title
-    #     ssreq.download_task(task_name, self.download_jmcomic,
-    #                         comic_info.comic_dir, comic_title, chapter.url, chapter)
 
     def _download_comic_capter(self, comic_title: str, chapter: ChapterInfo, progress: ssreq.TaskDLProgress = None):
         if not isinstance(chapter, JMChapterInfo):
