@@ -1,6 +1,6 @@
 from threading import Lock
 import uuid
-from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
+from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED, Future
 import functools
 from typing import Callable
 import inspect
@@ -202,7 +202,7 @@ class DownloadTask:
         self.id: str = task_id
         self.name: str = name
         self.task_progress: TaskDLProgress = TaskDLProgress(name)
-        self.thread = None
+        self.thread: Future | None = None
 
 
 class DownloadManager:
@@ -288,7 +288,10 @@ class DownloadManager:
         wait([task.thread for task in self.tasks], return_when=ALL_COMPLETED)
         self.task_pool.shutdown()
 
-    def kill(self):
+    def shutdown(self):
+        for task in self.tasks:
+            task.thread.cancel()
+            SESE_TRACE(LOG_DEBUG, f"取消任务: {task.name}")
         self.task_pool.shutdown(wait=False)
 
     def all_done(self):

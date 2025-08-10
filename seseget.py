@@ -1,30 +1,32 @@
-import argparse
+import signal
+import multiprocessing
+import time
 
-from core.config import init
-from core.config import settings
-from core.request.downloadtask import download_manager
-from core.request.fetcher import FetcherRegistry
+from core.config import init, settings
+from core.utils.trace import *
+from core.main import process_worker
 
-FetcherRegistry.discover(settings.SITE_FETCHERS_PACKAGE)
+
 if __name__ == "__main__":
-    paser = argparse.ArgumentParser()
-    paser.add_argument("url", nargs="+", default="", help="url，可接受多个url")
-    paser.add_argument("-s", "--site", default="", help="站点名，支持[bika/hanime/wnacg/bilibili/youtube/jmcomic]")
-    paser.add_argument("-c", "--chapter", default="", help="章节号，指定漫画下载章节号，多个章节请使用逗号分隔, 未指定章节则下载全部章节")
-    paser.add_argument("--no-download", default=False, action="store_true", help="不下载资源，仅显示资源信息")
-
-    args = paser.parse_args()
-    urls = args.url
-    site = args.site
-    no_download = args.no_download
-
-    for url in urls:
-        fetcher = FetcherRegistry.get_fetcher(site)
-        if site == "bika" or \
-           site == "jmcomic":
-            chapter = [int(c) for c in (args.chapter.split(",") if args.chapter else [])]
-            fetcher.download(url, chapter_id_list=chapter, no_download=no_download)
+    def handle_signal(signum, frame):
+        wait_cnt = 0
+        while wait_cnt < settings.WORKER_PROGRESS_TERMINAL_TIMEOUT:
+            if p_worker.is_alive():
+                SESE_TRACE(LOG_DEBUG, f"检测{wait_cnt}次，工作进程未退出")
+                time.sleep(1)
+                wait_cnt = wait_cnt + 1
+            else:
+                SESE_TRACE(LOG_DEBUG, f"检测{wait_cnt}次，工作进程已退出")
+                break
         else:
-            fetcher.download(url, no_download=no_download)
+            SESE_TRACE(LOG_DEBUG, f"强制关闭工作进程")
+            p_worker.terminate()
 
-    download_manager.wait_finish()
+        exit(0)
+
+    signal.signal(signal.SIGINT, handle_signal)
+    p_worker = multiprocessing.Process(target=process_worker)
+
+    p_worker.start()
+    while p_worker.is_alive():
+        time.sleep(1)

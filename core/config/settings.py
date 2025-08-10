@@ -11,3 +11,9 @@ LOG_SHOW_LEVEL = False
 
 # 打印Log等级
 LOG_LEVEL = logging.INFO
+
+# 全局请求超时时间(s)
+REQUEST_TIMEOUT = 10
+
+# 工作进程退出超时时间(s)，超过设定时间还在运行则强制中断进程
+WORKER_PROGRESS_TERMINAL_TIMEOUT = 3

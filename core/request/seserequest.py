@@ -62,6 +62,8 @@ class SessionManager:
             SESE_TRACE(LOG_DEBUG, f'proxy: {kwargs["proxies"]}')
         if "impersonate" not in kwargs:
             kwargs["impersonate"] = "chrome110"
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = settings.REQUEST_TIMEOUT
 
         parsed_url = urlparse(url)
         host = parsed_url.netloc  # 提取主机名（如 'api.example.com'）
@@ -78,8 +80,9 @@ class SessionManager:
     def close_all(self):
         """关闭所有 Session 释放资源"""
         with self._lock:
-            for session in self._sessions.values():
+            for host, session in self._sessions.items():
                 session.close()
+                SESE_TRACE(LOG_DEBUG, f"释放Session: {host}")
             self._sessions.clear()
 
 
