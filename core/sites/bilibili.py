@@ -123,21 +123,22 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
 
         return copy.deepcopy(video_info)
 
-    def _download_resource(self, video_info: BiliVideoInfo):
+    def _download_process(self, video_info: BiliVideoInfo, progress: ssreq.TaskDLProgress = None):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
         self.headers["Referer"] = video_info.view_url
 
         # 创建下载任务
-        ssreq.download_task(video_info.name,
-                            ssreq.download_mp4_by_merge_video_audio,
-                            video_path, video_info.audio_download_url,
+        ssreq.download_mp4_by_merge_video_audio(
+                            video_path,
+                            video_info.audio_download_url,
                             video_info.video_download_url,
-                            self.headers.copy())
+                            self.headers.copy(),
+                            progress)
 
-    def _make_source_info_file(self, video_info: BiliVideoInfo):
-        source_info = 'video url: %s\r\n' % video_info.view_url
-        source_info = source_info + 'thumbnail url: %s\r\n' % video_info.thumbnail_url
-        source_info = source_info + 'cover url: %s\r\n' % video_info.cover_url
-        source_info = source_info + 'video download url: %s\r\n' % video_info.video_download_url
-        source_info = source_info + 'audio download url: %s\r\n' % video_info.audio_download_url
-        make_source_info_file(video_info.video_dir, source_info)
+    def _make_source_info_file(self, info: BiliVideoInfo):
+        source_info = 'video url: %s\r\n' % info.view_url
+        source_info = source_info + 'thumbnail url: %s\r\n' % info.thumbnail_url
+        source_info = source_info + 'cover url: %s\r\n' % info.cover_url
+        source_info = source_info + 'video download url: %s\r\n' % info.video_download_url
+        source_info = source_info + 'audio download url: %s\r\n' % info.audio_download_url
+        make_source_info_file(info.video_dir, source_info)

@@ -25,8 +25,8 @@ if __name__ == "__main__":
         exit(0)
 
     signal.signal(signal.SIGINT, handle_signal)
-    p_worker = multiprocessing.Process(target=process_worker)
 
+    p_worker = multiprocessing.Process(target=process_worker, daemon=True)
     p_worker.start()
     while p_worker.is_alive():
         time.sleep(1)

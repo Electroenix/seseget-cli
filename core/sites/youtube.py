@@ -33,6 +33,9 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
     site_dir = core.config.path.YOUTUBE_DATA_LOCAL_DIR + "/"
     GET_INFO_BY_HTML = 1
 
+    def __init__(self, max_tasks=1):
+        super().__init__(max_tasks=max_tasks)
+
     @staticmethod
     def _get_video_info_by_html(video_url):
         """通过视频页面url请求youtube,获取视频信息"""
@@ -148,9 +151,7 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
         else:
             return self._get_video_info_by_yt_dlp(url)
 
-    def _download_resource(self, video_info: YtbVideoInfo):
+    def _download_process(self, video_info: YtbVideoInfo, progress: ssreq.TaskDLProgress | None = None):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
 
-        ssreq.download_task(video_info.name,
-                            seseytdlp.download_by_yt_dlp,
-                            video_path, video_info.view_url)
+        seseytdlp.download_by_yt_dlp(video_path, video_info.view_url, progress)

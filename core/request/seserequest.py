@@ -4,11 +4,13 @@ import re
 import shutil
 import threading
 import copy
+import traceback
+
 from curl_cffi import requests
 from urllib.parse import urlparse
 from urllib.request import getproxies
 from typing import Dict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 
 from core.metadata.comic import ChapterInfo
 from core.utils.trace import *
@@ -155,7 +157,11 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
                 # 文件不存在但是设置了Range，则去除Range字段
                 kwargs["headers"].pop("Range")
 
+            SESE_TRACE(LOG_DEBUG, f"request [{url}]")
+
             response = ss_session.request("GET", url=url, stream=True, **kwargs)
+            if response:
+                SESE_TRACE(LOG_DEBUG, f"[response open]")
 
             total_size = 0
             read_size = 0
@@ -184,11 +190,13 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
                             progress.add_progress(file_name, total=f_size)
                             progress.update(file_name, f_size)
                         response.close()
+                        SESE_TRACE(LOG_DEBUG, f"[response close]")
                         return 0
                     # 文件大小错误，删除文件并重试下载
                     SESE_TRACE(LOG_ERROR, f"文件大小错误，删除文件重新下载，file: {file_name}, (f_size:{f_size}, remote_file_size:{remote_file_size})")
                     os.remove(file_name)
                     response.close()
+                    SESE_TRACE(LOG_DEBUG, f"[response close]")
                     continue
 
                 response.raise_for_status()
@@ -207,10 +215,13 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
                     break
 
             except Exception:
+                if response:
+                    SESE_TRACE(LOG_DEBUG, f"Error! response header: {response.headers}")
                 raise
 
             finally:
                 response.close()
+                SESE_TRACE(LOG_DEBUG, f"[response close]")
 
         except Exception as result:
             if auto_retry:
@@ -233,6 +244,14 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
     return 0
 
 
+def _handle_exception(future):
+    """处理完成任务的异常"""
+    if future.exception():
+        exc = future.exception()
+        SESE_TRACE(LOG_ERROR, "下载任务异常! info: %s\r\n\r\nTraceback:\r\n%s" %
+                   (exc, ''.join(traceback.format_tb(exc.__traceback__))))
+
+
 def _download_files(file_name_list: list[str], url_list: list[str],
                     progress: TaskDLProgress = None, **kwargs):
     """下载多个文件"""
@@ -247,16 +266,17 @@ def _download_files(file_name_list: list[str], url_list: list[str],
             url = url_list[index]
 
             # 创建下载任务
-            threads_list.append(
-                pool.submit(_download_file, file_name, url, True, progress, **kwargs))
+            thread: Future = pool.submit(_download_file, file_name, url, True, progress, **kwargs)
+            thread.add_done_callback(_handle_exception)
+            threads_list.append(thread)
 
             index = index + 1
 
         SESE_PRINT("已提交所有下载任务！")
 
         try:
-            for thread in as_completed(threads_list):
-                exception = thread.exception()
+            for t in as_completed(threads_list):
+                exception = t.exception()
                 if exception:
                     raise exception
 
@@ -376,15 +396,16 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
                 os.mkdir('ts_temp')
 
             # 加入下载线程
-            ts_threads_list.append(
-                pool.submit(_download_file, 'ts_temp/%s' % f_ts_name, ts_url, True, None))
+            thread: Future = pool.submit(_download_file, 'ts_temp/%s' % f_ts_name, ts_url, True, None)
+            thread.add_done_callback(_handle_exception)
+            ts_threads_list.append(thread)
 
             with open('ts_temp/ts_files_list.txt', 'a') as f_ts_files_list:
                 f_ts_files_list.write('file \'%s\'\r\n' % f_ts_name)
 
         try:
-            for thread in as_completed(ts_threads_list):
-                exception = thread.exception()
+            for t in as_completed(ts_threads_list):
+                exception = t.exception()
                 if exception:
                     raise exception
 
@@ -433,18 +454,22 @@ def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: 
         progress.set_progress_count(len(image_urls))
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
+    SESE_TRACE(LOG_DEBUG, f"image_urls: {image_urls}")
+
     with ThreadPoolExecutor(max_workers=10) as pool:
         for index, url in enumerate(image_urls):
             image_name = "%05d.jpg" % index
             image_path = image_temp_dir_path + "/" + image_name
 
             # 加入下载线程
-            threads_list.append(pool.submit(_download_file, image_path, url, True, progress))
+            thread: Future = pool.submit(_download_file, image_path, url, True, progress)
+            thread.add_done_callback(_handle_exception)
+            threads_list.append(thread)
             image_index = image_index + 1
 
         try:
-            for thread in as_completed(threads_list):
-                exception = thread.exception()
+            for t in as_completed(threads_list):
+                exception = t.exception()
                 if exception:
                     raise exception
 

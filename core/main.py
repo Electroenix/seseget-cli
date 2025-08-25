@@ -34,6 +34,7 @@ def process_worker():
 
     for url in urls:
         fetcher = FetcherRegistry.get_fetcher(site)
+        SESE_TRACE(LOG_DEBUG, f"获取到Fetcher[{fetcher}]")
         if site == "bika" or \
            site == "jmcomic":
             chapter = [int(c) for c in (args.chapter.split(",") if args.chapter else [])]
