@@ -4,12 +4,12 @@ import json
 import html
 from bs4 import BeautifulSoup, element
 from urllib.parse import urlparse, parse_qs
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import core.config.path
 from core.metadata.video import *
 from core.request.fetcher import VideoFetcher, FetcherRegistry
-from core.utils.trace import SESE_PRINT
+from core.utils.thread_utils import SeseThreadPool, Future
+from core.utils.trace import *
 from core.request import seserequest as ssreq
 from core.utils.file_utils import *
 
@@ -68,8 +68,17 @@ class HanimeFetcher(VideoFetcher):
 
     @staticmethod
     def download_series_thumbnail(series, dir):
-        threads_list = []
-        with ThreadPoolExecutor(max_workers=10) as pool:
+        totle_cnt = len(series)
+        finish_cnt = 0
+
+        def done_callback(future: Future):
+            nonlocal finish_cnt
+            finish_cnt = finish_cnt + 1
+            SESE_PRINT('下载系列视频缩略图中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
+
+        with SeseThreadPool(max_workers=10) as pool:
+            pool.set_done_callback(done_callback)
+
             for video in series:
                 video_url = video["url"]
                 view_url_parse = urlparse(video_url)
@@ -80,15 +89,14 @@ class HanimeFetcher(VideoFetcher):
                 thumbnail_path = dir + "%s.jpg" % vid
 
                 # 加入下载线程
-                threads_list.append(pool.submit(ssreq.download_file, thumbnail_path, thumbnail_url))
+                pool.submit(ssreq.download_file, thumbnail_path, thumbnail_url)
                 video["thumbnail"] = thumbnail_path
 
-            # 监测下载线程状态
-            totle_cnt = len(threads_list)
-            finish_cnt = 0
-            for thread in as_completed(threads_list):
-                finish_cnt = finish_cnt + 1
-                SESE_PRINT('下载系列视频缩略图中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
+            try:
+                pool.wait_all()
+            except Exception as e:
+                SESE_TRACE(LOG_ERROR, '\n下载失败!')
+                raise
 
         SESE_PRINT('\n下载完成!')
 

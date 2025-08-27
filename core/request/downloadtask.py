@@ -1,6 +1,6 @@
 from threading import Lock
 import uuid
-from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED, Future
+from core.utils.thread_utils import SeseThreadPool, Future
 import functools
 from typing import Callable
 import inspect
@@ -213,7 +213,8 @@ class DownloadManager:
         self.tasks: list[DownloadTask] = []
         self.id_to_task = {}  # 新增ID映射字典
         self._tasks_lock = Lock()
-        self.task_pool = ThreadPoolExecutor(max_workers=max_concurrent)
+        self.task_pool = SeseThreadPool(max_workers=max_concurrent)
+        self.task_pool.set_done_callback(self._handle_exception)
 
         # ID生成配置
         self._id_counter = 0
@@ -239,7 +240,6 @@ class DownloadManager:
         wrapped_func = self._wrap_download_func(func, task.task_progress)
 
         task.thread = self.task_pool.submit(wrapped_func, *args)
-        task.thread.add_done_callback(self._handle_exception)
         SESE_PRINT(f"创建下载任务[task_id: {task_id}, name: {name}]")
         return task
 
@@ -285,17 +285,14 @@ class DownloadManager:
             return self.tasks.copy()
 
     def wait_finish(self):
-        wait([task.thread for task in self.tasks], return_when=ALL_COMPLETED)
-        self.task_pool.shutdown()
+        self.task_pool.wait_all()
+        self.task_pool.close(wait=False)
 
     def shutdown(self):
-        for task in self.tasks:
-            task.thread.cancel()
-            SESE_TRACE(LOG_DEBUG, f"取消任务: {task.name}")
-        self.task_pool.shutdown(wait=False)
+        self.task_pool.close(wait=False)
 
     def all_done(self):
-        return all(future.done() for future in [task.thread for task in self.tasks])
+        return self.task_pool.all_done
 
 
 download_manager = DownloadManager(max_concurrent=3)

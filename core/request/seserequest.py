@@ -10,9 +10,9 @@ from curl_cffi import requests
 from urllib.parse import urlparse
 from urllib.request import getproxies
 from typing import Dict
-from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 
 from core.metadata.comic import ChapterInfo
+from core.utils.thread_utils import SeseThreadPool
 from core.utils.trace import *
 from core.request import downloadtask as dltask
 from core.request.downloadtask import TaskDLProgress, ProgressStatus
@@ -259,32 +259,22 @@ def _download_files(file_name_list: list[str], url_list: list[str],
         SESE_TRACE(LOG_ERROR, "文件与下载地址数量不匹配！")
         return -1
 
-    threads_list = []
-    with ThreadPoolExecutor(max_workers=10) as pool:
+    with SeseThreadPool(max_workers=10) as pool:
         index = 0
         for file_name in file_name_list:
             url = url_list[index]
 
             # 创建下载任务
-            thread: Future = pool.submit(_download_file, file_name, url, True, progress, **kwargs)
-            thread.add_done_callback(_handle_exception)
-            threads_list.append(thread)
-
+            pool.submit(_download_file, file_name, url, True, progress, **kwargs)
             index = index + 1
 
         SESE_PRINT("已提交所有下载任务！")
 
         try:
-            for t in as_completed(threads_list):
-                exception = t.exception()
-                if exception:
-                    raise exception
+            pool.wait_all()
 
         except Exception as e:
             SESE_TRACE(LOG_ERROR, f"下载失败！info: {e}")
-            for f in threads_list:
-                f.cancel()
-            pool.shutdown(wait=False, cancel_futures=True)
             raise
 
     SESE_PRINT("全部文件下载完成！")
@@ -378,16 +368,14 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
     """下载m3u8文件，保存为mp4格式"""
     # 获取所有ts文件url
     ts_list = _get_ts_list_from_m3u8(url)
-
     ts_index = 0
-    ts_threads_list = []
 
     if progress is not None:
         progress.init_progress()
         progress.set_progress_count(len(ts_list))
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
-    with ThreadPoolExecutor(max_workers=10) as pool:
+    with SeseThreadPool(max_workers=10) as pool:
         for ts_url in ts_list:
             ts_index = ts_index + 1
             f_ts_name = '%08d.ts' % ts_index
@@ -396,26 +384,18 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
                 os.mkdir('ts_temp')
 
             # 加入下载线程
-            thread: Future = pool.submit(_download_file, 'ts_temp/%s' % f_ts_name, ts_url, True, None)
-            thread.add_done_callback(_handle_exception)
-            ts_threads_list.append(thread)
+            pool.submit(_download_file, 'ts_temp/%s' % f_ts_name, ts_url, True, None)
 
             with open('ts_temp/ts_files_list.txt', 'a') as f_ts_files_list:
                 f_ts_files_list.write('file \'%s\'\r\n' % f_ts_name)
 
         try:
-            for t in as_completed(ts_threads_list):
-                exception = t.exception()
-                if exception:
-                    raise exception
+            pool.wait_all()
 
         except Exception as e:
             SESE_TRACE(LOG_ERROR, f"下载失败！info: {e}")
             if progress:
                 progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
-            for f in ts_threads_list:
-                f.cancel()
-            pool.shutdown(wait=False, cancel_futures=True)
             raise
 
     SESE_PRINT('下载完成!')
@@ -443,7 +423,6 @@ def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: 
 
     """
     image_index = 1
-    threads_list = []
     image_temp_dir_path = save_dir + "/" + comic_title  # 漫画图片的临时保存目录
 
     if not os.path.exists(image_temp_dir_path):
@@ -456,30 +435,22 @@ def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: 
 
     SESE_TRACE(LOG_DEBUG, f"image_urls: {image_urls}")
 
-    with ThreadPoolExecutor(max_workers=10) as pool:
+    with SeseThreadPool(max_workers=10) as pool:
         for index, url in enumerate(image_urls):
             image_name = "%05d.jpg" % index
             image_path = image_temp_dir_path + "/" + image_name
 
             # 加入下载线程
-            thread: Future = pool.submit(_download_file, image_path, url, True, progress)
-            thread.add_done_callback(_handle_exception)
-            threads_list.append(thread)
+            pool.submit(_download_file, image_path, url, True, progress)
             image_index = image_index + 1
 
         try:
-            for t in as_completed(threads_list):
-                exception = t.exception()
-                if exception:
-                    raise exception
+            pool.wait_all()
 
         except Exception as e:
             SESE_TRACE(LOG_ERROR, f"下载失败！info: {e}")
             if progress:
                 progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
-            for f in threads_list:
-                f.cancel()
-            pool.shutdown(wait=False, cancel_futures=True)
             raise
 
     SESE_PRINT("下载完成！")
