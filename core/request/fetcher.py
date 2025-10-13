@@ -166,7 +166,7 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
     def __init__(self, max_tasks=1):
         # 由于漫画下载通常要下载大量图片，max_tasks默认设为1，避免请求过多被拒
         super().__init__(max_tasks=max_tasks)
-        self.sem_cnt = 0
+        self.capter_lock = threading.Lock()
 
     def _make_save_dir(self, info: T_Info):
         # 漫画下载目录说明
@@ -198,7 +198,9 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
 
     def _download_process_with_semaphore(self, comic_title: str, chapter: T_ChapterInfo, progress: ssreq.TaskDLProgress = None):
         try:
-            self._download_process(comic_title, chapter, progress)
+            # 控制同时只能下载一个章节，避免请求过多
+            with self.capter_lock:
+                self._download_process(comic_title, chapter, progress)
         except Exception:
             raise
         finally:

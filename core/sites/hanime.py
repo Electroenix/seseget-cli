@@ -20,11 +20,11 @@ class HanimeFetcher(VideoFetcher):
 
     @staticmethod
     # 从html数据中获取数据到metadata
-    def get_metadata(video_name, soup):
+    def get_metadata(soup):
         metadata = VideoMetaData()
 
         # 提取视频信息到metadata
-        metadata.title = video_name
+        metadata.title = soup.find('h3', attrs={'id': 'shareBtn-title'}).string
         metadata.sub_title = soup.find_all('div', attrs={'style': 'margin-bottom: 5px'})[1].string
         metadata.describe = soup.find('div', attrs={'class': 'video-caption-text caption-ellipsis',
                                                     'style': 'color: #b8babc; font-weight: normal;'}).string
@@ -113,19 +113,13 @@ class HanimeFetcher(VideoFetcher):
         response = ssreq.request("GET", url)
         video_soup = BeautifulSoup(response.text, 'html.parser')
 
-        # 提取其中有关视频信息的json数据
-        video_context_text = video_soup.find('script', {'type': 'application/ld+json'}).string
-        video_context_text = video_context_text.replace('\n', '')
-        video_context_text = video_context_text.replace('\r', '')
-        video_context_json = json.loads(video_context_text)
-
-        # 解析其中内容
-        video_name = html.unescape(video_context_json['name'])
-        video_thumbnail_url = video_context_json['thumbnailUrl'][0]
-        video_download_url = video_context_json['contentUrl']
+        # 提取视频信息
+        video_elem = video_soup.find('video')
+        video_thumbnail_url = video_elem.get("poster")
+        video_download_url = video_elem.find("source", {"size": "1080"}).get("src")
 
         # 从html中获取metadata
-        metadata = self.get_metadata(video_name, video_soup)
+        metadata = self.get_metadata(video_soup)
         series_info = self.get_series_info(video_soup)
 
         # 通过视频类别和视频名字请求搜索页面，可以获取到搜索页面中视频的封面，主要是因为里番在搜索里有竖版封面，但是在视频页面里只有预览图
@@ -136,7 +130,7 @@ class HanimeFetcher(VideoFetcher):
 
         if search_genre == "裏番" or search_genre == "泡麵番":
             search_url = 'https://hanime1.me/search?type=&genre=%s&sort=&year=&month=' % search_genre
-            response = ssreq.request("GET", search_url, params={'query': video_name})
+            response = ssreq.request("GET", search_url, params={'query': metadata.title})
 
             search_soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -151,7 +145,7 @@ class HanimeFetcher(VideoFetcher):
         video_info = VideoInfo()
 
         video_info.vid = vid
-        video_info.name = video_name
+        video_info.name = metadata.title
         video_info.view_url = url
         video_info.download_url = video_download_url
         video_info.cover_url = cover_url
