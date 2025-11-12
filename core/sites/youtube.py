@@ -30,7 +30,7 @@ class YtbVideoInfo(VideoInfo):
 
 @FetcherRegistry.register("youtube")
 class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
-    site_dir = core.config.path.YOUTUBE_DATA_LOCAL_DIR + "/"
+    site_dir = os.path.join(core.config.path.DATA_DIR, "youtube")
     GET_INFO_BY_HTML = 1
 
     def __init__(self, max_tasks=1):

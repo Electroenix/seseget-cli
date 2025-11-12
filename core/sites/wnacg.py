@@ -10,7 +10,7 @@ from core.config import path
 
 @FetcherRegistry.register("wnacg")
 class WnacgFetcher(ComicFetcher):
-    site_dir = path.WNACG_DATA_LOCAL_DIR
+    site_dir = os.path.join(path.DATA_DIR, "wnacg")
 
     def _get_image_urls(self, url: str) -> List[str]:
         cid = re.search(r"\d+(?=\.html)", url).group()

@@ -39,7 +39,7 @@ class BiliVideoInfo(VideoInfo):
 
 @FetcherRegistry.register("bilibili")
 class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
-    site_dir = core.config.path.BILI_DATA_LOCAL_DIR + "/"
+    site_dir = os.path.join(core.config.path.DATA_DIR, "bilibili")
     headers = {
         "Referer": "",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",

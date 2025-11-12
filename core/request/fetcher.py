@@ -75,17 +75,17 @@ class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         #             ├── fanart.jpg  # 背景图片
         #             ├── poster.jpg  # 封面图片
         #             └── source.txt  # 下载来源信息
-        if not self.site_dir:
+        if not self.__class__.site_dir:
             raise ValueError("未指定下载目录!")
+        if not os.path.exists(self.__class__.site_dir):
+            os.mkdir(self.__class__.site_dir)
 
-        artist_dir = self.__class__.site_dir + '%s' % make_filename_valid(info.metadata.artist)  # 中间目录，主要用来分类同一个作者的作品
-        info.video_dir = '%s/%s' % (artist_dir, make_filename_valid(info.name))  # 下载目录，以视频名命名
+        artist_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.metadata.artist))  # 中间目录，主要用来分类同一个作者的作品
+        info.video_dir = os.path.join(artist_dir, make_filename_valid(info.name))  # 下载目录，以视频名命名
 
         # 如果目录已经存在，生成不同的目录名，避免视频名相同导致被覆盖
         info.video_dir = make_diff_dir_name(info.video_dir)
 
-        if not os.path.exists(self.__class__.site_dir):
-            os.mkdir(self.__class__.site_dir)
         if not os.path.exists(artist_dir):
             os.mkdir(artist_dir)
         if not os.path.exists(info.video_dir):
@@ -179,10 +179,12 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
         #
         #         ├── comic_xxx.cbz  # 第xxx话
         #         └── source.txt  # 下载来源信息
-        if not self.site_dir:
+        if not self.__class__.site_dir:
             raise ValueError("未指定下载目录!")
+        if not os.path.exists(self.__class__.site_dir):
+            os.mkdir(self.__class__.site_dir)
 
-        info.comic_dir = self.site_dir + "/" + make_filename_valid(info.title)
+        info.comic_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.title))
 
         # 如果目录已经存在，生成不同的目录名，避免视频名相同导致被覆盖
         info.comic_dir = make_diff_dir_name(info.comic_dir)

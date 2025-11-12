@@ -16,7 +16,7 @@ from core.utils.file_utils import *
 
 @FetcherRegistry.register("hanime")
 class HanimeFetcher(VideoFetcher):
-    site_dir = core.config.path.HANIME_DATA_LOCAL_DIR + "/"
+    site_dir = os.path.join(core.config.path.DATA_DIR, "hanime")
 
     @staticmethod
     # 从html数据中获取数据到metadata

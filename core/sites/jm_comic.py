@@ -290,7 +290,7 @@ jmcomic.JmModuleConfig.register_client(SeseJmClient)
 
 @FetcherRegistry.register("jmcomic")
 class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
-    site_dir = path.JMCOMIC_DATA_LOCAL_DIR
+    site_dir = os.path.join(path.DATA_DIR, "jmcomic")
 
     def __init__(self, max_tasks):
         super().__init__(max_tasks=max_tasks)
