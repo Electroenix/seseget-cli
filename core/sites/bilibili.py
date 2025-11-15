@@ -24,6 +24,7 @@ class BiliVideoInfo(VideoInfo):
         self.video_share = ""
 
     def print_info(self):
+        SESE_PRINT(f"---------------------------------")
         SESE_PRINT(f"BV号: {self.vid}")
         SESE_PRINT(f"标题: {self.metadata.title}")
         SESE_PRINT(f"简介: {self.metadata.describe}")
@@ -35,6 +36,7 @@ class BiliVideoInfo(VideoInfo):
         SESE_PRINT(f"投币: {self.video_coin}")
         SESE_PRINT(f"收藏: {self.video_fav}")
         SESE_PRINT(f"转发: {self.video_share}")
+        SESE_PRINT(f"---------------------------------")
 
 
 @FetcherRegistry.register("bilibili")

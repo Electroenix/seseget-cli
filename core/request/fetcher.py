@@ -92,12 +92,20 @@ class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
             os.mkdir(info.video_dir)
 
     def _make_metadata_file(self, video_info: T_VideoInfo):
-        poster_path = video_info.video_dir + '/' + 'poster.jpg'  # 封面图保存路径
-        fanart_path = video_info.video_dir + '/' + 'fanart.jpg'  # 背景图保存路径
+        result = 0
+        poster_path = ""
+        fanart_path = ""
 
-        if ssreq.download_file(poster_path, video_info.cover_url) | \
-                ssreq.download_file(fanart_path, video_info.thumbnail_url) == 0:
+        if video_info.cover_url:
+            poster_path = video_info.video_dir + '/' + 'poster.jpg'  # 封面图保存路径
+            # 下载封面
+            result = ssreq.download_file(poster_path, video_info.cover_url)
+        if video_info.thumbnail_url:
+            fanart_path = video_info.video_dir + '/' + 'fanart.jpg'  # 背景图保存路径
+            # 下载缩略图
+            result = result | ssreq.download_file(fanart_path, video_info.thumbnail_url)
 
+        if result == 0:
             video_info.metadata.describe = video_info.metadata.describe + '\r\n%s' % video_info.view_url
             video_info.metadata.back_ground_path = fanart_path
 

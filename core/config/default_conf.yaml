@@ -26,6 +26,10 @@ bilibili:
   # B站cookie需要自己配置
   cookie: ""
 
+twitter:
+  # 部分推特视频有限制需要提供cookie，使用浏览器插件 Get cookies.txt LOCALLY 获取cookie文件并在下方设置路径
+  cookie_file: ""
+
 # 下载配置
 download:
   # true: 会在下载目录下生成source.txt文件保存下载资源的来源信息，false: 不生成source.txt

@@ -28,29 +28,28 @@ VIDEO_FORMAT = 'bestvideo[ext=mp4]/bestvideo'
 AUDIO_FORMAT = 'bestaudio[ext=m4a]/bestaudio'
 
 
-def get_info(url):
+def get_info(url, extend_opts=None):
     ydl_opts = {
+        'logger': YtDlpLogger(),
         'source_address': '0.0.0.0',
         'verbose': True,
         'retries': 3,
     }
+    if extend_opts is not None:
+        ydl_opts.update(extend_opts)
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
     except Exception as result:
         SESE_TRACE(LOG_ERROR, 'Error! info: %s' % result)
-        return -1
+        return None
 
     return info
 
 
-def download_by_yt_dlp(filename, url, progress: TaskDLProgress = None):
+def download_by_yt_dlp(filename, url, extend_opts=None, progress: TaskDLProgress = None):
     """通过yt_dlp下载视频"""
-    dir = os.path.dirname(filename)
-    if not os.path.exists(dir):
-        os.mkdir(dir)
-
     # 下载进度回调
     def progress_hook(d):
         file_name = ""
@@ -81,14 +80,18 @@ def download_by_yt_dlp(filename, url, progress: TaskDLProgress = None):
     ydl_opts = {
         'logger': YtDlpLogger(),
         'format': 'bv[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b',
-        'outtmpl': dir + '/%(title)s.%(ext)s',
+        #'outtmpl': dir + '/%(title)s.%(ext)s',
+        'outtmpl': filename,
         'source_address': '0.0.0.0',
         'verbose': True,
         'retries': 3,
         'progress_hooks': [progress_hook],
         'noprogress': True,
         'merge_output_format': 'mp4',
+        'noplaylist': True,
     }
+    if extend_opts is not None:
+        ydl_opts.update(extend_opts)
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

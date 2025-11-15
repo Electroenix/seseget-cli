@@ -240,7 +240,7 @@ class DownloadManager:
         wrapped_func = self._wrap_download_func(func, task.task_progress)
 
         task.thread = self.task_pool.submit(wrapped_func, *args)
-        SESE_PRINT(f"创建下载任务[task_id: {task_id}, name: {name}]")
+        SESE_TRACE(LOG_DEBUG, f"创建下载任务[task_id: {task_id}, name: {name}]")
         return task
 
     @staticmethod

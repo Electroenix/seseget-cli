@@ -5,7 +5,7 @@
 - 使用命令行+资源页面url下载资源文件
 - 支持自动刮削资源元数据，可方便的导入媒体库管理
 - 当前支持站点：
-  - 视频资源：Hanime.me, Bilibili, Youtube
+  - 视频资源：Hanime.me, Bilibili, Youtube, Twitter
   - 漫画资源：哔咔, JMComic, Wnacg
 
 ## 媒体库支持
@@ -18,8 +18,8 @@
 ## 部署
 
 ### 环境要求：
-- Python3.11
-- ffmpeg (某些视频处理需要使用)
+- **Python3.11**
+- **[FFmpeg](https://www.ffmpeg.org/)**: 用于处理视频，下载bilibili/youtube/twitter视频需要安装此软件，并配置好环境变量
 
 ### 安装：
 #### 1,使用pipenv安装虚拟环境(推荐)
@@ -34,7 +34,7 @@ pipenv sync
 pipenv shell
 ```
 
-#### 2,不使用虚拟环境直接安装依赖
+#### 2,不使用pipenv安装依赖
 ```bash
 pip install -r requirements.txt
 ```
@@ -65,7 +65,7 @@ options:
 ```
 
 ## 配置
-初次运行脚本会生成```conf/conf.yaml```文件，修改文件中配置并保存，下次运行将会应用新的配置
+初次运行脚本会生成```conf/conf.yaml```文件，或者手动复制项目目录下的```core/config/default_conf.yaml```到```conf/conf.yaml```，修改文件中配置并保存，下次运行将会应用新的配置
 ### 全局配置
 ```yaml
 common:

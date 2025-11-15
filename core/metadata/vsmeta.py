@@ -91,29 +91,30 @@ def make_vsmeta_file(filename, metadata):
     f_vsmeta.write(bytes.fromhex('60ffffffffffffffffff01'))
 
     # 组3数据
-    with open(metadata.back_ground_path, 'rb') as f_bg_image:
-        image_data = f_bg_image.read()
-        bg_image_base64 = base64.b64encode(image_data)
-        # 计算图片md5
-        image_md5 = hashlib.md5(image_data).hexdigest()
+    if metadata.back_ground_path:
+        with open(metadata.back_ground_path, 'rb') as f_bg_image:
+            image_data = f_bg_image.read()
+            bg_image_base64 = base64.b64encode(image_data)
+            # 计算图片md5
+            image_md5 = hashlib.md5(image_data).hexdigest()
 
-    # 背景图base64
-    group3 = bytes.fromhex('0a')
-    group3 = group3 + get_check_code(len(bg_image_base64))
-    group3 = group3 + bg_image_base64
+            # 背景图base64
+            group3 = bytes.fromhex('0a')
+            group3 = group3 + get_check_code(len(bg_image_base64))
+            group3 = group3 + bg_image_base64
 
-    # md5
-    group3 = group3 + bytes.fromhex('12')
-    group3 = group3 + get_check_code(len(image_md5.encode()))
-    group3 = group3 + image_md5.encode()
+            # md5
+            group3 = group3 + bytes.fromhex('12')
+            group3 = group3 + get_check_code(len(image_md5.encode()))
+            group3 = group3 + image_md5.encode()
 
-    # 时间戳
-    group3 = group3 + bytes.fromhex('18')
-    group3 = group3 + get_check_code(int(time.time()))
+            # 时间戳
+            group3 = group3 + bytes.fromhex('18')
+            group3 = group3 + get_check_code(int(time.time()))
 
-    # 写入组3数据
-    f_vsmeta.write(bytes.fromhex('aa01'))
-    f_vsmeta.write(get_check_code(len(group3)))
-    f_vsmeta.write(group3)
+            # 写入组3数据
+            f_vsmeta.write(bytes.fromhex('aa01'))
+            f_vsmeta.write(get_check_code(len(group3)))
+            f_vsmeta.write(group3)
 
-    f_vsmeta.close()
+            f_vsmeta.close()

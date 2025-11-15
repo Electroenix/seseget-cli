@@ -18,6 +18,7 @@ class YtbVideoInfo(VideoInfo):
         self.video_like = ""
 
     def print_info(self):
+        SESE_PRINT(f"---------------------------------")
         SESE_PRINT(f"vid: {self.vid}")
         SESE_PRINT(f"标题: {self.metadata.title}")
         SESE_PRINT(f"简介: {self.metadata.describe}")
@@ -26,6 +27,7 @@ class YtbVideoInfo(VideoInfo):
         SESE_PRINT(f"标签: {self.metadata.tag_list}")
         SESE_PRINT(f"播放: {self.video_view}")
         SESE_PRINT(f"点赞: {self.video_like}")
+        SESE_PRINT(f"---------------------------------")
 
 
 @FetcherRegistry.register("youtube")
@@ -154,4 +156,4 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
     def _download_process(self, video_info: YtbVideoInfo, progress: ssreq.TaskDLProgress | None = None):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
 
-        seseytdlp.download_by_yt_dlp(video_path, video_info.view_url, progress)
+        seseytdlp.download_by_yt_dlp(video_path, video_info.view_url, progress=progress)
