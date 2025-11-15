@@ -216,7 +216,8 @@ class BikaFetcher(ComicFetcher):
         chapter_id_list = kwargs.get("chapter_id_list", None)
 
         view_url_parse = urlparse(url)
-        cid = parse_qs(view_url_parse.query)["cid"][0]
+        cid = os.path.basename(view_url_parse.path)
+        SESE_TRACE(LOG_DEBUG, f"cid: {cid}")
         comic_info = ComicInfo()
         comic_info.view_url = url
         comic_info.cid = cid
