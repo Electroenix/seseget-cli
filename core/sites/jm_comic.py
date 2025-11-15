@@ -292,8 +292,8 @@ jmcomic.JmModuleConfig.register_client(SeseJmClient)
 class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
     site_dir = os.path.join(path.DATA_DIR, "jmcomic")
 
-    def __init__(self, max_tasks):
-        super().__init__(max_tasks=max_tasks)
+    def __init__(self):
+        super().__init__()
         self.jm_option = jmcomic.JmModuleConfig.option_class().default()
 
     def jm_login(self):
@@ -448,6 +448,5 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
 
     def _download_process(self, comic_title: str, chapter: JMChapterInfo, progress: ssreq.TaskDLProgress = None):
         comic_info = chapter.comic_info
-        with self.chapter_lock:
-            res = self.download_jmcomic(comic_info.comic_dir, comic_title, chapter.url, chapter, progress)
+        res = self.download_jmcomic(comic_info.comic_dir, comic_title, chapter.url, chapter, progress)
         return res
