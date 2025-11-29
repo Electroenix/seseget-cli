@@ -116,7 +116,13 @@ class HanimeFetcher(VideoFetcher):
         # 提取视频信息
         video_elem = video_soup.find('video')
         video_thumbnail_url = video_elem.get("poster")
-        video_download_url = video_elem.find("source", {"size": "1080"}).get("src")
+        video_source = video_elem.find("source", {"size": "1080"})
+        if video_source is None:
+            video_source = video_elem.find("source", {"size": "720"})
+        if video_source is None:
+            video_source = video_elem.find("source", {"size": "480"})
+
+        video_download_url = video_source.get("src")
 
         # 从html中获取metadata
         metadata = self.get_metadata(video_soup)
