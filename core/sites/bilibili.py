@@ -71,7 +71,10 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
 
         # 提取视频信息
         video_title = viewbox_report.find("h1").text
-        video_descript = v_desc.find("span").text
+        video_desc_span = v_desc.find("span")
+        video_descript = ""
+        if video_desc_span:
+            video_descript = video_desc_span.text
         video_author = video_soup.find("meta", attrs={"itemprop": "author"}).attrs["content"]
         video_cover = "https:" + video_soup.find("meta", attrs={"itemprop": "image"}).attrs["content"].split("@")[0]
         video_thumbnail = "https:" + video_soup.find("meta", attrs={"itemprop": "thumbnailUrl"}).attrs["content"].split("@")[0]

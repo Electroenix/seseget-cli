@@ -38,3 +38,8 @@ def make_diff_dir_name(dir):
 def get_file_basename(path):
     """获取完整路径中的目标文件名"""
     return os.path.basename(os.path.normpath(path))
+
+
+def print_to_file(filename: str, content: str | bytes, mode="w"):
+    with open(filename, mode) as f:
+        f.write(content)

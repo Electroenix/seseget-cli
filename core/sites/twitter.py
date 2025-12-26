@@ -37,48 +37,23 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
             SESE_TRACE(LOG_ERROR, "video info is error!")
             return None
 
-        SESE_PRINT(f"检测到推文包含{twitter_info['playlist_count']}个视频")
+        tt_video_info_list = []
+        if twitter_info.get("_type") == "playlist":
+            SESE_PRINT(f"检测到推文包含{twitter_info['playlist_count']}个视频")
+
+            if twitter_info["id"] == twitter_info["webpage_url_basename"]:
+                # 未指定视频，下载推文下所有视频
+                for info in twitter_info["entries"]:
+                    tt_video_info_list.append(info)
+            else:
+                # 只下载指定视频
+                video_index = int(twitter_info["webpage_url_basename"])
+                tt_video_info_list.append(twitter_info["entries"][video_index - 1])
+        else:
+            tt_video_info_list.append(twitter_info)
 
         video_info_list = []
-        if twitter_info["id"] == twitter_info["webpage_url_basename"]:
-            # 未指定视频，下载推文下所有视频
-            for info in twitter_info["entries"]:
-                vid = info["id"]
-
-                # 提取视频信息
-                video_title = f'{info["uploader_id"]}_{info["upload_date"]}_{info["id"]}'
-                video_descript = info["description"]
-                video_author = info["uploader"]
-                video_date = f'{info["upload_date"][0:4]}-{info["upload_date"][4:6]}-{info["upload_date"][6:8]}'
-                video_tags: list = [info["uploader"], info["uploader_id"]]
-                video_cover = info["thumbnail"]
-                video_thumbnail = info["thumbnail"]
-
-                # 元数据
-                metadata = VideoMetaData()
-                metadata.title = video_title
-                metadata.sub_title = video_title
-                metadata.describe = video_descript
-                metadata.artist = video_author
-                metadata.public_time = video_date[0:10]
-                metadata.year = video_date[0:4]
-                metadata.director = video_author
-                metadata.tag_list = video_tags.copy()
-
-                video_info = VideoInfo()
-
-                video_info.vid = vid
-                video_info.name = video_title
-                video_info.view_url = video_url
-                video_info.cover_url = video_cover
-                video_info.thumbnail_url = video_thumbnail
-                video_info.metadata = metadata
-
-                video_info_list.append(video_info)
-        else:
-            # 只下载指定视频
-            video_index = int(twitter_info["webpage_url_basename"])
-            info = twitter_info["entries"][video_index - 1]
+        for info in tt_video_info_list:
 
             vid = info["id"]
 
