@@ -23,7 +23,7 @@ def process_worker():
 
     paser = argparse.ArgumentParser()
     paser.add_argument("url", nargs="+", default="", help="url，可接受多个url")
-    paser.add_argument("-s", "--site", default="", help="站点名，支持[bika/hanime/wnacg/bilibili/youtube/jmcomic]")
+    paser.add_argument("-s", "--site", default="", help=f"站点名，支持{FetcherRegistry.list_sites()}")
     paser.add_argument("-c", "--chapter", default="", help="章节号，指定漫画下载章节号，多个章节请使用逗号分隔, 未指定章节则下载全部章节")
     paser.add_argument("--no-download", default=False, action="store_true", help="不下载资源，仅显示资源信息")
 

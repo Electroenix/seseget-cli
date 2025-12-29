@@ -22,7 +22,7 @@
 - **[FFmpeg](https://www.ffmpeg.org/)**: 用于处理视频，下载bilibili/youtube/twitter视频需要安装此软件，并配置好环境变量
 
 ### 安装：
-#### 1,使用pipenv安装虚拟环境(推荐)
+#### 方式1：使用pipenv安装虚拟环境(推荐)
 ```bash
 # 安装Pipenv（如未安装）
 pip install pipenv
@@ -34,33 +34,33 @@ pipenv sync
 pipenv shell
 ```
 
-#### 2,不使用pipenv安装依赖
+#### 方式2：手动安装依赖
 ```bash
 pip install -r requirements.txt
 ```
 
 ## 使用
 一般指定下载站点和资源页面url就可以下载资源 (一些站点需要登录，请查看**配置**章节先修改相关配置)
-```text
-seseget.py -s [SITE] url
+```commandline
+python seseget -s SITE url
 
-SITE     下载资源的站点，支持以下值：bika/hanime/wnacg/bilibili/youtube/jmcomic  
+SITE        站点名，支持['bika', 'bilibili', 'hanime', 'jmcomic', 'twitter', 'wnacg', 'youtube']  
 url         下载资源的url，资源详情页面的url，如视频播放页/漫画详情页
 ```
 
 更多参数用法请参照下面的参数说明:
-```text
-seseget.py -h
-usage: seseget.py [-h] [-s SITE] [-c CHAPTER] [--no-download] url [url ...]
+```commandline
+python seseget -h
+usage: seseget [-h] [-s SITE] [-c CHAPTER] [--no-download] url [url ...]
 
 positional arguments:
   url                   url，可接受多个url
 
 options:
   -h, --help            show this help message and exit
-  -s SITE, --site SITE  站点名，支持[bika/hanime/wnacg/bilibili/youtube/jmcomic]
+  -s SITE, --site SITE  站点名，支持['bika', 'bilibili', 'hanime', 'jmcomic', 'twitter', 'wnacg', 'youtube']
   -c CHAPTER, --chapter CHAPTER
-                        章节号，仅bika支持，指定下载章节号，多个章节请使用逗号分隔, 未指定章节则下载全部章节
+                        章节号，指定漫画下载章节号，多个章节请使用逗号分隔, 未指定章节则下载全部章节
   --no-download         不下载资源，仅显示资源信息
 ```
 
