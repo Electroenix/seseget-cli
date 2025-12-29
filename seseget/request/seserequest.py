@@ -11,15 +11,15 @@ from urllib.parse import urlparse
 from urllib.request import getproxies
 from typing import Dict
 
-from core.metadata.comic import ChapterInfo
-from core.utils.thread_utils import SeseThreadPool
-from core.utils.trace import *
-from core.request import downloadtask as dltask
-from core.request.downloadtask import TaskDLProgress, ProgressStatus
-from core.utils.file_process import make_comic
-from core.config.config_manager import config
-from core.utils.file_utils import get_file_basename
-from core.utils.subprocess_utils import exec_cmd
+from ..metadata.comic import ChapterInfo
+from ..utils.thread_utils import SeseThreadPool
+from ..utils.trace import *
+from . import downloadtask as dltask
+from .downloadtask import TaskDLProgress, ProgressStatus
+from ..utils.file_process import make_comic
+from ..config.config_manager import config
+from ..utils.file_utils import get_file_basename
+from ..utils.subprocess_utils import exec_cmd
 
 
 class SessionManager:

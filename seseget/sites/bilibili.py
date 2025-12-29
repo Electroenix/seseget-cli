@@ -1,14 +1,15 @@
 import copy
 import json
 from bs4 import BeautifulSoup
-import core.config.path
-from core.metadata.video import *
-from core.request.fetcher import VideoFetcher, FetcherRegistry
-from core.utils.trace import *
-from core.request import seserequest as ssreq
-from core.utils.file_utils import *
-from core.config.config_manager import config
-from core.utils.file_process import make_source_info_file
+
+from ..config.path import DATA_DIR
+from ..metadata.video import *
+from ..request.fetcher import VideoFetcher, FetcherRegistry
+from ..utils.trace import *
+from ..request import seserequest as ssreq
+from ..utils.file_utils import *
+from ..config.config_manager import config
+from ..utils.file_process import make_source_info_file
 
 
 # 视频信息
@@ -41,7 +42,7 @@ class BiliVideoInfo(VideoInfo):
 
 @FetcherRegistry.register("bilibili")
 class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
-    site_dir = os.path.join(core.config.path.DATA_DIR, "bilibili")
+    site_dir = os.path.join(DATA_DIR, "bilibili")
     headers = {
         "Referer": "",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",

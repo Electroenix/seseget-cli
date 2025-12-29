@@ -2,7 +2,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 from typing import Callable, Optional, List
 
-from core.utils.trace import *
+from .trace import *
 
 
 class SeseThreadPool:

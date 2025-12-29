@@ -1,18 +1,19 @@
 import copy
 import json
-import core.config.path
-from core.metadata.video import *
-from core.request.fetcher import VideoFetcher, FetcherRegistry
-from core.utils.trace import *
-from core.request import seserequest as ssreq
-from core.utils.file_utils import *
-from core.request import seseytdlp
-from core.config.config_manager import config
+
+from ..config.path import DATA_DIR
+from ..metadata.video import *
+from ..request.fetcher import VideoFetcher, FetcherRegistry
+from ..utils.trace import *
+from ..request import seserequest as ssreq
+from ..utils.file_utils import *
+from ..request import seseytdlp
+from ..config.config_manager import config
 
 
 @FetcherRegistry.register("twitter")
 class TwitterFetcher(VideoFetcher[VideoInfo]):
-    site_dir = os.path.join(core.config.path.DATA_DIR, "twitter")
+    site_dir = os.path.join(DATA_DIR, "twitter")
 
     def __init__(self, max_tasks=1):
         super().__init__(max_tasks=max_tasks)

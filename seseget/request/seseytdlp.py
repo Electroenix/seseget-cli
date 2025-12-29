@@ -1,7 +1,7 @@
 import os
 import yt_dlp
-from core.request.downloadtask import TaskDLProgress, ProgressStatus
-from core.utils.trace import *
+from .downloadtask import TaskDLProgress, ProgressStatus
+from ..utils.trace import *
 
 
 class YtDlpLogger:

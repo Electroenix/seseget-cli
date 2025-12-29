@@ -1,16 +1,16 @@
 from typing import List
-
 from bs4 import BeautifulSoup
-from core.metadata.comic import ChapterInfo, ComicInfo
-from core.request.fetcher import FetcherRegistry, ComicFetcher
-from core.utils.file_utils import *
-from core.request import seserequest as ssreq
-from core.config import path
+
+from ..metadata.comic import ChapterInfo, ComicInfo
+from ..request.fetcher import FetcherRegistry, ComicFetcher
+from ..utils.file_utils import *
+from ..request import seserequest as ssreq
+from ..config.path import DATA_DIR
 
 
 @FetcherRegistry.register("wnacg")
 class WnacgFetcher(ComicFetcher):
-    site_dir = os.path.join(path.DATA_DIR, "wnacg")
+    site_dir = os.path.join(DATA_DIR, "wnacg")
 
     def _get_image_urls(self, url: str) -> List[str]:
         cid = re.search(r"\d+(?=\.html)", url).group()

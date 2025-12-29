@@ -3,12 +3,12 @@ import threading
 from abc import ABC, abstractmethod
 from typing import Dict, Type, Optional, TypeVar, Generic, Union, List
 
-from core.metadata.comic import ComicInfo, ChapterInfo
-from core.metadata.video import VideoInfo, VideoInfoCache
-from core.utils.file_process import make_video_metadata_file, make_source_info_file
-from core.utils.file_utils import make_filename_valid, make_diff_dir_name
-from core.utils.trace import *
-from core.request import seserequest as ssreq
+from ..metadata.comic import ComicInfo, ChapterInfo
+from ..metadata.video import VideoInfo, VideoInfoCache
+from ..utils.file_process import make_video_metadata_file, make_source_info_file
+from ..utils.file_utils import make_filename_valid, make_diff_dir_name
+from ..utils.trace import *
+from . import seserequest as ssreq
 
 
 class AbstractFetcher(ABC):

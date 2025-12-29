@@ -2,11 +2,11 @@ import argparse
 import signal
 import time
 
-from core.config import settings
-from core.request.downloadtask import download_manager
-from core.request.fetcher import FetcherRegistry
-from core.request.seserequest import ss_session
-from core.utils.trace import *
+from .config import settings
+from .request.downloadtask import download_manager
+from .request.fetcher import FetcherRegistry
+from .request.seserequest import ss_session
+from .utils.trace import *
 
 
 def process_worker():

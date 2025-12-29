@@ -8,15 +8,16 @@ import requests
 from bs4 import BeautifulSoup
 from common import Postman
 from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, JmApiClient, catch_exception, JmImageDetail, jm_log
-from core.metadata.comic import ChapterInfo, ComicInfo
-from core.request.fetcher import FetcherRegistry, ComicFetcher
-from core.utils.file_process import make_comic
-from core.request import seserequest as ssreq
-from core.config import path
-from core.utils.file_utils import *
-from core.utils.trace import *
-from core.config.config_manager import config
-from core.request.downloadtask import TaskDLProgress, ProgressStatus
+
+from ..metadata.comic import ChapterInfo, ComicInfo
+from ..request.fetcher import FetcherRegistry, ComicFetcher
+from ..utils.file_process import make_comic
+from ..request import seserequest as ssreq
+from ..config.path import DATA_DIR
+from ..utils.file_utils import *
+from ..utils.trace import *
+from ..config.config_manager import config
+from ..request.downloadtask import TaskDLProgress, ProgressStatus
 
 
 class JMChapterInfo(ChapterInfo):
@@ -290,7 +291,7 @@ jmcomic.JmModuleConfig.register_client(SeseJmClient)
 
 @FetcherRegistry.register("jmcomic")
 class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
-    site_dir = os.path.join(path.DATA_DIR, "jmcomic")
+    site_dir = os.path.join(DATA_DIR, "jmcomic")
 
     def __init__(self):
         super().__init__()

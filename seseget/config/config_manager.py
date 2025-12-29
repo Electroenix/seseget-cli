@@ -5,8 +5,8 @@ from typing import Any, Dict, Optional, Union
 from ruamel.yaml import YAML
 import shutil
 
-from core.utils.trace import *
-from core.config.path import CONFIG_PATH, DEFAULT_CONFIG_PATH
+from ..utils.trace import *
+from .path import CONFIG_PATH, DEFAULT_CONFIG_PATH
 
 
 class ObservableDict(UserDict):

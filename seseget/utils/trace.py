@@ -1,7 +1,7 @@
 import logging
 from logging import Formatter, LogRecord, StreamHandler
-from core.utils.output import sese_stdout
-from core.config import settings
+from .output import sese_stdout
+from ..config import settings
 
 
 class DynamicFormatter(Formatter):

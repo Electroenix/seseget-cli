@@ -3,13 +3,14 @@ import hmac
 from hashlib import sha256
 from typing import List
 from urllib.parse import urlparse, parse_qs
-import core.config.path
-from core.config.config_manager import config
-from core.request.fetcher import FetcherRegistry, ComicFetcher
-from core.utils.trace import *
-from core.metadata.comic import ChapterInfo, ComicInfo
-from core.request import seserequest as ssreq
-from core.utils.file_utils import *
+
+from ..config.path import DATA_DIR
+from ..config.config_manager import config
+from ..request.fetcher import FetcherRegistry, ComicFetcher
+from ..utils.trace import *
+from ..metadata.comic import ChapterInfo, ComicInfo
+from ..request import seserequest as ssreq
+from ..utils.file_utils import *
 
 
 # 用来存储从bika获取到的数据
@@ -66,7 +67,7 @@ applekillflag = "C69BAF41DA5ABD1FFEDC6D2FEA56B"
 appleversion = r"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUBL5n|0/*Cn"
 
 
-# comic_save_path = core.config.path.bika_data_local_path  # 漫画保存路径
+# comic_save_path = seseget.config.path.bika_data_local_path  # 漫画保存路径
 
 
 class BikaClient:
@@ -200,7 +201,7 @@ class BikaClient:
 
 @FetcherRegistry.register("bika")
 class BikaFetcher(ComicFetcher):
-    site_dir = os.path.join(core.config.path.DATA_DIR, "bika")
+    site_dir = os.path.join(DATA_DIR, "bika")
 
     def _get_image_urls(self, bika_context: BikaComicInfo, chapter: ChapterInfo) -> List[str]:
         # 获取图片url列表

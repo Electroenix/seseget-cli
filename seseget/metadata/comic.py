@@ -4,7 +4,7 @@ import zipfile
 from lxml import etree
 from lxml.etree import QName
 from tempfile import TemporaryDirectory
-from core.utils.trace import *
+from ..utils.trace import *
 
 
 class ComicMetaData:

@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from core.utils.trace import SESE_PRINT
+from ..utils.trace import SESE_PRINT
 
 
 class VideoMetaData:

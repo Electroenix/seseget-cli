@@ -5,18 +5,18 @@ import html
 from bs4 import BeautifulSoup, element
 from urllib.parse import urlparse, parse_qs
 
-import core.config.path
-from core.metadata.video import *
-from core.request.fetcher import VideoFetcher, FetcherRegistry
-from core.utils.thread_utils import SeseThreadPool, Future
-from core.utils.trace import *
-from core.request import seserequest as ssreq
-from core.utils.file_utils import *
+from ..config.path import DATA_DIR
+from ..metadata.video import *
+from ..request.fetcher import VideoFetcher, FetcherRegistry
+from ..utils.thread_utils import SeseThreadPool, Future
+from ..utils.trace import *
+from ..request import seserequest as ssreq
+from ..utils.file_utils import *
 
 
 @FetcherRegistry.register("hanime")
 class HanimeFetcher(VideoFetcher):
-    site_dir = os.path.join(core.config.path.DATA_DIR, "hanime")
+    site_dir = os.path.join(DATA_DIR, "hanime")
 
     @staticmethod
     # 从html数据中获取数据到metadata

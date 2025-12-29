@@ -1,10 +1,13 @@
 import signal
-import multiprocessing
 import time
+import multiprocessing
 
-from core.config import init, settings
-from core.utils.trace import *
-from core.main import process_worker
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from seseget.utils.trace import *
+from seseget.cli import process_worker
 
 
 if __name__ == "__main__":

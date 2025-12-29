@@ -4,17 +4,17 @@ import shutil
 import threading
 import zipfile
 
-from core.config.path import BASE_DIR
-from core.utils.trace import *
-from core.config.config_manager import config
-from core.utils.file_utils import make_filename_valid
-from core.utils.subprocess_utils import exec_cmd
-from core.metadata.comic import ComicInfo, ComicMetaData, update_epub_metadate, make_cbz_comic_info_xml
-from core.metadata.video import VideoInfo, VideoMetaData
-from core.metadata.vsmeta import *
-from core.metadata.nfo import *
+from ..config.path import BASE_DIR
+from .trace import *
+from ..config.config_manager import config
+from .file_utils import make_filename_valid
+from .subprocess_utils import exec_cmd
+from ..metadata.comic import ComicInfo, ComicMetaData, update_epub_metadate, make_cbz_comic_info_xml
+from ..metadata.video import VideoInfo, VideoMetaData
+from ..metadata.vsmeta import *
+from ..metadata.nfo import *
 
-kcc_c2e_path = BASE_DIR / "core/thirdparty/kcc/kcc-c2e.py"  # kcc_c2e转换工具路径
+kcc_c2e_path = BASE_DIR / "seseget/thirdparty/kcc/kcc-c2e.py"  # kcc_c2e转换工具路径
 kcc_lock = threading.Lock()  # 避免KCC运行时冲突
 
 
