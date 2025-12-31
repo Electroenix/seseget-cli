@@ -91,12 +91,31 @@ LOG_ERROR = logging.ERROR
 LOG_CRITICAL = logging.CRITICAL
 
 
-def SESE_TRACE(level, msg: str, end="\n"):
+def SESE_TRACE(level, msg: str, end="\n", stacklevel=2):
     extra = {"end": end}  # 将 end 存入 extra
     logger = logging.getLogger("sese_trace")  # 获取Logger
-    logger.log(level, msg, extra=extra, stacklevel=2)
+    logger.log(level, msg, extra=extra, stacklevel=stacklevel)
 
 
 def SESE_PRINT(msg: str, end="\n"):
     SESE_TRACE(LOG_INFO, msg, end)
 
+
+def SESE_DEBUG(msg: str, end="\n"):
+    SESE_TRACE(LOG_DEBUG, msg, end=end, stacklevel=3)
+
+
+def SESE_INFO(msg: str, end="\n"):
+    SESE_TRACE(LOG_INFO, msg, end=end, stacklevel=3)
+
+
+def SESE_ERROR(msg: str, end="\n"):
+    SESE_TRACE(LOG_ERROR, msg, end=end, stacklevel=3)
+
+
+def SESE_WARNING(msg: str, end="\n"):
+    SESE_TRACE(LOG_WARNING, msg, end=end, stacklevel=3)
+
+
+def SESE_CRITICAL(msg: str, end="\n"):
+    SESE_TRACE(LOG_CRITICAL, msg, end=end, stacklevel=3)
