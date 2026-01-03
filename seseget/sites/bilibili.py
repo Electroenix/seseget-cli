@@ -43,10 +43,9 @@ class BiliVideoInfo(VideoInfo):
 @FetcherRegistry.register("bilibili")
 class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
     site_dir = os.path.join(DATA_DIR, "bilibili")
-    headers = {
+    BILI_HEADERS = {
         "Referer": "",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Cookie": f"{config['bilibili']['cookie']}"
     }
 
     # 通过视频页面url请求bilibili,获取视频信息和下载地址
@@ -57,7 +56,10 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
             vid = match.group(1)
 
         # 发送请求获取网页html
-        response = ssreq.request("GET", url, headers=self.headers)
+        headers = self.BILI_HEADERS.copy()
+        if config['bilibili']['cookie']:
+            headers["Cookie"] = config['bilibili']['cookie']
+        response = ssreq.request("GET", url, headers=headers)
         video_soup = BeautifulSoup(response.text, 'html.parser')
 
         # 关键元素
@@ -131,14 +133,18 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
 
     def _download_process(self, video_info: BiliVideoInfo, progress: ssreq.TaskDLProgress = None):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
-        self.headers["Referer"] = video_info.view_url
+
+        headers = self.BILI_HEADERS.copy()
+        headers["Referer"] = video_info.view_url
+        if config['bilibili']['cookie']:
+            headers["Cookie"] = config['bilibili']['cookie']
 
         # 创建下载任务
         ssreq.download_mp4_by_merge_video_audio(
                             video_path,
                             video_info.audio_download_url,
                             video_info.video_download_url,
-                            self.headers.copy(),
+                            headers,
                             progress)
 
     def _make_source_info_file(self, info: BiliVideoInfo):

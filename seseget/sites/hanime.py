@@ -12,6 +12,32 @@ from ..utils.thread_utils import SeseThreadPool, Future
 from ..utils.trace import *
 from ..request import seserequest as ssreq
 from ..utils.file_utils import *
+from ..config.config_manager import config
+
+
+HANIME_HEADERS = {
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'accept-language': 'zh-CN,zh-TW;q=0.9,zh;q=0.8,en-GB;q=0.7,en;q=0.6,zh-MO;q=0.5,zh-HK;q=0.4,ja-JP;q=0.3,ja;q=0.2',
+    'cache-control': 'no-cache',
+    'pragma': 'no-cache',
+    'priority': 'u=0, i',
+    'sec-ch-ua': '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
+    'sec-ch-ua-arch': '"x86"',
+    'sec-ch-ua-bitness': '"64"',
+    'sec-ch-ua-full-version': '"143.0.7499.170"',
+    'sec-ch-ua-full-version-list': '"Google Chrome";v="143.0.7499.170", "Chromium";v="143.0.7499.170", "Not A(Brand";v="24.0.0.0"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-model': '""',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-ch-ua-platform-version': '"19.0.0"',
+    'sec-fetch-dest': 'document',
+    'sec-fetch-mode': 'navigate',
+    'sec-fetch-site': 'none',
+    'sec-fetch-user': '?1',
+    'upgrade-insecure-requests': '1',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+    'cookie': '',
+}
 
 
 @FetcherRegistry.register("hanime")
@@ -110,7 +136,11 @@ class HanimeFetcher(VideoFetcher):
             return copy.deepcopy(video_info)
 
         # 发送请求获取网页html
-        response = ssreq.request("GET", url)
+        req_kwargs = {}
+        if config["hanime"]["cookie"]:
+            req_kwargs["headers"] = HANIME_HEADERS.copy()
+            req_kwargs["headers"]["cookie"] = config["hanime"]["cookie"]
+        response = ssreq.request("GET", url, **req_kwargs)
         video_soup = BeautifulSoup(response.text, 'html.parser')
 
         # 提取视频信息
@@ -136,7 +166,11 @@ class HanimeFetcher(VideoFetcher):
 
         if search_genre == "裏番" or search_genre == "泡麵番":
             search_url = 'https://hanime1.me/search?type=&genre=%s&sort=&year=&month=' % search_genre
-            response = ssreq.request("GET", search_url, params={'query': metadata.title})
+            req_kwargs = {}
+            if config["hanime"]["cookie"]:
+                req_kwargs["headers"] = HANIME_HEADERS.copy()
+                req_kwargs["headers"]["cookie"] = config["hanime"]["cookie"]
+            response = ssreq.request("GET", search_url, params={'query': metadata.title}, **req_kwargs)
 
             search_soup = BeautifulSoup(response.text, 'html.parser')
 

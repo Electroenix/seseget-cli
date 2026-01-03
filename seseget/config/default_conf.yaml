@@ -5,6 +5,11 @@ common:
   # 如 http://127.0.0.1:7890
   proxy: ""
 
+# hanime配置
+hanime:
+  # 如请求被拦截，尝试设置下方cookie
+  cookie: ""
+
 # 哔咔配置
 bika:
   username: ""  # 用户名
