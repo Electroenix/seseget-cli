@@ -1,15 +1,13 @@
 # seseget-cli
-基于python开发的视频/漫画资源下载工具
+视频/漫画资源下载工具
 
 ## 功能
-- 使用命令行+资源页面url下载资源文件
-- 支持自动刮削资源元数据，可方便的导入媒体库管理
+- 下载指定视频/漫画资源
 - 当前支持站点：
   - 视频资源：Hanime.me, Bilibili, Youtube, Twitter
   - 漫画资源：哔咔, JMComic, Wnacg
 
-## 媒体库支持
-本工具下载资源会自动刮削页面元数据，可以方便的导入媒体库  
+- 下载资源支持刮削资源页面上的数据，导入媒体库自动识别信息  
 
 - 支持媒体库：
   - 视频：emby, 群晖VideoStation
@@ -22,34 +20,45 @@
 - **[FFmpeg](https://www.ffmpeg.org/)**: 用于处理视频，下载bilibili/youtube/twitter视频需要安装此软件，并配置好环境变量
 
 ### 安装：
-#### 方式1：使用pipenv安装虚拟环境(推荐)
-```bash
-# 安装Pipenv（如未安装）
-pip install pipenv
-
-# 初始化虚拟环境并安装依赖
-pipenv sync
-
-# 进入虚拟环境(后续使用工具都要进入虚拟环境使用)
-pipenv shell
-```
-
-#### 方式2：手动安装依赖
-```bash
+#### Windows
+```cmd
+python -m venv .venv
+.venv\Scripts\activate.bat
 pip install -r requirements.txt
 ```
 
-## 使用
-一般指定下载站点和资源页面url就可以下载资源 (一些站点需要登录，请查看**配置**章节先修改相关配置)
-```commandline
-python seseget -s SITE url
+#### Linux
 
-SITE        站点名，支持['bika', 'bilibili', 'hanime', 'jmcomic', 'twitter', 'wnacg', 'youtube']  
-url         下载资源的url，资源详情页面的url，如视频播放页/漫画详情页
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
+
+
+## 使用
+指定下载站点和资源页面url即可使用，如下： (一些站点需要登录，请查看**配置**章节先修改相关配置)
+
+#### Windows
+
+```cmd
+.venv\Scripts\activate.bat  # 激活环境
+python seseget -s hanime https://资源页面地址
+```
+
+#### Linux
+
+``````bash
+source .venv/bin/activate  # 激活环境
+python seseget -s hanime https://资源页面地址
+``````
+
+
+
 更多参数用法请参照下面的参数说明:
-```commandline
+
+```bash
 python seseget -h
 usage: seseget [-h] [-s SITE] [-c CHAPTER] [--no-download] url [url ...]
 
@@ -65,69 +74,9 @@ options:
 ```
 
 ## 配置
-初次运行脚本会生成```conf/conf.yaml```文件，或者手动复制项目目录下的```core/config/default_conf.yaml```到```conf/conf.yaml```，修改文件中配置并保存，下次运行将会应用新的配置
-### 全局配置
-```yaml
-common:
-  # 设置代理地址, 默认使用系统代理
-  # 格式: [协议]://[主机]:[端口]
-  # 如 http://127.0.0.1:7890
-  proxy: ""
-```
+初次运行脚本会生成```conf/conf.yaml```文件，或者手动复制项目目录下的```seseget/config/default_conf.yaml```到```conf/conf.yaml```，修改文件中配置并保存，下次运行将会应用新的配置，更多配置说明见 [配置文件](seseget/config/default_conf.yaml)
 
-### 哔咔配置
-哔咔需要登录才能下载，在```conf/conf.yaml```中设置用户名和密码
-```yaml
-bika:
-  username: ""  # 用户名
-  password: ""  # 密码
-  # 以下为保存的cookie数据，无需修改
-  nonce: ""
-  token: ""
-```
-
-### JMcomic配置
-```yaml
-jmcomic:
-  login:
-    username: ""  # 用户名
-    password: ""  # 密码
-    # 以下为保存的cookie数据，无需修改
-    cookie: ""
-```
-
-### bilibili配置
-bilibili还不支持用户名密码登录功能，如需登录，需要自己设置cookie
-```yaml
-bilibili:
-  # B站cookie需要自己配置
-  cookie: ""
-```
-
-### 下载配置
-```yaml
-download:
-  # true: 会在下载目录下生成source.txt文件保存下载资源的来源信息，false: 不生成source.txt
-  save_source_info: false
-
-  # 漫画下载配置
-  comic:
-    # true: 保留下载的原始图片，false: 不保留图片
-    leave_images: false
-    # 漫画文件保存格式
-    format:
-    - cbz
-    #- epub
-
-  # 视频下载配置
-  video:
-    # 视频元数据文件格式
-    metadata_file:
-    - nfo    # 常用格式，支持emby识别
-    #- vsmeta    # 支持群晖VideoStation识别
-```
-
-## 文件说明
+## 下载文件说明
 
 文件默认下载到与脚本同级的`data`目录下，以下是下载完成后的文件及目录说明
 - 下载视频
