@@ -113,6 +113,7 @@ def request(method, url, **kwargs):
     while True:
         try:
             response = ss_session.request(method, url, **kwargs)
+            SESE_DEBUG(f'request headers: {response.request.headers}')
             break
         except Exception as result:
             if retry_times < retry_max:
@@ -252,14 +253,29 @@ def _handle_exception(future):
                    (exc, ''.join(traceback.format_tb(exc.__traceback__))))
 
 
-def _download_files(file_name_list: list[str], url_list: list[str],
-                    progress: TaskDLProgress = None, **kwargs):
-    """下载多个文件"""
+def _download_files(file_name_list: list[str],
+                    url_list: list[str],
+                    *,
+                    max_workers=10,
+                    progress: TaskDLProgress = None,
+                    **kwargs):
+    """
+    下载多个文件
+    Args:
+        file_name_list: 文件保存路径列表
+        url_list: 下载地址列表
+        max_workers: 最大同时下载数
+        progress: TaskDLProgress对象，管理下载进度
+        **kwargs:
+
+    Returns:
+
+    """
     if len(file_name_list) != len(url_list):
         SESE_TRACE(LOG_ERROR, "文件与下载地址数量不匹配！")
         return -1
 
-    with SeseThreadPool(max_workers=10) as pool:
+    with SeseThreadPool(max_workers=max_workers) as pool:
         index = 0
         for file_name in file_name_list:
             url = url_list[index]
@@ -272,18 +288,39 @@ def _download_files(file_name_list: list[str], url_list: list[str],
 
         try:
             pool.wait_all()
+            SESE_PRINT("全部文件下载完成！")
 
         except Exception as e:
             SESE_TRACE(LOG_ERROR, f"下载失败！info: {e}")
             raise
 
-    SESE_PRINT("全部文件下载完成！")
     return 0
 
 
 def download_file(file_name, url):
     """下载单个文件"""
     result = _download_file(file_name, url)
+    return result
+
+
+def download_files(file_name_list: list[str], url_list: list[str]):
+    """下载多个文件"""
+    result = _download_files(file_name_list, url_list)
+    return result
+
+
+def download_files_ex(file_name_list: list[str],
+                      url_list: list[str],
+                      *,
+                      max_workers=10,
+                      progress: TaskDLProgress = None,
+                      **kwargs):
+    """下载多个文件"""
+    result = _download_files(file_name_list,
+                             url_list,
+                             max_workers=max_workers,
+                             progress=progress,
+                             **kwargs)
     return result
 
 

@@ -1,7 +1,7 @@
 # config_manager.py
 import os
 from collections import UserDict
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, Self
 from ruamel.yaml import YAML
 import shutil
 
@@ -15,24 +15,21 @@ class ObservableDict(UserDict):
     save_callback   - 初始化时设置save_callback回调函数，如果内部数据修改，将会触发回调将最新内容保存到文件
     origin_data     - 初始化时传入的原始类型数据，如果内部数据修改，将会同步修改此数据内容
     """
+
     def __init__(self, save_callback: callable, initial_data: Optional[Dict] = None):
         self.origin_data = initial_data  # 保留原始数据类型，数据被修改时同步修改原始数据
-        self.save_callback = save_callback  # 先设置回调
+        self.save_callback = save_callback
         initial_data = initial_data or {}
-        super().__init__()  # 不传数据，避免触发父类 update
+        super().__init__()
 
-        # 手动初始化数据（确保使用覆盖后的 __setitem__）
         for key, value in initial_data.items():
-            # 直接操作父类方法，避免触发回调
-            super().__setitem__(key, value)
             if isinstance(value, dict):
                 super().__setitem__(key, ObservableDict(self.save_callback, value))
+            else:
+                super().__setitem__(key, value)
 
     def __setitem__(self, key: str, value: Any) -> None:
-        if isinstance(value, dict) and not isinstance(value, ObservableDict):
-            value = ObservableDict(self.save_callback, value)
-        super().__setitem__(key, value)
-        self.origin_data.__setitem__(key, value)
+        self._set_no_save(key, value)
         self.save_callback()
 
     def __delitem__(self, key: str) -> None:
@@ -41,11 +38,40 @@ class ObservableDict(UserDict):
         self.save_callback()
 
     def _set_no_save(self, key: str, value: Any) -> None:
-        """修改键值，但不更新文件"""
-        if isinstance(value, dict) and not isinstance(value, ObservableDict):
-            value = ObservableDict(self.save_callback, value)
-        super().__setitem__(key, value)
-        self.origin_data.__setitem__(key, value)
+        """修改键值，不支持添加新键，不更新文件，只接受原生python类型数据"""
+        if key in self:
+            # 1. 更新ObservableDict对象内部数据，如果源数据为dict，递归转换为ObservableDict类型
+            observ_value = value
+            if isinstance(value, dict) and not isinstance(value, ObservableDict):
+                observ_value = ObservableDict(self.save_callback, value)
+            super().__setitem__(key, observ_value)
+
+            # 2. 同步更新内部origin_data中的值
+            if isinstance(value, dict):
+                def update_nested_dict(dict1, dict2):
+                    """递归更新dict1，将dict2的值应用到dict1的相同键上"""
+                    for key, value in dict1.items():
+                        if key in dict2:
+                            # 如果两个值都是字典，递归处理
+                            if isinstance(value, dict) and isinstance(dict2[key], dict):
+                                update_nested_dict(value, dict2[key])
+                            # 如果两个值都是列表，可以按索引更新（假设长度相同）
+                            elif isinstance(value, list) and isinstance(dict2[key], list):
+                                for i in range(min(len(value), len(dict2[key]))):
+                                    # 如果列表元素是字典，递归处理
+                                    if isinstance(value[i], dict) and isinstance(dict2[key][i], dict):
+                                        update_nested_dict(value[i], dict2[key][i])
+                                    else:
+                                        # 否则直接替换
+                                        value[i] = dict2[key][i]
+                            else:
+                                # 其他类型直接替换
+                                dict1[key] = dict2[key]
+                    return dict1
+
+                update_nested_dict(self.origin_data[key], value)
+            else:
+                self.origin_data[key] = value
 
     def update(self, new_data: Optional[Dict] = None, **kwargs) -> None:
         new_data = new_data or {}
@@ -55,19 +81,10 @@ class ObservableDict(UserDict):
             self._set_no_save(k, v)
         self.save_callback()
 
-    def _to_dict(self, node: Union["ObservableDict", Any]) -> Any:
-        """递归转换 ObservableDict 为原生 Python 类型"""
-        if isinstance(node, ObservableDict):
-            return {k: self._to_dict(v) for k, v in node.items()}
-        elif isinstance(node, list):
-            return [self._to_dict(item) for item in node]
-        else:
-            return node
-
     @property
     def dict(self) -> dict:
         """获取一个普通字典类型"""
-        return self._to_dict(self)
+        return self.origin_data
 
 
 class ConfigManager:
@@ -77,6 +94,7 @@ class ConfigManager:
     _default_config_path: str = DEFAULT_CONFIG_PATH
     _yaml = YAML()
     _yaml.preserve_quotes = True
+    _yaml.width = 2147483647
 
     def __new__(cls):
         if cls._instance is None:

@@ -35,6 +35,7 @@ class VideoInfo:
         SESE_PRINT(f"作者: {self.metadata.artist}")
         SESE_PRINT(f"标签: {self.metadata.tag_list}")
         SESE_PRINT(f"简介: {self.metadata.describe}")
+        SESE_PRINT(f"封面: {self.cover_url}")
         SESE_PRINT(f"---------------------------------")
 
 

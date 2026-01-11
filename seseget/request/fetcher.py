@@ -25,6 +25,10 @@ class AbstractFetcher(ABC):
         """
         pass
 
+    @abstractmethod
+    def info(self, url, **kwargs):
+        pass
+
 
 T_Info = TypeVar('T_Info', bound=Union[VideoInfo, ComicInfo])
 T_VideoInfo = TypeVar('T_VideoInfo', bound=VideoInfo)
@@ -55,6 +59,9 @@ class SeseBaseFetcher(AbstractFetcher, Generic[T_Info]):
     @abstractmethod
     def download(self, url, **kwargs):
         pass
+
+    def info(self, url, **kwargs):
+        return self._fetch_info(url, **kwargs)
 
 
 class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):

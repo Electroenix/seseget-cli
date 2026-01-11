@@ -86,9 +86,10 @@ class HanimeFetcher(VideoFetcher):
                 video_title_element = video_element.find("div", {"class": "card-mobile-title"})
                 if video_url_element and video_thumb_url_element and video_title_element:
                     video_url = video_url_element.attrs["href"]
+                    vid = parse_qs(urlparse(video_url).query)["v"][0]
                     video_thumb_url = video_thumb_url_element.attrs["src"]
                     video_title = video_title_element.string
-                    series.append({"title": video_title, "url": video_url, "thumbnail": video_thumb_url})
+                    series.append({"vid": vid, "title": video_title, "url": video_url, "thumbnail": video_thumb_url})
 
         return series
 
@@ -164,8 +165,12 @@ class HanimeFetcher(VideoFetcher):
         search_genre = search_genre.replace('\n', '')
         search_genre = search_genre.replace(' ', '')
 
-        if search_genre == "裏番" or search_genre == "泡麵番":
-            search_url = 'https://hanime1.me/search?type=&genre=%s&sort=&year=&month=' % search_genre
+        genres_simp = ["里番", "泡面番"]
+        genres_trad = ["裏番", "泡麵番"]
+        if search_genre in genres_simp + genres_trad:
+            if search_genre in genres_simp:
+                search_genre = dict(zip(genres_simp, genres_trad)).get(search_genre)
+            search_url = f'https://hanime1.me/search?type=&genre={search_genre}&sort=&date=&duration='
             req_kwargs = {}
             if config["hanime"]["cookie"]:
                 req_kwargs["headers"] = HANIME_HEADERS.copy()

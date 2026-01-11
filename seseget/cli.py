@@ -19,7 +19,6 @@ def process_worker():
         exit(0)
 
     signal.signal(signal.SIGINT, handle_signal)
-    FetcherRegistry.discover(settings.SITE_FETCHERS_PACKAGE)
 
     paser = argparse.ArgumentParser()
     paser.add_argument("url", nargs="+", default="", help="url，可接受多个url")
