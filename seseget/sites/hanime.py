@@ -54,10 +54,10 @@ class HanimeFetcher(VideoFetcher):
         metadata.sub_title = soup.find_all('div', attrs={'style': 'margin-bottom: 5px'})[1].string
         metadata.describe = soup.find('div', attrs={'class': 'video-caption-text caption-ellipsis',
                                                     'style': 'color: #b8babc; font-weight: normal;'}).string
-        metadata.director = soup.find('a', attrs={'id': "video-artist-name"}).string
-        metadata.director = metadata.director.replace('\n', '')
-        metadata.director = metadata.director.replace(' ', '')
-        metadata.artist = (soup.find('div', attrs={'class': 'video-playlist-top'})).find('h4').string
+        metadata.author = soup.find('a', attrs={'id': "video-artist-name"}).string
+        metadata.author = metadata.author.replace('\n', '')
+        metadata.author = metadata.author.replace(' ', '')
+        metadata.series = (soup.find('div', attrs={'class': 'video-playlist-top'})).find('h4').string
 
         tags_element_list = soup.find_all('div', attrs={'class': "single-video-tag",
                                                         'style': "margin-bottom: 18px; font-weight: normal"})

@@ -66,8 +66,8 @@ def make_vsmeta_file(filename, metadata):
     # 组1数据
     # 导演
     group1 = bytes.fromhex('12')
-    group1 = group1 + get_check_code(len(metadata.director.encode()))
-    group1 = group1 + metadata.director.encode()
+    group1 = group1 + get_check_code(len(metadata.author.encode()))
+    group1 = group1 + metadata.author.encode()
 
     # 标签
     for t in metadata.tag_list:
@@ -77,8 +77,8 @@ def make_vsmeta_file(filename, metadata):
 
     # 作者
     group1 = group1 + bytes.fromhex('22')
-    group1 = group1 + get_check_code(len(metadata.artist.encode()))
-    group1 = group1 + metadata.artist.encode()
+    group1 = group1 + get_check_code(len(metadata.author.encode()))
+    group1 = group1 + metadata.author.encode()
 
     # 写入组1数据
     f_vsmeta.write(bytes.fromhex('52'))

@@ -72,7 +72,7 @@ class WnacgFetcher(ComicFetcher):
         comic_info = ComicInfo()
         comic_info.view_url = url
         comic_info.cid = cid
-        comic_info.cover = comic_cover_url
+        comic_info.cover_url = comic_cover_url
         comic_info.title = comic_title
         comic_info.author = comic_author
         comic_info.genres = comic_tag_list

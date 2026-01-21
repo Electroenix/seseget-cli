@@ -2,7 +2,7 @@ import time
 import hmac
 from hashlib import sha256
 from typing import List
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, urljoin
 
 from ..config.path import DATA_DIR
 from ..config.config_manager import config
@@ -143,7 +143,7 @@ class BikaClient:
         self.context.author = comic_json["author"]
         self.context.genres = list(set(comic_json["categories"] + comic_json["tags"]))
         self.context.description = comic_json["description"]
-        self.context.cover = comic_json["thumb"]["path"]
+        self.context.cover = urljoin(urljoin(comic_json["thumb"]["fileServer"], "static/"), comic_json["thumb"]["path"])
 
     # 获取漫画章节
     def get_comic_chapter(self, cid, page_cnt=1):
@@ -263,5 +263,6 @@ class BikaFetcher(ComicFetcher):
             chapter_info.image_urls = self._get_image_urls(bika_context, chapter_info)
 
             comic_info.chapter_list.append(chapter_info)
+            comic_info.cover_url = bika_context.cover
 
         return comic_info

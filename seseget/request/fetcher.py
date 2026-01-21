@@ -87,7 +87,7 @@ class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         if not os.path.exists(self.__class__.site_dir):
             os.mkdir(self.__class__.site_dir)
 
-        artist_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.metadata.artist))  # 中间目录，主要用来分类同一个作者的作品
+        artist_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.metadata.author))  # 中间目录，主要用来分类同一个作者的作品
         info.video_dir = os.path.join(artist_dir, make_filename_valid(info.name))  # 下载目录，以视频名命名
 
         # 如果目录已经存在，生成不同的目录名，避免视频名相同导致被覆盖

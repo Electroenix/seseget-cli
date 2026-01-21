@@ -6,13 +6,13 @@ from ..utils.trace import SESE_PRINT
 class VideoMetaData:
     """视频元数据"""
     title = ""  # 标题
-    sub_title = ""  # 标语
+    sub_title = ""  # 标语/副标题
     year = ""  # 年份
     public_time = ""  # 发布日期
-    tag_list = []  # 类型
-    artist = ""  # 作者
-    director = ""  # 导演
-    describe = ""  # 摘要
+    tag_list = []  # 类型/标签
+    author = ""  # 作者/导演/工作室/上传者
+    describe = ""  # 摘要/简介
+    series = ""  # 系列/合集
     back_ground_path = ""  # 背景图片路径
 
 
@@ -32,7 +32,7 @@ class VideoInfo:
     def print_info(self):
         SESE_PRINT(f"---------------------------------")
         SESE_PRINT(f"标题: {self.name}")
-        SESE_PRINT(f"作者: {self.metadata.artist}")
+        SESE_PRINT(f"作者: {self.metadata.author}")
         SESE_PRINT(f"标签: {self.metadata.tag_list}")
         SESE_PRINT(f"简介: {self.metadata.describe}")
         SESE_PRINT(f"封面: {self.cover_url}")

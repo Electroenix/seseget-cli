@@ -23,7 +23,7 @@ class YtbVideoInfo(VideoInfo):
         SESE_PRINT(f"vid: {self.vid}")
         SESE_PRINT(f"标题: {self.metadata.title}")
         SESE_PRINT(f"简介: {self.metadata.describe}")
-        SESE_PRINT(f"作者: {self.metadata.artist}")
+        SESE_PRINT(f"作者: {self.metadata.author}")
         SESE_PRINT(f"日期: {self.metadata.public_time}")
         SESE_PRINT(f"标签: {self.metadata.tag_list}")
         SESE_PRINT(f"播放: {self.video_view}")
@@ -71,10 +71,9 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
         metadata.title = video_title
         metadata.sub_title = video_title
         metadata.describe = video_descript
-        metadata.artist = video_author
         metadata.public_time = video_date[0:10]
         metadata.year = video_date[0:4]
-        metadata.director = video_author
+        metadata.author = video_author
         metadata.tag_list = video_tags.copy()
 
         video_info = YtbVideoInfo()
@@ -129,10 +128,9 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
         metadata.title = video_title
         metadata.sub_title = video_title
         metadata.describe = video_descript
-        metadata.artist = video_author
         metadata.public_time = video_date[0:10]
         metadata.year = video_date[0:4]
-        metadata.director = video_author
+        metadata.author = video_author
         metadata.tag_list = video_tags.copy()
 
         video_info = YtbVideoInfo()

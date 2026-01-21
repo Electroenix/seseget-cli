@@ -38,7 +38,7 @@ class ComicInfo:
     def __init__(self):
         self.view_url = ""
         self.cid = ""
-        self.cover = ""
+        self.cover_url = ""
         self.title = ""  # 系列名
         self.author = ""  # 作者
         self.genres = []  # 标签

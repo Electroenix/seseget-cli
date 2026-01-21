@@ -1,8 +1,10 @@
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 
+from .video import VideoMetaData
 
-def make_nfo_file(filename, metadata):
+
+def make_nfo_file(filename: str, metadata: VideoMetaData):
     movie = ET.Element('movie')
 
     plot = ET.SubElement(movie, 'plot')
@@ -35,7 +37,7 @@ def make_nfo_file(filename, metadata):
     releasedate.text = metadata.public_time
 
     studio = ET.SubElement(movie, 'studio')
-    studio.text = metadata.director
+    studio.text = metadata.author
 
     for t in metadata.tag_list:
         tag = ET.SubElement(movie, 'tag')

@@ -14,8 +14,7 @@ from typing import Dict
 from ..metadata.comic import ChapterInfo
 from ..utils.thread_utils import SeseThreadPool
 from ..utils.trace import *
-from . import downloadtask as dltask
-from .downloadtask import TaskDLProgress, ProgressStatus
+from .downloadtask import download_manager, TaskDLProgress, ProgressStatus
 from ..utils.file_process import make_comic
 from ..config.config_manager import config
 from ..utils.file_utils import get_file_basename
@@ -194,7 +193,8 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
                         SESE_TRACE(LOG_DEBUG, f"[response close]")
                         return 0
                     # 文件大小错误，删除文件并重试下载
-                    SESE_TRACE(LOG_ERROR, f"文件大小错误，删除文件重新下载，file: {file_name}, (f_size:{f_size}, remote_file_size:{remote_file_size})")
+                    SESE_TRACE(LOG_ERROR,
+                               f"文件大小错误，删除文件重新下载，file: {file_name}, (f_size:{f_size}, remote_file_size:{remote_file_size})")
                     os.remove(file_name)
                     response.close()
                     SESE_TRACE(LOG_DEBUG, f"[response close]")
@@ -297,9 +297,20 @@ def _download_files(file_name_list: list[str],
     return 0
 
 
-def download_file(file_name, url):
+def download_file(file_name, url, **kwargs):
     """下载单个文件"""
-    result = _download_file(file_name, url)
+    result = _download_file(file_name, url, **kwargs)
+    return result
+
+
+def download_file_ex(file_name: str,
+                     url: str,
+                     *,
+                     max_workers=10,
+                     progress: TaskDLProgress = None,
+                     **kwargs):
+    """下载单个文件"""
+    result = _download_file(file_name, url, **kwargs)
     return result
 
 
@@ -448,7 +459,8 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
     return 0
 
 
-def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: ChapterInfo, progress: TaskDLProgress = None):
+def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: ChapterInfo,
+                          progress: TaskDLProgress = None):
     """
     下载漫画章节
     Args:
@@ -502,5 +514,5 @@ def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: 
 
 
 def download_task(task_name, func, *args):
-    dltask.download_manager.add_task(task_name, func, *args)
+    download_manager.add_task(task_name, func, *args)
     # SESE_PRINT('download task running!')

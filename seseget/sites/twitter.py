@@ -72,10 +72,9 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
             metadata.title = video_title
             metadata.sub_title = video_title
             metadata.describe = video_descript
-            metadata.artist = video_author
             metadata.public_time = video_date[0:10]
             metadata.year = video_date[0:4]
-            metadata.director = video_author
+            metadata.author = video_author
             metadata.tag_list = video_tags.copy()
 
             video_info = VideoInfo()
@@ -112,7 +111,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         if not os.path.exists(self.__class__.site_dir):
             os.mkdir(self.__class__.site_dir)
 
-        artist_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.metadata.artist))  # 中间目录，主要用来分类同一个作者的作品
+        artist_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.metadata.author))  # 中间目录，主要用来分类同一个作者的作品
         info.video_dir = os.path.join(artist_dir, make_filename_valid(info.name))  # 下载目录，以视频名命名
 
         # 推特下载视频名按视频id命名，正常不会重复，若目录重复则直接覆盖
