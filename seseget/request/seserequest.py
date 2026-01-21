@@ -43,7 +43,7 @@ class SessionManager:
     def request(self, method: requests.HttpMethod, url: str, **kwargs) -> requests.Response:
         """发起请求，自动路由到对应主机的 Session"""
         if "headers" not in kwargs:
-            kwargs["headers"] = copy.copy(ss_headers)
+            kwargs["headers"] = copy.copy(SS_HEADERS)
         SESE_TRACE(LOG_DEBUG, f'headers: {kwargs["headers"]}')
         if "proxies" not in kwargs:
             proxy_config = config["common"]["proxy"]
@@ -87,7 +87,7 @@ class SessionManager:
             self._sessions.clear()
 
 
-ss_headers = {
+SS_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
 }
 # request_session = requests.Session()
@@ -151,7 +151,7 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
             if f_size > 0:
                 # 如果本地已存在文件，设置从断点开始继续下载
                 if "headers" not in kwargs:
-                    kwargs["headers"] = copy.copy(ss_headers)
+                    kwargs["headers"] = copy.copy(SS_HEADERS)
                 kwargs["headers"]['Range'] = 'bytes=%d-' % f_size
             elif "headers" in kwargs and "Range" in kwargs["headers"]:
                 # 文件不存在但是设置了Range，则去除Range字段
@@ -245,14 +245,6 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
     return 0
 
 
-def _handle_exception(future):
-    """处理完成任务的异常"""
-    if future.exception():
-        exc = future.exception()
-        SESE_TRACE(LOG_ERROR, "下载任务异常! info: %s\r\n\r\nTraceback:\r\n%s" %
-                   (exc, ''.join(traceback.format_tb(exc.__traceback__))))
-
-
 def _download_files(file_name_list: list[str],
                     url_list: list[str],
                     *,
@@ -297,20 +289,19 @@ def _download_files(file_name_list: list[str],
     return 0
 
 
-def download_file(file_name, url, **kwargs):
+def download_file(file_name, url):
     """下载单个文件"""
-    result = _download_file(file_name, url, **kwargs)
+    result = _download_file(file_name, url)
     return result
 
 
 def download_file_ex(file_name: str,
                      url: str,
                      *,
-                     max_workers=10,
                      progress: TaskDLProgress = None,
                      **kwargs):
     """下载单个文件"""
-    result = _download_file(file_name, url, **kwargs)
+    result = _download_file(file_name, url, True, progress, **kwargs)
     return result
 
 
@@ -394,7 +385,7 @@ def download_mp4_by_merge_video_audio(filename, video_url, audio_url, headers,
 
 def _get_ts_list_from_m3u8(url):
     ts_list = []
-    headers = copy.copy(ss_headers)
+    headers = copy.copy(SS_HEADERS)
 
     # 下载m3u8文件
     response = ss_session.request("GET", url=url, headers=headers, stream=True)
