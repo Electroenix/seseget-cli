@@ -75,7 +75,7 @@ class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         # 视频下载目录说明
         # data  # 下载目录
         # └── site  # 站点目录
-        #     └── artist  # 作者目录
+        #     └── series  # 系列目录
         #         └── video  # 视频目录
         #             ├── video.mp4  # 视频文件
         #             ├── video.nfo  # 元数据文件
@@ -87,14 +87,14 @@ class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         if not os.path.exists(self.__class__.site_dir):
             os.mkdir(self.__class__.site_dir)
 
-        artist_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.metadata.author))  # 中间目录，主要用来分类同一个作者的作品
-        info.video_dir = os.path.join(artist_dir, make_filename_valid(info.name))  # 下载目录，以视频名命名
+        series_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.metadata.series))  # 中间目录，系列作品放在同一目录下
+        info.video_dir = os.path.join(series_dir, make_filename_valid(info.name))  # 下载目录，以视频名命名
 
         # 如果目录已经存在，生成不同的目录名，避免视频名相同导致被覆盖
         info.video_dir = make_diff_dir_name(info.video_dir)
 
-        if not os.path.exists(artist_dir):
-            os.mkdir(artist_dir)
+        if not os.path.exists(series_dir):
+            os.mkdir(series_dir)
         if not os.path.exists(info.video_dir):
             os.mkdir(info.video_dir)
 

@@ -83,7 +83,7 @@ options:
 ```text
 data                                # 下载目录
 └── site                         # 站点目录
-    └── artist                      # 作者目录
+    └── series                      # 系列目录
         └── video                   # 视频目录
             ├── video.mp4           # 视频文件
             ├── video.nfo           # 元数据文件
@@ -91,7 +91,7 @@ data                                # 下载目录
             ├── poster.jpg          # 封面图片
             └── source.txt          # 下载来源信息
 ```
-> - 将artist目录复制到媒体库即可自动识别
+> - 将series目录复制到媒体库即可自动识别
 > - 群晖VideoStation默认识别与视频同名的图片文件作为封面，需要在`设置->高级->视频封面设置`中勾选`将以下文件名的图像设为视频封面`，并在`文件名`中添加poster.jpg
 
 - 下载漫画

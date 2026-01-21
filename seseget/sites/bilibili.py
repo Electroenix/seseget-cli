@@ -102,6 +102,7 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
         metadata.public_time = video_date[0:10]
         metadata.year = video_date[0:4]
         metadata.author = video_author
+        metadata.series = video_author
         metadata.tag_list = video_tags.copy()
 
         # 解析视频信息
