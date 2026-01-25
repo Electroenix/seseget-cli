@@ -2,8 +2,8 @@ import copy
 import json
 
 from ..config.path import DATA_DIR
-from ..metadata.video import *
-from ..request.fetcher import VideoFetcher, FetcherRegistry
+from ..metadata.video import VideoMetaData
+from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
 from ..utils.trace import *
 from ..request import seserequest as ssreq
 from ..utils.file_utils import *

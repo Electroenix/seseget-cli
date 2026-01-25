@@ -6,8 +6,8 @@ from bs4 import BeautifulSoup, element
 from urllib.parse import urlparse, parse_qs
 
 from ..config.path import DATA_DIR
-from ..metadata.video import *
-from ..request.fetcher import VideoFetcher, FetcherRegistry
+from ..metadata.video import VideoMetaData
+from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
 from ..utils.thread_utils import SeseThreadPool, Future
 from ..utils.trace import *
 from ..request import seserequest as ssreq

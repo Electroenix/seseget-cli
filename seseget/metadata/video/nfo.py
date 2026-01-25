@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 
-from .video import VideoMetaData
+from . import VideoMetaData
 
 
 def make_nfo_file(filename: str, metadata: VideoMetaData):

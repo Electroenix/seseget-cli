@@ -1,10 +1,11 @@
 import base64
 import hashlib
 import time
+from . import VideoMetaData
 
 
 # 计算vsmeta中数据的校验码
-def get_check_code(len):
+def get_check_code(len: int):
     if len > 0xff:
         code_h = int(len % 0x80 + 0x80).to_bytes()
     else:
@@ -23,7 +24,7 @@ def get_check_code(len):
 
 
 # 生成适用于video station的vsmeta文件
-def make_vsmeta_file(filename, metadata):
+def make_vsmeta_file(filename: str, metadata: VideoMetaData):
     f_vsmeta = open(filename, 'wb')
 
     # 标题

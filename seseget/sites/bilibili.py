@@ -4,12 +4,11 @@ from bs4 import BeautifulSoup
 
 from ..config.path import DATA_DIR
 from ..metadata.video import *
-from ..request.fetcher import VideoFetcher, FetcherRegistry
+from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry, make_source_info_file
 from ..utils.trace import *
 from ..request import seserequest as ssreq
 from ..utils.file_utils import *
 from ..config.config_manager import config
-from ..utils.file_process import make_source_info_file
 
 
 # 视频信息

@@ -4,7 +4,8 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from seseget.metadata.comic import ComicMetaData, make_cbz_comic_info_xml
+from seseget.metadata.comic import ComicMetaData
+from seseget.metadata.comic.cbz import make_cbz_comic_info_xml
 from seseget.utils.trace import *
 
 

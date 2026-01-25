@@ -11,11 +11,9 @@ from urllib.parse import urlparse
 from urllib.request import getproxies
 from typing import Dict
 
-from ..metadata.comic import ChapterInfo
 from ..utils.thread_utils import SeseThreadPool
 from ..utils.trace import *
 from .downloadtask import download_manager, TaskDLProgress, ProgressStatus
-from ..utils.file_process import make_comic
 from ..config.config_manager import config
 from ..utils.file_utils import get_file_basename
 from ..utils.subprocess_utils import exec_cmd
@@ -450,23 +448,16 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
     return 0
 
 
-def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: ChapterInfo,
-                          progress: TaskDLProgress = None):
+def download_comic_capter_images(save_dir: str, image_urls, progress: TaskDLProgress = None):
     """
     下载漫画章节
     Args:
-        save_dir: 漫画保存目录
-        comic_title: 漫画系列名
+        save_dir: 图片保存目录
         image_urls: 存放漫画图片的url列表
-        chapter: 存放章节信息的对象
         progress: 控制下载进度的对象
 
     """
     image_index = 1
-    image_temp_dir_path = save_dir + "/" + comic_title  # 漫画图片的临时保存目录
-
-    if not os.path.exists(image_temp_dir_path):
-        os.mkdir(image_temp_dir_path)
 
     if progress is not None:
         progress.init_progress()
@@ -478,7 +469,7 @@ def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: 
     with SeseThreadPool(max_workers=10) as pool:
         for index, url in enumerate(image_urls):
             image_name = "%05d.jpg" % index
-            image_path = image_temp_dir_path + "/" + image_name
+            image_path = save_dir + "/" + image_name
 
             # 加入下载线程
             pool.submit(_download_file, image_path, url, True, progress)
@@ -496,12 +487,6 @@ def download_comic_capter(save_dir: str, comic_title: str, image_urls, chapter: 
     SESE_PRINT("下载完成！")
     if progress:
         progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
-
-    # 图片下载完成，打包成漫画文件
-    make_comic(save_dir, comic_title, image_temp_dir_path, chapter.metadata)
-
-    if progress:
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
 
 def download_task(task_name, func, *args):

@@ -1,14 +1,124 @@
 import os
+import sys
 import threading
+import shutil
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from typing import Dict, Type, Optional, TypeVar, Generic, Union, List
 
-from ..metadata.comic import ComicInfo, ChapterInfo
-from ..metadata.video import VideoInfo, VideoInfoCache
-from ..utils.file_process import make_video_metadata_file, make_source_info_file
+from ..config.config_manager import config
+from ..metadata.comic import ComicMetaData
+from ..metadata.video import VideoMetaData
+from ..metadata.video.doc import make_video_metadata_file
+from ..metadata.comic.doc import make_comic
 from ..utils.file_utils import make_filename_valid, make_diff_dir_name
 from ..utils.trace import *
 from . import seserequest as ssreq
+from ..utils.trace import SESE_PRINT, SESE_TRACE, LOG_WARNING
+from .downloadtask import ProgressStatus
+
+
+class ChapterInfo:
+    """漫画章节信息，存储章节名，章节号以及漫画元数据"""
+    def __init__(self):
+        self.title = ""  # 章节名
+        self.id = 0
+        self.metadata = ComicMetaData()
+        self.image_urls: list[str] = []     # 漫画图片url列表
+        self.comic_info: ComicInfo = None   # 所属的ComicInfo对象, 下载时会引用，务必赋值
+
+
+class ComicInfo:
+    """完整的整部漫画的信息，包含系列名，作者，以及全部章节信息"""
+    def __init__(self):
+        self.view_url = ""
+        self.cid = ""
+        self.cover_url = ""
+        self.title = ""  # 系列名
+        self.author = ""  # 作者
+        self.genres = []  # 标签
+        self.description = ""
+        self.chapter_list: list[ChapterInfo] = []  # 漫画列表，可能有多个章节，以列表形式存储
+        self.comic_dir = ""     # 本地保存目录
+
+    def print_info(self):
+        SESE_PRINT(f"---------------------------------")
+        SESE_PRINT(f"cid: {self.cid}")
+        SESE_PRINT(f"系列: {self.title}")
+        SESE_PRINT(f"作者: {self.author}")
+        SESE_PRINT(f"标签: {self.genres}")
+        SESE_PRINT(f"简介: {self.description}")
+        SESE_PRINT(f"已获取章节数: {len(self.chapter_list)}")
+        SESE_PRINT(f"---------------------------------")
+
+
+class VideoInfo:
+    def __init__(self):
+        self.vid = ""
+        self.name = ""              # 视频标题
+        self.view_url = ""          # 网页地址
+        self.download_url = ""      # 下载地址
+        self.cover_url = ""         # 封面地址
+        self.thumbnail_url = ""     # 缩略图地址
+        self.metadata = VideoMetaData()     # 元数据
+        self.series_info = []       # 系列视频信息
+        self.video_dir = ""         # 本地保存目录
+
+    def print_info(self):
+        SESE_PRINT(f"---------------------------------")
+        SESE_PRINT(f"标题: {self.name}")
+        SESE_PRINT(f"作者: {self.metadata.author}")
+        SESE_PRINT(f"标签: {self.metadata.tag_list}")
+        SESE_PRINT(f"简介: {self.metadata.describe}")
+        SESE_PRINT(f"封面: {self.cover_url}")
+        SESE_PRINT(f"---------------------------------")
+
+
+class VideoInfoCache:
+    def __init__(self, max_size=10):
+        self.cache = OrderedDict()  # 核心缓存容器
+        self.max_size = max_size  # 最大缓存数量
+
+    def get_video_info(self, vid):
+        """ 获取视频信息（自动缓存） """
+        if vid in self.cache:
+            # 命中缓存：移动元素到末尾表示最近使用
+            self.cache.move_to_end(vid)
+            #PRINTLOG(f"缓存命中 vid: {vid}")
+            return self.cache[vid]
+
+        # 缓存未命中
+        return None
+
+    def update_cache(self, vid, video_info):
+        """ 更新缓存并执行淘汰策略 """
+        self.cache[vid] = video_info
+        if len(self.cache) > self.max_size:
+            # 移除最久未使用的条目
+            oldest_vid, _ = self.cache.popitem(last=False)
+            #PRINTLOG(f"移除过期缓存 vid: {oldest_vid}")
+        #PRINTLOG("当前缓存:", list(self.cache.keys()))
+
+
+def make_source_info_file(save_dir, resource_info):
+    """创建保存下载资源的来源信息的文件"""
+    if config["download"]["save_source_info"]:
+        content = ""
+        if isinstance(resource_info, VideoInfo):
+            content = content + 'video url: %s\r\n' % resource_info.view_url
+            content = content + 'thumbnail url: %s\r\n' % resource_info.thumbnail_url
+            content = content + 'cover url: %s\r\n' % resource_info.cover_url
+            content = content + 'download url: %s\r\n' % resource_info.download_url
+        elif isinstance(resource_info, ComicInfo):
+            content = "comic url: %s\r\n" % resource_info.view_url
+        elif isinstance(resource_info, str):
+            content = resource_info
+        else:
+            SESE_TRACE(LOG_WARNING, "Invalid resource_info!")
+            return
+
+        with open(save_dir + '/' + 'source.txt', 'wb') as f:
+            f.write(content.encode())
 
 
 class AbstractFetcher(ABC):
@@ -209,8 +319,26 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
     def _download_process(self, comic_title: str, chapter: T_ChapterInfo, progress: ssreq.TaskDLProgress = None):
         """此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
         comic_info = chapter.comic_info
+        comic_dir = comic_info.comic_dir
 
-        res = ssreq.download_comic_capter(comic_info.comic_dir, comic_title, chapter.image_urls, chapter, progress)
+        image_temp_dir_path = f"{comic_dir}/img-{chapter.id}"  # 漫画图片的临时保存目录
+
+        if not os.path.exists(image_temp_dir_path):
+            os.mkdir(image_temp_dir_path)
+
+        res = ssreq.download_comic_capter_images(image_temp_dir_path, chapter.image_urls, progress)
+
+        # 图片下载完成，打包成漫画文件
+        make_comic(comic_dir, comic_title, image_temp_dir_path, chapter.metadata)
+
+        if progress:
+            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+
+        # 删除图片文件夹
+        if not config["download"]["comic"]["leave_images"]:
+            shutil.rmtree(image_temp_dir_path)
+            SESE_PRINT('已删除图片缓存')
+
         return res
 
     def _download_process_with_semaphore(self, comic_title: str, chapter: T_ChapterInfo, progress: ssreq.TaskDLProgress = None):
@@ -225,10 +353,21 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
 
     def _start_download_task(self, chapter: T_ChapterInfo):
         comic_info = chapter.comic_info
+        comic_title = make_filename_valid(comic_info.title + "_%03d" % chapter.id)
+
+        # 处理windows路径长度限制问题
+        if sys.platform.startswith("win"):
+            valid_len = 259 - (len(os.path.abspath(comic_info.comic_dir)) + 1)
+            format_max = max(config["download"]["comic"]["format"], key=len, default="")
+            if valid_len < len(f'{comic_title}.{format_max}'):
+                if valid_len > len(f'{str(chapter.id)}.{format_max}'):
+                    # 漫画文件名改为id
+                    comic_title = str(chapter.id)
+                else:
+                    raise ValueError("当前目标路径过长，无法创建漫画文件")
 
         # 创建下载任务
         SESE_PRINT("正在下载第%d章" % chapter.id)
-        comic_title = make_filename_valid(comic_info.title + "_%03d" % chapter.id)
         task_name = comic_title
         ssreq.download_task(task_name, self._download_process_with_semaphore, comic_title, chapter)
 

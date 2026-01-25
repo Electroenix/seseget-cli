@@ -1,8 +1,7 @@
 from typing import List
 from bs4 import BeautifulSoup
 
-from ..metadata.comic import ChapterInfo, ComicInfo
-from ..request.fetcher import FetcherRegistry, ComicFetcher
+from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..utils.file_utils import *
 from ..request import seserequest as ssreq
 from ..config.path import DATA_DIR

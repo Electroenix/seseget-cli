@@ -6,9 +6,8 @@ from urllib.parse import urlparse, urljoin
 
 from ..config.path import DATA_DIR
 from ..config.config_manager import config
-from ..request.fetcher import FetcherRegistry, ComicFetcher
+from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..utils.trace import *
-from ..metadata.comic import ChapterInfo, ComicInfo
 from ..request import seserequest as ssreq
 from ..utils.file_utils import *
 

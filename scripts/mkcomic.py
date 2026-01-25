@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from seseget.metadata.comic import ComicMetaData
-from seseget.utils.file_process import make_cbz
+from seseget.metadata.comic.cbz import make_cbz
 from seseget.utils.file_utils import make_filename_valid
 from seseget.utils.trace import setup_logger
 

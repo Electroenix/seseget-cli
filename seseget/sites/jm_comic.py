@@ -9,9 +9,8 @@ from bs4 import BeautifulSoup
 from common import Postman
 from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, JmApiClient, catch_exception, JmImageDetail, jm_log
 
-from ..metadata.comic import ChapterInfo, ComicInfo
-from ..request.fetcher import FetcherRegistry, ComicFetcher
-from ..utils.file_process import make_comic
+from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
+from ..metadata.comic.doc import make_comic
 from ..request import seserequest as ssreq
 from ..config.path import DATA_DIR
 from ..utils.file_utils import *
