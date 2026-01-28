@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, Union, Self
 from ruamel.yaml import YAML
 import shutil
 
-from ..utils.trace import *
+from ..utils.trace import logger
 from .path import CONFIG_PATH, DEFAULT_CONFIG_PATH
 
 
@@ -115,9 +115,9 @@ class ConfigManager:
             with open(self._config_path, "r", encoding='utf-8') as f:
                 raw_config = self._yaml.load(f)
             self._config = self._wrap_dict(raw_config)
-            SESE_TRACE(LOG_DEBUG, "Config loaded.")
+            logger.debug("Config loaded.")
         except Exception as e:
-            SESE_TRACE(LOG_ERROR, f"Config init failed: {str(e)}")
+            logger.error(f"Config init failed: {str(e)}")
             raise
 
     def _wrap_dict(self, data: Dict) -> ObservableDict:
@@ -132,9 +132,9 @@ class ConfigManager:
             with open(f"{temp_path}", "w", encoding='utf-8') as f:
                 self._yaml.dump(self._config.origin_data, f)
             os.replace(temp_path, self._config_path)
-            SESE_PRINT("Config saved.")
+            logger.info("Config saved.")
         except Exception as e:
-            SESE_TRACE(LOG_ERROR, f"Save failed: {str(e)}")
+            logger.error(f"Save failed: {str(e)}")
             raise
 
     @property
@@ -144,4 +144,4 @@ class ConfigManager:
 
 # 全局单例（直接像字典一样操作）, 注：config内部的字典默认是ObservableDict类型的，如果需要获取普通dict类型，需要加获取.dict属性
 config = ConfigManager().data
-# SESE_TRACE(LOG_INFO, f"{config}")
+# logger.info(f"{config}")

@@ -1,7 +1,10 @@
 import os
 import yt_dlp
 from .downloadtask import TaskDLProgress, ProgressStatus
-from ..utils.trace import *
+from ..utils.trace import SSLogger, logger
+
+
+yt_logger = SSLogger("yt_dlp")
 
 
 class YtDlpLogger:
@@ -9,18 +12,18 @@ class YtDlpLogger:
         # For compatibility with youtube-dl, both debug and info are passed into debug
         # You can distinguish them by the prefix '[debug] '
         if msg.startswith('[debug] '):
-            SESE_TRACE(LOG_DEBUG, msg)
+            yt_logger.debug(msg)
         else:
-            SESE_TRACE(LOG_INFO, msg)
+            yt_logger.info(msg)
 
     def info(self, msg):
-        SESE_TRACE(LOG_INFO, msg)
+        yt_logger.info(msg)
 
     def warning(self, msg):
-        SESE_TRACE(LOG_WARNING, msg)
+        yt_logger.warning(msg)
 
     def error(self, msg):
-        SESE_TRACE(LOG_ERROR, msg)
+        yt_logger.error(msg)
 
 
 DEFAULT_FORMAT = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
@@ -42,7 +45,7 @@ def get_info(url, extend_opts=None):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
     except Exception as result:
-        SESE_TRACE(LOG_ERROR, 'Error! info: %s' % result)
+        logger.error('Error! info: %s' % result)
         return None
 
     return info
@@ -67,11 +70,11 @@ def download_by_yt_dlp(filename, url, extend_opts=None, progress: TaskDLProgress
             total = d["total_bytes"]
 
         # if d["status"] == "finished":
-        #     SESE_TRACE(LOG_DEBUG, f"\r\n{d}")
+        #     logger.debug(f"\r\n{d}")
         #     with open(f"{d['filename'].split('.')[-1]}.py", "wb") as f:
         #         f.write(f"{d}".encode())
 
-        # SESE_PRINT(f"current_progress:{downloaded}/{total}")
+        # logger.info(f"current_progress:{downloaded}/{total}")
         progress.add_progress(file_name, total=total)
         progress.set_downloaded(file_name, downloaded)
         progress.set_status(status)
@@ -101,14 +104,14 @@ def download_by_yt_dlp(filename, url, extend_opts=None, progress: TaskDLProgress
             error_code = ydl.download([url])
 
             if error_code:
-                SESE_TRACE(LOG_ERROR, f'YoutubeDL.download error! code:{error_code}')
+                logger.error(f'YoutubeDL.download error! code:{error_code}')
                 progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
                 return -1
             else:
                 progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
     except Exception as result:
-        SESE_TRACE(LOG_ERROR, 'Error! info: %s' % result)
+        logger.error('Error! info: %s' % result)
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
         return -1
 

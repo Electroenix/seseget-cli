@@ -12,9 +12,8 @@ from ..metadata.video import VideoMetaData
 from ..metadata.video.doc import make_video_metadata_file
 from ..metadata.comic.doc import make_comic
 from ..utils.file_utils import make_filename_valid, make_diff_dir_name
-from ..utils.trace import *
+from ..utils.trace import logger
 from . import seserequest as ssreq
-from ..utils.trace import SESE_PRINT, SESE_TRACE, LOG_WARNING
 from .downloadtask import ProgressStatus
 
 
@@ -42,14 +41,14 @@ class ComicInfo:
         self.comic_dir = ""     # 本地保存目录
 
     def print_info(self):
-        SESE_PRINT(f"---------------------------------")
-        SESE_PRINT(f"cid: {self.cid}")
-        SESE_PRINT(f"系列: {self.title}")
-        SESE_PRINT(f"作者: {self.author}")
-        SESE_PRINT(f"标签: {self.genres}")
-        SESE_PRINT(f"简介: {self.description}")
-        SESE_PRINT(f"已获取章节数: {len(self.chapter_list)}")
-        SESE_PRINT(f"---------------------------------")
+        logger.info(f"---------------------------------")
+        logger.info(f"cid: {self.cid}")
+        logger.info(f"系列: {self.title}")
+        logger.info(f"作者: {self.author}")
+        logger.info(f"标签: {self.genres}")
+        logger.info(f"简介: {self.description}")
+        logger.info(f"已获取章节数: {len(self.chapter_list)}")
+        logger.info(f"---------------------------------")
 
 
 class VideoInfo:
@@ -65,13 +64,13 @@ class VideoInfo:
         self.video_dir = ""         # 本地保存目录
 
     def print_info(self):
-        SESE_PRINT(f"---------------------------------")
-        SESE_PRINT(f"标题: {self.name}")
-        SESE_PRINT(f"作者: {self.metadata.author}")
-        SESE_PRINT(f"标签: {self.metadata.tag_list}")
-        SESE_PRINT(f"简介: {self.metadata.describe}")
-        SESE_PRINT(f"封面: {self.cover_url}")
-        SESE_PRINT(f"---------------------------------")
+        logger.info(f"---------------------------------")
+        logger.info(f"标题: {self.name}")
+        logger.info(f"作者: {self.metadata.author}")
+        logger.info(f"标签: {self.metadata.tag_list}")
+        logger.info(f"简介: {self.metadata.describe}")
+        logger.info(f"封面: {self.cover_url}")
+        logger.info(f"---------------------------------")
 
 
 class VideoInfoCache:
@@ -114,7 +113,7 @@ def make_source_info_file(save_dir, resource_info):
         elif isinstance(resource_info, str):
             content = resource_info
         else:
-            SESE_TRACE(LOG_WARNING, "Invalid resource_info!")
+            logger.warning("Invalid resource_info!")
             return
 
         with open(save_dir + '/' + 'source.txt', 'wb') as f:
@@ -337,7 +336,7 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
         # 删除图片文件夹
         if not config["download"]["comic"]["leave_images"]:
             shutil.rmtree(image_temp_dir_path)
-            SESE_PRINT('已删除图片缓存')
+            logger.info('已删除图片缓存')
 
         return res
 
@@ -367,7 +366,7 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
                     raise ValueError("当前目标路径过长，无法创建漫画文件")
 
         # 创建下载任务
-        SESE_PRINT("正在下载第%d章" % chapter.id)
+        logger.info("正在下载第%d章" % chapter.id)
         task_name = comic_title
         ssreq.download_task(task_name, self._download_process_with_semaphore, comic_title, chapter)
 
@@ -420,7 +419,7 @@ class FetcherRegistry:
             if not issubclass(fetcher_class, AbstractFetcher):
                 raise TypeError(f"{fetcher_class} 必须继承自 AbstractFetcher")
             cls._registry[site_name] = fetcher_class
-            SESE_TRACE(LOG_DEBUG, f"注册Fetcher类{fetcher_class}")
+            logger.debug(f"注册Fetcher类{fetcher_class}")
             return fetcher_class
 
         return decorator

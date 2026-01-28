@@ -6,7 +6,7 @@ import inspect
 import traceback
 
 from ..utils.thread_utils import SeseThreadPool, Future
-from ..utils.trace import *
+from ..utils.trace import logger
 from ..utils.file_utils import *
 from ..utils.output import ProgressBar
 
@@ -87,11 +87,11 @@ class TaskDLProgress:
                 if len(self.progress_dict) < self.progress_count:
                     progress = FileDLProgress(file_base_name, total=total)
                     self.progress_dict[file_base_name] = progress
-                    # SESE_TRACE(LOG_INFO, f"add_progress[{len(self.progress_dict)}][{file_base_name}], total[{total}]")
+                    # logger.info(f"add_progress[{len(self.progress_dict)}][{file_base_name}], total[{total}]")
                     progress.update(total=total)
                     self.total_progress.update(total=self.total_progress.total + total)
                 else:
-                    SESE_TRACE(LOG_WARNING, f"Download file count over preset! Set {self.progress_count} but \
+                    logger.warning(f"Download file count over preset! Set {self.progress_count} but \
                                                 add {len(self.progress_dict) + 1}")
 
     def get_progress(self, file_name: str) -> FileDLProgress:
@@ -112,7 +112,7 @@ class TaskDLProgress:
             BAR_SHOW_TOTAL_PROGRESS = False  # True: 显示所有下载文件的总进度，  False: 显示当前正在下载的文件的进度
 
             if file_name:
-                # SESE_PRINT(f"_update_progress[{file_name}]")
+                # logger.info(f"_update_progress[{file_name}]")
                 file_base_name = get_file_basename(file_name)
                 progress = self.get_progress(file_base_name)
 
@@ -121,7 +121,7 @@ class TaskDLProgress:
                     progress.update(downloaded=downloaded)
                     self.total_progress.update(downloaded=self.total_progress.downloaded + new_downloaded)
 
-                    # SESE_PRINT(f"update progress [{file_base_name}] {downloaded}/{progress.total}")
+                    # logger.info(f"update progress [{file_base_name}] {downloaded}/{progress.total}")
                     if progress.total == progress.downloaded:
                         self.finish_count = self.finish_count + 1
 
@@ -241,7 +241,7 @@ class DownloadManager:
         wrapped_func = self._wrap_download_func(func, task.task_progress)
 
         task.thread = self.task_pool.submit(wrapped_func, *args)
-        SESE_TRACE(LOG_DEBUG, f"创建下载任务[task_id: {task_id}, name: {name}]")
+        logger.debug(f"创建下载任务[task_id: {task_id}, name: {name}]")
         return task
 
     @staticmethod
@@ -272,8 +272,8 @@ class DownloadManager:
         """处理完成任务的异常"""
         if future.exception():
             exc = future.exception()
-            SESE_TRACE(LOG_ERROR, "下载任务异常! info: %s\r\n\r\nTraceback:\r\n%s" %
-                       (exc, ''.join(traceback.format_tb(exc.__traceback__))))
+            logger.error("下载任务异常! info: %s\r\n\r\nTraceback:\r\n%s" %
+                         (exc, ''.join(traceback.format_tb(exc.__traceback__))))
 
     def get_task_by_id(self, task_id):
         """根据任务ID获取任务实例"""

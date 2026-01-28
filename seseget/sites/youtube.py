@@ -4,7 +4,7 @@ import json
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
-from ..utils.trace import *
+from ..utils.trace import logger
 from ..request import seserequest as ssreq
 from ..utils.file_utils import *
 from ..request import seseytdlp
@@ -19,16 +19,16 @@ class YtbVideoInfo(VideoInfo):
         self.video_like = ""
 
     def print_info(self):
-        SESE_PRINT(f"---------------------------------")
-        SESE_PRINT(f"vid: {self.vid}")
-        SESE_PRINT(f"标题: {self.metadata.title}")
-        SESE_PRINT(f"简介: {self.metadata.describe}")
-        SESE_PRINT(f"作者: {self.metadata.author}")
-        SESE_PRINT(f"日期: {self.metadata.public_time}")
-        SESE_PRINT(f"标签: {self.metadata.tag_list}")
-        SESE_PRINT(f"播放: {self.video_view}")
-        SESE_PRINT(f"点赞: {self.video_like}")
-        SESE_PRINT(f"---------------------------------")
+        logger.info(f"---------------------------------")
+        logger.info(f"vid: {self.vid}")
+        logger.info(f"标题: {self.metadata.title}")
+        logger.info(f"简介: {self.metadata.describe}")
+        logger.info(f"作者: {self.metadata.author}")
+        logger.info(f"日期: {self.metadata.public_time}")
+        logger.info(f"标签: {self.metadata.tag_list}")
+        logger.info(f"播放: {self.video_view}")
+        logger.info(f"点赞: {self.video_like}")
+        logger.info(f"---------------------------------")
 
 
 @FetcherRegistry.register("youtube")
@@ -100,15 +100,15 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
         info = seseytdlp.get_info(video_url)
 
         if not info:
-            SESE_TRACE(LOG_ERROR, "video info is None!")
+            logger.error("video info is None!")
             return -1
 
         if "id" not in info:
-            SESE_TRACE(LOG_ERROR, "video info is error!")
+            logger.error("video info is error!")
             return -1
 
         if info["id"] != vid:
-            SESE_TRACE(LOG_ERROR, "video id not match!")
+            logger.error("video id not match!")
             return -1
 
         # 提取视频信息

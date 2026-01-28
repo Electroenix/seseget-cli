@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from ..config.path import DATA_DIR
 from ..metadata.video import *
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry, make_source_info_file
-from ..utils.trace import *
+from ..utils.trace import logger
 from ..request import seserequest as ssreq
 from ..utils.file_utils import *
 from ..config.config_manager import config
@@ -24,19 +24,19 @@ class BiliVideoInfo(VideoInfo):
         self.video_share = ""
 
     def print_info(self):
-        SESE_PRINT(f"---------------------------------")
-        SESE_PRINT(f"BV号: {self.vid}")
-        SESE_PRINT(f"标题: {self.metadata.title}")
-        SESE_PRINT(f"简介: {self.metadata.describe}")
-        SESE_PRINT(f"up主: {self.metadata.author}")
-        SESE_PRINT(f"日期: {self.metadata.public_time}")
-        SESE_PRINT(f"标签: {self.metadata.tag_list}")
-        SESE_PRINT(f"播放: {self.video_view}")
-        SESE_PRINT(f"点赞: {self.video_like}")
-        SESE_PRINT(f"投币: {self.video_coin}")
-        SESE_PRINT(f"收藏: {self.video_fav}")
-        SESE_PRINT(f"转发: {self.video_share}")
-        SESE_PRINT(f"---------------------------------")
+        logger.info(f"---------------------------------")
+        logger.info(f"BV号: {self.vid}")
+        logger.info(f"标题: {self.metadata.title}")
+        logger.info(f"简介: {self.metadata.describe}")
+        logger.info(f"up主: {self.metadata.author}")
+        logger.info(f"日期: {self.metadata.public_time}")
+        logger.info(f"标签: {self.metadata.tag_list}")
+        logger.info(f"播放: {self.video_view}")
+        logger.info(f"点赞: {self.video_like}")
+        logger.info(f"投币: {self.video_coin}")
+        logger.info(f"收藏: {self.video_fav}")
+        logger.info(f"转发: {self.video_share}")
+        logger.info(f"---------------------------------")
 
 
 @FetcherRegistry.register("bilibili")

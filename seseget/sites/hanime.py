@@ -9,7 +9,7 @@ from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
 from ..utils.thread_utils import SeseThreadPool, Future
-from ..utils.trace import *
+from ..utils.trace import logger
 from ..request import seserequest as ssreq
 from ..utils.file_utils import *
 from ..config.config_manager import config
@@ -101,7 +101,7 @@ class HanimeFetcher(VideoFetcher):
         def done_callback(future: Future):
             nonlocal finish_cnt
             finish_cnt = finish_cnt + 1
-            SESE_PRINT('下载系列视频缩略图中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
+            logger.info('下载系列视频缩略图中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
 
         with SeseThreadPool(max_workers=10) as pool:
             pool.set_done_callback(done_callback)
@@ -122,10 +122,10 @@ class HanimeFetcher(VideoFetcher):
             try:
                 pool.wait_all()
             except Exception as e:
-                SESE_TRACE(LOG_ERROR, '\n下载失败!')
+                logger.error('\n下载失败!')
                 raise
 
-        SESE_PRINT('\n下载完成!')
+        logger.info('\n下载完成!')
 
     def _fetch_info(self, url, **kwargs) -> VideoInfo:
         view_url_parse = urlparse(url)
@@ -133,7 +133,7 @@ class HanimeFetcher(VideoFetcher):
 
         video_info = self.video_info_cache.get_video_info(vid)
         if video_info is not None:
-            SESE_PRINT("匹配到缓存中的视频信息(vid-%s)" % vid)
+            logger.info("匹配到缓存中的视频信息(vid-%s)" % vid)
             return copy.deepcopy(video_info)
 
         # 发送请求获取网页html

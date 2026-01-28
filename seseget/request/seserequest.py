@@ -11,8 +11,9 @@ from urllib.parse import urlparse
 from urllib.request import getproxies
 from typing import Dict
 
+from ..config import settings
 from ..utils.thread_utils import SeseThreadPool
-from ..utils.trace import *
+from ..utils.trace import logger
 from .downloadtask import download_manager, TaskDLProgress, ProgressStatus
 from ..config.config_manager import config
 from ..utils.file_utils import get_file_basename
@@ -35,14 +36,14 @@ class SessionManager:
                 session = requests.Session()
 
                 self._sessions[host] = session
-            # SESE_PRINT(f"当前session列表：{list(self._sessions.keys())}")
+            # logger.info(f"当前session列表：{list(self._sessions.keys())}")
             return self._sessions[host]
 
     def request(self, method: requests.HttpMethod, url: str, **kwargs) -> requests.Response:
         """发起请求，自动路由到对应主机的 Session"""
         if "headers" not in kwargs:
             kwargs["headers"] = copy.copy(SS_HEADERS)
-        SESE_TRACE(LOG_DEBUG, f'headers: {kwargs["headers"]}')
+        logger.debug(f'headers: {kwargs["headers"]}')
         if "proxies" not in kwargs:
             proxy_config = config["common"]["proxy"]
             if proxy_config:
@@ -58,7 +59,7 @@ class SessionManager:
                     "https": sys_proxies.get("https"),
                 }
                 kwargs["proxies"] = proxies
-            SESE_TRACE(LOG_DEBUG, f'proxy: {kwargs["proxies"]}')
+            logger.debug(f'proxy: {kwargs["proxies"]}')
         if "impersonate" not in kwargs:
             kwargs["impersonate"] = "chrome110"
         if "timeout" not in kwargs:
@@ -81,7 +82,7 @@ class SessionManager:
         with self._lock:
             for host, session in self._sessions.items():
                 session.close()
-                SESE_TRACE(LOG_DEBUG, f"释放Session: {host}")
+                logger.debug(f"释放Session: {host}")
             self._sessions.clear()
 
 
@@ -110,17 +111,17 @@ def request(method, url, **kwargs):
     while True:
         try:
             response = ss_session.request(method, url, **kwargs)
-            SESE_DEBUG(f'request headers: {response.request.headers}')
+            logger.debug(f'request headers: {response.request.headers}')
             break
         except Exception as result:
             if retry_times < retry_max:
-                SESE_TRACE(LOG_ERROR, 'Error! info: %s' % result)
-                SESE_PRINT("GET %s Failed, Retry(%d)..." % (url, retry_times))
+                logger.error('Error! info: %s' % result)
+                logger.info("GET %s Failed, Retry(%d)..." % (url, retry_times))
                 retry_times = retry_times + 1
                 time.sleep(1)
                 continue
             else:
-                SESE_TRACE(LOG_ERROR, 'Error! retry max - %d!' % retry_max)
+                logger.error('Error! retry max - %d!' % retry_max)
                 break
 
     return response
@@ -155,11 +156,11 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
                 # 文件不存在但是设置了Range，则去除Range字段
                 kwargs["headers"].pop("Range")
 
-            SESE_TRACE(LOG_DEBUG, f"request [{url}]")
+            logger.debug(f"request [{url}]")
 
             response = ss_session.request("GET", url=url, stream=True, **kwargs)
             if response:
-                SESE_TRACE(LOG_DEBUG, f"[response open]")
+                logger.debug(f"[response open]")
 
             total_size = 0
             read_size = 0
@@ -169,13 +170,13 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
                 if response.status_code == 200:
                     # 非续传模式或服务器不支持续传
                     file_mode = 'wb'  # 覆盖模式
-                    SESE_TRACE(LOG_DEBUG, f"respone[200], Content-Length: {response.headers['Content-Length']}")
+                    logger.debug(f"respone[200], Content-Length: {response.headers['Content-Length']}")
                     total_size = int(response.headers['Content-Length'])
 
                 elif response.status_code == 206:
                     # 续传模式
                     file_mode = 'ab'  # 追加模式
-                    SESE_TRACE(LOG_DEBUG, f"respone[206], Content-Length: {response.headers['Content-Length']}")
+                    logger.debug(f"respone[206], Content-Length: {response.headers['Content-Length']}")
                     total_size = f_size + int(response.headers['Content-Length'])
 
                 elif response.status_code == 416:
@@ -183,19 +184,18 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
                     remote_file_size = int(response.headers['Content-Range'].split("/")[-1])
                     if f_size == remote_file_size:
                         # 文件已经完整，直接return
-                        SESE_TRACE(LOG_DEBUG, "检测到文件(%s)已存在" % file_name)
+                        logger.debug("检测到文件(%s)已存在" % file_name)
                         if progress is not None:
                             progress.add_progress(file_name, total=f_size)
                             progress.update(file_name, f_size)
                         response.close()
-                        SESE_TRACE(LOG_DEBUG, f"[response close]")
+                        logger.debug(f"[response close]")
                         return 0
                     # 文件大小错误，删除文件并重试下载
-                    SESE_TRACE(LOG_ERROR,
-                               f"文件大小错误，删除文件重新下载，file: {file_name}, (f_size:{f_size}, remote_file_size:{remote_file_size})")
+                    logger.error(f"文件大小错误，删除文件重新下载，file: {file_name}, (f_size:{f_size}, remote_file_size:{remote_file_size})")
                     os.remove(file_name)
                     response.close()
-                    SESE_TRACE(LOG_DEBUG, f"[response close]")
+                    logger.debug(f"[response close]")
                     continue
 
                 response.raise_for_status()
@@ -215,25 +215,25 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
 
             except Exception:
                 if response:
-                    SESE_TRACE(LOG_DEBUG, f"Error! response header: {response.headers}")
+                    logger.debug(f"Error! response header: {response.headers}")
                 raise
 
             finally:
                 response.close()
-                SESE_TRACE(LOG_DEBUG, f"[response close]")
+                logger.debug(f"[response close]")
 
         except Exception as result:
             if auto_retry:
                 if retry_times < retry_max:
-                    SESE_TRACE(LOG_DEBUG, 'Error! info: %s' % result)
-                    SESE_TRACE(LOG_DEBUG, "GET %s Failed, Retry(%d)..." % (url, retry_times))
+                    logger.debug('Error! info: %s' % result)
+                    logger.debug("GET %s Failed, Retry(%d)..." % (url, retry_times))
                     retry_times = retry_times + 1
                     time.sleep(5)
                     continue
                 else:
                     raise
             else:
-                SESE_TRACE(LOG_ERROR, 'Error! info: %s' % result)
+                logger.error('Error! info: %s' % result)
                 retry = input('下载失败，是否重新下载(y/n)')
                 if retry == 'y':
                     continue
@@ -262,7 +262,7 @@ def _download_files(file_name_list: list[str],
 
     """
     if len(file_name_list) != len(url_list):
-        SESE_TRACE(LOG_ERROR, "文件与下载地址数量不匹配！")
+        logger.error("文件与下载地址数量不匹配！")
         return -1
 
     with SeseThreadPool(max_workers=max_workers) as pool:
@@ -274,14 +274,14 @@ def _download_files(file_name_list: list[str],
             pool.submit(_download_file, file_name, url, True, progress, **kwargs)
             index = index + 1
 
-        SESE_PRINT("已提交所有下载任务！")
+        logger.info("已提交所有下载任务！")
 
         try:
             pool.wait_all()
-            SESE_PRINT("全部文件下载完成！")
+            logger.info("全部文件下载完成！")
 
         except Exception as e:
-            SESE_TRACE(LOG_ERROR, f"下载失败！info: {e}")
+            logger.error(f"下载失败！info: {e}")
             raise
 
     return 0
@@ -334,10 +334,10 @@ def download_mp4(filename, url, progress: TaskDLProgress = None):
 
     if result == 0:
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
-        SESE_PRINT(f"{get_file_basename(filename)} Download OK!")
+        logger.info(f"{get_file_basename(filename)} Download OK!")
     else:
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
-        SESE_PRINT(f"{get_file_basename(filename)} Download ERROR!")
+        logger.info(f"{get_file_basename(filename)} Download ERROR!")
     return result
 
 
@@ -361,22 +361,22 @@ def download_mp4_by_merge_video_audio(filename, video_url, audio_url, headers,
             [audio_url, video_url],
             progress=progress,
             headers=headers) != 0:
-        SESE_TRACE(LOG_ERROR, "download_files failed!")
+        logger.error("download_files failed!")
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
         return -1
 
-    SESE_PRINT("开始合并音视频文件...")
+    logger.info("开始合并音视频文件...")
     progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
     # 开始合并音视频文件
     exec_cmd(["ffmpeg", "-hide_banner", "-i", f"{video_path}", "-i", f"{audio_path}", "-c:v", "copy", "-c:a", "aac",
               "-strict", "experimental", f"{filename}"])
 
-    SESE_PRINT(f"合并完成，保存在{filename}")
+    logger.info(f"合并完成，保存在{filename}")
     progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
 
     shutil.rmtree(cache_dir)
-    SESE_PRINT(f"已删除缓存文件")
+    logger.info(f"已删除缓存文件")
 
     return 0
 
@@ -430,12 +430,12 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
             pool.wait_all()
 
         except Exception as e:
-            SESE_TRACE(LOG_ERROR, f"下载失败！info: {e}")
+            logger.error(f"下载失败！info: {e}")
             if progress:
                 progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
             raise
 
-    SESE_PRINT('下载完成!')
+    logger.info('下载完成!')
     if progress:
         progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
@@ -464,7 +464,7 @@ def download_comic_capter_images(save_dir: str, image_urls, progress: TaskDLProg
         progress.set_progress_count(len(image_urls))
         progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
 
-    SESE_TRACE(LOG_DEBUG, f"image_urls: {image_urls}")
+    logger.debug(f"image_urls: {image_urls}")
 
     with SeseThreadPool(max_workers=10) as pool:
         for index, url in enumerate(image_urls):
@@ -479,16 +479,16 @@ def download_comic_capter_images(save_dir: str, image_urls, progress: TaskDLProg
             pool.wait_all()
 
         except Exception as e:
-            SESE_TRACE(LOG_ERROR, f"下载失败！info: {e}")
+            logger.error(f"下载失败！info: {e}")
             if progress:
                 progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
             raise
 
-    SESE_PRINT("下载完成！")
+    logger.info("下载完成！")
     if progress:
         progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
 
 
 def download_task(task_name, func, *args):
     download_manager.add_task(task_name, func, *args)
-    # SESE_PRINT('download task running!')
+    # logger.info('download task running!')

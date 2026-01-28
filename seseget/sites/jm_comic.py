@@ -14,7 +14,7 @@ from ..metadata.comic.doc import make_comic
 from ..request import seserequest as ssreq
 from ..config.path import DATA_DIR
 from ..utils.file_utils import *
-from ..utils.trace import *
+from ..utils.trace import logger, SSLogger
 from ..config.config_manager import config
 from ..request.downloadtask import TaskDLProgress, ProgressStatus
 
@@ -159,8 +159,8 @@ class SeseJmClient(JmApiClient):
                     #     total_size = int(resp.headers['Content-Length'])
                     #     self.progress.set_total(url, total_size)
                     # except Exception as e:
-                    #     SESE_TRACE(LOG_WARNING, f"resp header no 'Content-Length', url[{url}]")
-                    #     SESE_PRINT(f"{resp.headers}")
+                    #     logger.warning(f"resp header no 'Content-Length', url[{url}]")
+                    #     logger.info(f"{resp.headers}")
                     #
                     # resp = SeseJmStreamResponse(resp)
                     # for chunk in resp.iter_content():
@@ -201,7 +201,7 @@ class SeseJmDownloader(JmDownloader):
         try:
             self.client.set_progress(self.progress)
         except Exception as e:
-            SESE_TRACE(LOG_WARNING, f"Client注入progress失败！info: {e}")
+            logger.warning(f"Client注入progress失败！info: {e}")
             raise e
 
     @catch_exception
@@ -268,7 +268,7 @@ class SeseJmOption(JmOption):
         try:
             option.update_cookies(json.loads(config["jmcomic"]["login"]["cookie"]))
         except json.JSONDecodeError:
-            SESE_TRACE(LOG_DEBUG, "load jmcomic cookie failed!")
+            logger.debug("load jmcomic cookie failed!")
             pass
         # option.client['domain'] = ["18comic.vip"]
         # option.client['impl'] = "sese_jm_client"
@@ -277,8 +277,11 @@ class SeseJmOption(JmOption):
         return option
 
 
+jm_logger = SSLogger("jmcomic")
+
+
 def seseJmLog(topic: str, msg: str):
-    SESE_PRINT(f"[{topic}] {msg}")
+    jm_logger.info(f"[{topic}] {msg}")
 
 
 # jmcomic自定义配置
@@ -304,7 +307,7 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
                 if cookie:
                     config["jmcomic"]["login"]["cookie"] = json.dumps(cookie)
         except Exception as result:
-            SESE_TRACE(LOG_WARNING, f"JM登录失败, info: {result}")
+            logger.warning(f"JM登录失败, info: {result}")
 
     def _fetch_info(self, url, **kwargs) -> JMComicInfo:
         chapter_id_list = kwargs.get("chapter_id_list", None)
@@ -431,7 +434,7 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
         downloader = SeseJmDownloader(self.jm_option.copy_option(), progress)  # 传递进度回调给downloader
         downloader.download_photo(int(cid))
         if downloader.has_download_failures:
-            SESE_TRACE(LOG_ERROR, "JM下载失败！")
+            logger.error("JM下载失败！")
             progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
             return -1
 

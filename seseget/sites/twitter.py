@@ -4,7 +4,7 @@ import json
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
-from ..utils.trace import *
+from ..utils.trace import logger
 from ..request import seserequest as ssreq
 from ..utils.file_utils import *
 from ..request import seseytdlp
@@ -31,16 +31,16 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         twitter_info = seseytdlp.get_info(video_url, extend_opts)
 
         if not twitter_info:
-            SESE_TRACE(LOG_ERROR, "video info is None!")
+            logger.error("video info is None!")
             return None
 
         if "id" not in twitter_info:
-            SESE_TRACE(LOG_ERROR, "video info is error!")
+            logger.error("video info is error!")
             return None
 
         tt_video_info_list = []
         if twitter_info.get("_type") == "playlist":
-            SESE_PRINT(f"检测到推文包含{twitter_info['playlist_count']}个视频")
+            logger.info(f"检测到推文包含{twitter_info['playlist_count']}个视频")
 
             if twitter_info["id"] == twitter_info["webpage_url_basename"]:
                 # 未指定视频，下载推文下所有视频
@@ -131,13 +131,13 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         self.task_semaphore.acquire()
 
         # 获取视频信息列表
-        SESE_PRINT(f"开始请求资源信息")
+        logger.info(f"开始请求资源信息")
         video_info_list = self._get_video_info_list_by_yt_dlp(url)
 
         if video_info_list:
-            SESE_PRINT(f"获取到{len(video_info_list)}个视频")
+            logger.info(f"获取到{len(video_info_list)}个视频")
             for index, video_info in enumerate(video_info_list):
-                SESE_PRINT(f"视频{index + 1}")
+                logger.info(f"视频{index + 1}")
                 video_info.print_info()
 
             if params["no_download"]:
@@ -158,4 +158,4 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
             # 创建下载任务，yt-dlp只需要提供页面url，调用一次可以下载所有视频，只传递第一个视频信息即可
             self._start_download_task(video_info_list[0])
         else:
-            SESE_TRACE(LOG_WARNING, "未获取到任何视频")
+            logger.warning("未获取到任何视频")

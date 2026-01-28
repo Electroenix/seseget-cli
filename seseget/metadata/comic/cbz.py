@@ -2,7 +2,7 @@ import os
 import zipfile
 
 from . import ComicMetaData
-from ...utils.trace import SESE_TRACE, LOG_WARNING, SESE_PRINT
+from ...utils.trace import logger
 
 
 # 翻页方向: YesAndRightToLeft - 右至左    No - 左至右
@@ -84,7 +84,7 @@ def make_cbz(save_dir: str, comic_title: str, image_path: str, metadata: ComicMe
 
     """
     file_name = save_dir + "/" + comic_title + ".cbz"
-    SESE_PRINT("打包图片为CBZ格式...")
+    logger.info("打包图片为CBZ格式...")
 
     make_cbz_comic_info_xml(image_path, metadata)
     with zipfile.ZipFile(file_name, "w") as cbz:
@@ -94,4 +94,4 @@ def make_cbz(save_dir: str, comic_title: str, image_path: str, metadata: ComicMe
                 arcname = os.path.relpath(file_path, image_path)
                 cbz.write(file_path, arcname)
 
-    SESE_PRINT("打包完成, 漫画保存在%s" % file_name)
+    logger.info("打包完成, 漫画保存在%s" % file_name)

@@ -7,7 +7,7 @@ from urllib.parse import urlparse, urljoin
 from ..config.path import DATA_DIR
 from ..config.config_manager import config
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
-from ..utils.trace import *
+from ..utils.trace import logger
 from ..request import seserequest as ssreq
 from ..utils.file_utils import *
 
@@ -118,7 +118,7 @@ class BikaClient:
 
         response = ssreq.request(method, url, headers=headers_api)
         if "unauthorized" in response.text:
-            SESE_PRINT("哔咔认证失败，重新登录")
+            logger.info("哔咔认证失败，重新登录")
             if self.login():
                 headers_api["time"] = str(int(time.time()))
                 headers_api["authorization"] = self.get_token()
@@ -127,7 +127,7 @@ class BikaClient:
                 response = ssreq.request(method, url, headers=headers_api)
                 # print(response.text)
             else:
-                SESE_TRACE(LOG_ERROR, "哔咔登录失败")
+                logger.error("哔咔登录失败")
 
         return response
 
@@ -217,7 +217,7 @@ class BikaFetcher(ComicFetcher):
 
         view_url_parse = urlparse(url)
         cid = os.path.basename(view_url_parse.path)
-        SESE_TRACE(LOG_DEBUG, f"cid: {cid}")
+        logger.debug(f"cid: {cid}")
         comic_info = ComicInfo()
         comic_info.view_url = url
         comic_info.cid = cid
@@ -231,7 +231,7 @@ class BikaFetcher(ComicFetcher):
 
         for bika_chapter in bika_context.chapter:
             if "pages" not in bika_chapter:
-                SESE_TRACE(LOG_DEBUG, f"无章节图片，跳过")
+                logger.debug(f"无章节图片，跳过")
                 continue
 
             chapter_info = ChapterInfo()

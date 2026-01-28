@@ -1,5 +1,5 @@
 from ...config.config_manager import config
-from ...utils.trace import SESE_PRINT
+from ...utils.trace import logger
 from . import ComicMetaData
 from .cbz import make_cbz
 from .epub import make_epub

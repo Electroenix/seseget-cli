@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from PIL import Image
 
 from . import ComicMetaData
-from ...utils.trace import SESE_PRINT, SESE_ERROR
+from ...utils.trace import logger
 
 
 # 是否生成封面页
@@ -397,7 +397,7 @@ def make_epub(save_dir: str, comic_title: str, image_path: str, metadata: ComicM
         metadata: 漫画元数据对象
 
     """
-    SESE_PRINT("生成为EPUB文件中...")
+    logger.info("生成EPUB文件中...")
 
     epub = EpubGenerator(
         output_dir=save_dir,
@@ -409,7 +409,7 @@ def make_epub(save_dir: str, comic_title: str, image_path: str, metadata: ComicM
 
     try:
         epub.generate(filename)
-        SESE_PRINT("生成完成, 漫画保存在%s" % filename)
+        logger.info("生成完成, 漫画保存在%s" % filename)
     except Exception:
-        SESE_ERROR("生成失败")
+        logger.error("生成失败")
         raise

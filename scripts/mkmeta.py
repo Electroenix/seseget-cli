@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from seseget.metadata.comic import ComicMetaData
 from seseget.metadata.comic.cbz import make_cbz_comic_info_xml
-from seseget.utils.trace import *
+from seseget.utils.trace import logger
 
 
 if __name__ == "__main__":
@@ -40,4 +40,4 @@ if __name__ == "__main__":
 
         make_cbz_comic_info_xml(args.outpath, metadata)
     else:
-        SESE_ERROR(f"invalid format: {args.format}")
+        logger.error(f"invalid format: {args.format}")

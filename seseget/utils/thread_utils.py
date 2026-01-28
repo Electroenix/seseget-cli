@@ -2,7 +2,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 from typing import Callable, Optional, List
 
-from .trace import *
+from .trace import logger
 
 
 class SeseThreadPool:
@@ -21,7 +21,7 @@ class SeseThreadPool:
         """处理完成任务的异常"""
         if future.exception():
             exc = future.exception()
-            SESE_TRACE(LOG_DEBUG, f"任务异常: {future}! info: {exc}")
+            logger.debug(f"任务异常: {future}! info: {exc}")
 
     def submit(self, fn, /, *args, **kwargs) -> Future:
         """提交任务到线程池"""
@@ -35,7 +35,7 @@ class SeseThreadPool:
         else:
             thread.add_done_callback(self._handle_exception)
 
-        SESE_TRACE(LOG_DEBUG, f"提交任务 {thread}")
+        logger.debug(f"提交任务 {thread}")
         self._threads_list.append(thread)
         return thread
 
@@ -53,7 +53,7 @@ class SeseThreadPool:
             for f in self._threads_list:
                 if not f.done():
                     f.cancel()
-                    SESE_TRACE(LOG_DEBUG, f"取消任务: {f}")
+                    logger.debug(f"取消任务: {f}")
 
         self._pool.shutdown(wait=wait)
         self._is_shutdown = True

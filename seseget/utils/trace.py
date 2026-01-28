@@ -4,8 +4,15 @@ from .output import sese_stdout
 from ..config import settings
 
 
-class DynamicFormatter(Formatter):
-    """ 根据日志等级动态切换格式的 Formatter """
+class SSFormatter(Formatter):
+    COLOR_MAP = {
+        logging.DEBUG: "\033[36m",  # 青色
+        logging.INFO: "\033[0m",  # 默认
+        logging.WARNING: "\033[33m",  # 黄色
+        logging.ERROR: "\033[31m",  # 红色
+        logging.CRITICAL: "\033[31;1m"  # 亮红色
+    }
+    RESET = "\033[0m"
 
     def __init__(self):
         # 定义不同等级的格式模板
@@ -29,38 +36,18 @@ class DynamicFormatter(Formatter):
             fmt=self._formats.get(record.levelno, self._formats[logging.DEBUG]),
             datefmt=self._datefmt
         )
-        return formatter.format(record)
-
-
-class ColorDynamicFormatter(DynamicFormatter):
-    """ 带颜色支持的动态格式 """
-    COLOR_MAP = {
-        logging.DEBUG: "\033[36m",  # 青色
-        #logging.INFO: "\033[32m",  # 绿色
-        logging.INFO: "\033[0m",  # 绿色
-        logging.WARNING: "\033[33m",  # 黄色
-        logging.ERROR: "\033[31m",  # 红色
-        logging.CRITICAL: "\033[31;1m"  # 亮红色
-    }
-    RESET = "\033[0m"
-
-    def format(self, record: LogRecord) -> str:
-        # 获取原始日志内容
-        message = super().format(record)
 
         # 添加颜色
         color = self.COLOR_MAP.get(record.levelno, "")
-        return f"{color}{message}{self.RESET}"
+        return f"{color}{formatter.format(record)}{self.RESET}"
 
 
-class NoNewlineHandler(StreamHandler):
-    """ 不自动添加换行的处理器 """
+class SSStreamHandler(StreamHandler):
     def emit(self, record: LogRecord) -> None:
         try:
             # 获取 end 参数（默认为 \n）
             end = getattr(record, "end", "\n")
             msg = self.format(record) + end  # 添加自定义结尾
-
 
             # 输出到控制台
             sese_stdout.write(msg)
@@ -69,53 +56,50 @@ class NoNewlineHandler(StreamHandler):
             self.handleError(record)
 
 
-# 配置日志系统
-def setup_logger():
-    logger = logging.getLogger("sese_trace")
-    logger.setLevel(settings.LOG_LEVEL)  # 设置日志级别
+class SSLogger:
+    def __init__(self, name, level=None):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level if level else settings.LOG_LEVEL)  # 设置日志级别
+        self.stream_handler = SSStreamHandler()
+        formatter = SSFormatter()
 
-    # 创建控制台处理器
-    handler = NoNewlineHandler()
-    handler.setFormatter(ColorDynamicFormatter())  # 应用动态格式
+        name_str = f"[{name}] " if settings.LOG_SHOW_LOGGER_NAME else ""
+        asctime_str = "[%(asctime)s] " if settings.LOG_SHOW_TIMESTAMP else ""
+        levelname_str = "[%(levelname)s] " if settings.LOG_SHOW_LEVEL else ""
+        formatter._formats = {
+            logging.DEBUG: f"{name_str}{asctime_str}{levelname_str}[%(filename)s:%(lineno)d] %(message)s",
+            logging.INFO: f"{name_str}{asctime_str}{levelname_str}%(message)s",
+            logging.WARNING: f"{name_str}{asctime_str}{levelname_str}%(message)s",
+            logging.ERROR: f"{name_str}{asctime_str}{levelname_str}[%(filename)s:%(lineno)d] %(message)s",
+            logging.CRITICAL: f"{name_str}{asctime_str}{levelname_str}[%(filename)s:%(lineno)d] %(message)s"
+        }
 
-    # 只保留一个处理器避免重复输出
-    if logger.hasHandlers():
-        logger.handlers.clear()
-    logger.addHandler(handler)
+        # 创建控制台处理器
+        self.stream_handler.setFormatter(formatter)  # 应用动态格式
 
+        # 只保留一个处理器避免重复输出
+        if self.logger.hasHandlers():
+            self.logger.handlers.clear()
+        self.logger.addHandler(self.stream_handler)
 
-LOG_DEBUG = logging.DEBUG
-LOG_INFO = logging.INFO
-LOG_WARNING = logging.WARNING
-LOG_ERROR = logging.ERROR
-LOG_CRITICAL = logging.CRITICAL
+    def log(self, level, msg, end="\n", stacklevel=2, *args, ** kwargs):
+        extra = {"end": end}
+        self.logger.log(level, msg, extra=extra, stacklevel=stacklevel)
 
+    def debug(self, msg: str, end="\n", *args, ** kwargs):
+        self.log(logging.DEBUG, msg, end=end, stacklevel=3)
 
-def SESE_TRACE(level, msg: str, end="\n", stacklevel=2):
-    extra = {"end": end}  # 将 end 存入 extra
-    logger = logging.getLogger("sese_trace")  # 获取Logger
-    logger.log(level, msg, extra=extra, stacklevel=stacklevel)
+    def info(self, msg: str, end="\n", *args, ** kwargs):
+        self.log(logging.INFO, msg, end=end, stacklevel=3)
 
+    def warning(self, msg: str, end="\n", *args, ** kwargs):
+        self.log(logging.WARNING, msg, end=end, stacklevel=3)
 
-def SESE_PRINT(msg: str, end="\n"):
-    SESE_TRACE(LOG_INFO, msg, end)
+    def error(self, msg: str, end="\n", *args, ** kwargs):
+        self.log(logging.ERROR, msg, end=end, stacklevel=3)
 
-
-def SESE_DEBUG(msg: str, end="\n"):
-    SESE_TRACE(LOG_DEBUG, msg, end=end, stacklevel=3)
-
-
-def SESE_INFO(msg: str, end="\n"):
-    SESE_TRACE(LOG_INFO, msg, end=end, stacklevel=3)
-
-
-def SESE_ERROR(msg: str, end="\n"):
-    SESE_TRACE(LOG_ERROR, msg, end=end, stacklevel=3)
-
-
-def SESE_WARNING(msg: str, end="\n"):
-    SESE_TRACE(LOG_WARNING, msg, end=end, stacklevel=3)
+    def critical(self, msg: str, end="\n", *args, ** kwargs):
+        self.log(logging.CRITICAL, msg, end=end, stacklevel=3)
 
 
-def SESE_CRITICAL(msg: str, end="\n"):
-    SESE_TRACE(LOG_CRITICAL, msg, end=end, stacklevel=3)
+logger = SSLogger("seseGet")
