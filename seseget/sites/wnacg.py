@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..utils.file_utils import *
-from ..request import seserequest as ssreq
+from ..request import requests
 from ..config.path import DATA_DIR
 
 
@@ -16,7 +16,7 @@ class WnacgFetcher(ComicFetcher):
         base_url = url.replace("/" + url.split("/")[-1], "")
         webp_url = base_url + "/photos-webp-aid-%s.html" % cid
 
-        response = ssreq.request("GET", webp_url)
+        response = requests.request("GET", webp_url)
 
         image_list_str = re.search(r"(?<=var imglist = )\[[\s\S]+]", response.text).group()
         image_list_str = image_list_str.replace("\\", "")
@@ -37,7 +37,7 @@ class WnacgFetcher(ComicFetcher):
         base_url = url.replace("/" + url.split("/")[-1], "")
 
         # 请求详情页
-        response = ssreq.request("GET", url)
+        response = requests.request("GET", url)
 
         # 关键元素
         soup = BeautifulSoup(response.text, 'html.parser')

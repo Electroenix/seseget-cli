@@ -1,130 +1,14 @@
 import os
-import time
 import re
 import shutil
-import threading
-import copy
-import traceback
+import time
 
-from curl_cffi import requests
-from urllib.parse import urlparse
-from urllib.request import getproxies
-from typing import Dict
-
-from ..config import settings
-from ..utils.thread_utils import SeseThreadPool
-from ..utils.trace import logger
-from .downloadtask import download_manager, TaskDLProgress, ProgressStatus
-from ..config.config_manager import config
+from .downloadtask import TaskDLProgress, FileDLProgress, download_manager
+from .requests import session_manager
 from ..utils.file_utils import get_file_basename
 from ..utils.subprocess_utils import exec_cmd
-
-
-class SessionManager:
-    """智能 Session 管理器，按请求主机自动分配独立 Session"""
-
-    def __init__(self):
-        # 存储不同主机的 Session 对象 {host: Session}
-        self._sessions: Dict[str, requests.Session] = {}
-        self._lock = threading.Lock()
-
-    def _get_session_for_host(self, host: str) -> requests.Session:
-        """获取或创建指定主机的 Session"""
-        with self._lock:
-            if host not in self._sessions:
-                # 创建新 Session 并应用配置
-                session = requests.Session()
-
-                self._sessions[host] = session
-            # logger.info(f"当前session列表：{list(self._sessions.keys())}")
-            return self._sessions[host]
-
-    def request(self, method: requests.HttpMethod, url: str, **kwargs) -> requests.Response:
-        """发起请求，自动路由到对应主机的 Session"""
-        if "headers" not in kwargs:
-            kwargs["headers"] = copy.copy(SS_HEADERS)
-        logger.debug(f'headers: {kwargs["headers"]}')
-        if "proxies" not in kwargs:
-            proxy_config = config["common"]["proxy"]
-            if proxy_config:
-                proxies = {
-                    "http": proxy_config,
-                    "https": proxy_config,
-                }
-                kwargs["proxies"] = proxies
-            else:
-                sys_proxies = getproxies()
-                proxies = {
-                    "http": sys_proxies.get("http"),
-                    "https": sys_proxies.get("https"),
-                }
-                kwargs["proxies"] = proxies
-            logger.debug(f'proxy: {kwargs["proxies"]}')
-        if "impersonate" not in kwargs:
-            kwargs["impersonate"] = "chrome110"
-        if "timeout" not in kwargs:
-            kwargs["timeout"] = settings.REQUEST_TIMEOUT
-
-        parsed_url = urlparse(url)
-        host = parsed_url.netloc  # 提取主机名（如 'api.example.com'）
-        session = self._get_session_for_host(host)
-
-        return session.request(method, url, **kwargs)
-
-    def get(self, url: str, **kwargs):
-        return self.request("GET", url, **kwargs)
-
-    def post(self, url: str, **kwargs):
-        return self.request("POST", url, **kwargs)
-
-    def close_all(self):
-        """关闭所有 Session 释放资源"""
-        with self._lock:
-            for host, session in self._sessions.items():
-                session.close()
-                logger.debug(f"释放Session: {host}")
-            self._sessions.clear()
-
-
-SS_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-}
-# request_session = requests.Session()
-ss_session = SessionManager()
-
-
-def request(method, url, **kwargs):
-    """
-    发送请求
-    Args:
-        method: 请求方法
-        url: 请求地址
-        **kwargs: 附加参数，将传递给实际发送请求的函数
-
-    Returns: 响应对象
-
-    """
-    retry_max = 3
-    retry_times = 0
-    response = None
-
-    while True:
-        try:
-            response = ss_session.request(method, url, **kwargs)
-            logger.debug(f'request headers: {response.request.headers}')
-            break
-        except Exception as result:
-            if retry_times < retry_max:
-                logger.error('Error! info: %s' % result)
-                logger.info("GET %s Failed, Retry(%d)..." % (url, retry_times))
-                retry_times = retry_times + 1
-                time.sleep(1)
-                continue
-            else:
-                logger.error('Error! retry max - %d!' % retry_max)
-                break
-
-    return response
+from ..utils.thread_utils import SSGThreadPool
+from ..utils.trace import logger
 
 
 def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = None, **kwargs):
@@ -150,7 +34,7 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
             if f_size > 0:
                 # 如果本地已存在文件，设置从断点开始继续下载
                 if "headers" not in kwargs:
-                    kwargs["headers"] = copy.copy(SS_HEADERS)
+                    kwargs["headers"] = {}
                 kwargs["headers"]['Range'] = 'bytes=%d-' % f_size
             elif "headers" in kwargs and "Range" in kwargs["headers"]:
                 # 文件不存在但是设置了Range，则去除Range字段
@@ -158,7 +42,7 @@ def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = N
 
             logger.debug(f"request [{url}]")
 
-            response = ss_session.request("GET", url=url, stream=True, **kwargs)
+            response = session_manager.request("GET", url=url, stream=True, **kwargs)
             if response:
                 logger.debug(f"[response open]")
 
@@ -265,7 +149,7 @@ def _download_files(file_name_list: list[str],
         logger.error("文件与下载地址数量不匹配！")
         return -1
 
-    with SeseThreadPool(max_workers=max_workers) as pool:
+    with SSGThreadPool(max_workers=max_workers) as pool:
         index = 0
         for file_name in file_name_list:
             url = url_list[index]
@@ -328,15 +212,15 @@ def download_mp4(filename, url, progress: TaskDLProgress = None):
     """下载mp4视频"""
     progress.init_progress()
     progress.set_progress_count(1)
-    progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
+    progress.set_status(FileDLProgress.Status.DOWNLOADING)
 
     result = _download_file(filename, url, progress=progress)
 
     if result == 0:
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+        progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
         logger.info(f"{get_file_basename(filename)} Download OK!")
     else:
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+        progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
         logger.info(f"{get_file_basename(filename)} Download ERROR!")
     return result
 
@@ -355,25 +239,25 @@ def download_mp4_by_merge_video_audio(filename, video_url, audio_url, headers,
 
     progress.init_progress()
     progress.set_progress_count(2)
-    progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
+    progress.set_status(FileDLProgress.Status.DOWNLOADING)
     if _download_files(
             [audio_path, video_path],
             [audio_url, video_url],
             progress=progress,
             headers=headers) != 0:
         logger.error("download_files failed!")
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+        progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
         return -1
 
     logger.info("开始合并音视频文件...")
-    progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
+    progress.set_status(FileDLProgress.Status.PROCESS)
 
     # 开始合并音视频文件
     exec_cmd(["ffmpeg", "-hide_banner", "-i", f"{video_path}", "-i", f"{audio_path}", "-c:v", "copy", "-c:a", "aac",
               "-strict", "experimental", f"{filename}"])
 
     logger.info(f"合并完成，保存在{filename}")
-    progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+    progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
 
     shutil.rmtree(cache_dir)
     logger.info(f"已删除缓存文件")
@@ -383,10 +267,9 @@ def download_mp4_by_merge_video_audio(filename, video_url, audio_url, headers,
 
 def _get_ts_list_from_m3u8(url):
     ts_list = []
-    headers = copy.copy(SS_HEADERS)
 
     # 下载m3u8文件
-    response = ss_session.request("GET", url=url, headers=headers, stream=True)
+    response = session_manager.request("GET", url=url, stream=True)
 
     # m3u8文件中的uri
     uri_list = re.findall(r'(?<=\n)\w.*', response.text)
@@ -410,9 +293,9 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
     if progress is not None:
         progress.init_progress()
         progress.set_progress_count(len(ts_list))
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
+        progress.set_status(FileDLProgress.Status.DOWNLOADING)
 
-    with SeseThreadPool(max_workers=10) as pool:
+    with SSGThreadPool(max_workers=10) as pool:
         for ts_url in ts_list:
             ts_index = ts_index + 1
             f_ts_name = '%08d.ts' % ts_index
@@ -432,19 +315,19 @@ def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
         except Exception as e:
             logger.error(f"下载失败！info: {e}")
             if progress:
-                progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+                progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
             raise
 
     logger.info('下载完成!')
     if progress:
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
+        progress.set_status(FileDLProgress.Status.PROCESS)
 
     # ffmpeg拼接ts文件，保存为mp4
     exec_cmd(["ffmpeg", "-f", "concat", "-safe", "0", "-i", "ts_temp/ts_files_list.txt", "-c", "copy", filename])
     shutil.rmtree('ts_temp')
 
     if progress:
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+        progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
     return 0
 
 
@@ -462,11 +345,11 @@ def download_comic_capter_images(save_dir: str, image_urls, progress: TaskDLProg
     if progress is not None:
         progress.init_progress()
         progress.set_progress_count(len(image_urls))
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
+        progress.set_status(FileDLProgress.Status.DOWNLOADING)
 
     logger.debug(f"image_urls: {image_urls}")
 
-    with SeseThreadPool(max_workers=10) as pool:
+    with SSGThreadPool(max_workers=10) as pool:
         for index, url in enumerate(image_urls):
             image_name = "%05d.jpg" % index
             image_path = save_dir + "/" + image_name
@@ -481,14 +364,9 @@ def download_comic_capter_images(save_dir: str, image_urls, progress: TaskDLProg
         except Exception as e:
             logger.error(f"下载失败！info: {e}")
             if progress:
-                progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+                progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
             raise
 
     logger.info("下载完成！")
     if progress:
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
-
-
-def download_task(task_name, func, *args):
-    download_manager.add_task(task_name, func, *args)
-    # logger.info('download task running!')
+        progress.set_status(FileDLProgress.Status.PROCESS)

@@ -1,10 +1,10 @@
 import subprocess
 import logging
-from .trace import logger, SSLogger
+from .trace import logger, SSGLogger
 from ..config import settings
 
 
-class CmdLogger(SSLogger):
+class CmdLogger(SSGLogger):
     def rename(self, name: str):
         name_str = f"[{name}] " if settings.LOG_SHOW_LOGGER_NAME else ""
         asctime_str = "[%(asctime)s] " if settings.LOG_SHOW_TIMESTAMP else ""

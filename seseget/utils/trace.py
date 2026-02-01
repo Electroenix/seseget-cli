@@ -1,10 +1,10 @@
 import logging
 from logging import Formatter, LogRecord, StreamHandler
-from .output import sese_stdout
+from .output import ssg_stdout
 from ..config import settings
 
 
-class SSFormatter(Formatter):
+class SSGFormatter(Formatter):
     COLOR_MAP = {
         logging.DEBUG: "\033[36m",  # 青色
         logging.INFO: "\033[0m",  # 默认
@@ -42,7 +42,7 @@ class SSFormatter(Formatter):
         return f"{color}{formatter.format(record)}{self.RESET}"
 
 
-class SSStreamHandler(StreamHandler):
+class SSGStreamHandler(StreamHandler):
     def emit(self, record: LogRecord) -> None:
         try:
             # 获取 end 参数（默认为 \n）
@@ -50,18 +50,18 @@ class SSStreamHandler(StreamHandler):
             msg = self.format(record) + end  # 添加自定义结尾
 
             # 输出到控制台
-            sese_stdout.write(msg)
+            ssg_stdout.write(msg)
             self.flush()
         except Exception as e:
             self.handleError(record)
 
 
-class SSLogger:
+class SSGLogger:
     def __init__(self, name, level=None):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level if level else settings.LOG_LEVEL)  # 设置日志级别
-        self.stream_handler = SSStreamHandler()
-        formatter = SSFormatter()
+        self.stream_handler = SSGStreamHandler()
+        formatter = SSGFormatter()
 
         name_str = f"[{name}] " if settings.LOG_SHOW_LOGGER_NAME else ""
         asctime_str = "[%(asctime)s] " if settings.LOG_SHOW_TIMESTAMP else ""
@@ -102,4 +102,4 @@ class SSLogger:
         self.log(logging.CRITICAL, msg, end=end, stacklevel=3)
 
 
-logger = SSLogger("seseGet")
+logger = SSGLogger("seseGet")

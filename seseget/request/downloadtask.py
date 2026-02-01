@@ -5,22 +5,20 @@ from typing import Callable
 import inspect
 import traceback
 
-from ..utils.thread_utils import SeseThreadPool, Future
+from ..utils.thread_utils import SSGThreadPool, Future
 from ..utils.trace import logger
 from ..utils.file_utils import *
 from ..utils.output import ProgressBar
 
 
-class ProgressStatus:
-    PROGRESS_STATUS_WAIT = "WAIT"  # 等待中
-    PROGRESS_STATUS_DOWNLOADING = "DOWNLOAD"  # 下载中
-    PROGRESS_STATUS_PROCESS = "PROCESS"  # 处理中
-    PROGRESS_STATUS_DOWNLOAD_OK = "OK"  # 下载完成
-    PROGRESS_STATUS_DOWNLOAD_ERROR = "ERR"  # 下载失败
-
-
 class FileDLProgress:
     """单个文件下载进度"""
+    class Status:
+        WAIT = "WAIT"  # 等待中
+        DOWNLOADING = "DOWNLOAD"  # 下载中
+        PROCESS = "PROCESS"  # 处理中
+        DOWNLOAD_OK = "OK"  # 下载完成
+        DOWNLOAD_ERROR = "ERR"  # 下载失败
 
     def __init__(self, name, total=0):
         self.filename: str = name  # 文件名
@@ -28,7 +26,7 @@ class FileDLProgress:
         self.total: int = total  # 总字节数（未知时为-1）
         self.percent: float = 0.0  # 下载百分比
         self.speed: float = 0.0  # 下载速度（KB/s）
-        self.status: str = ProgressStatus.PROGRESS_STATUS_WAIT  # 状态: ProgressStatus
+        self.status: str = FileDLProgress.Status.WAIT  # 状态: FileDLProgress.Status
         self.error: str = ""  # 错误信息
         self._lock = Lock()
 
@@ -161,9 +159,9 @@ class TaskDLProgress:
         self.total_progress.update(status=status)
         self._update_progress()
 
-        if status == ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK:
+        if status == FileDLProgress.Status.DOWNLOAD_OK:
             self.bar.close()
-        elif status == ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR:
+        elif status == FileDLProgress.Status.DOWNLOAD_ERROR:
             self.bar.close()
 
     def set_total(self, file_name, total):
@@ -214,7 +212,7 @@ class DownloadManager:
         self.tasks: list[DownloadTask] = []
         self.id_to_task = {}  # 新增ID映射字典
         self._tasks_lock = Lock()
-        self.task_pool = SeseThreadPool(max_workers=max_concurrent)
+        self.task_pool = SSGThreadPool(max_workers=max_concurrent)
         self.task_pool.set_done_callback(self._handle_exception)
 
         # ID生成配置
@@ -227,7 +225,7 @@ class DownloadManager:
             self._id_counter += 1
             return f"{self._id_counter}-{uuid.uuid4().hex[:6]}"
 
-    def add_task(self, name, func, *args):
+    def create_task(self, name, func, *args):
         """创建下载任务"""
         task_id = self._generate_task_id()
         task = DownloadTask(task_id, name)

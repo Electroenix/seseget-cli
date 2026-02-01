@@ -1,16 +1,15 @@
 import copy
 import re
-import json
-import html
 from bs4 import BeautifulSoup, element
 from urllib.parse import urlparse, parse_qs
 
+from ..request import downloader
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
-from ..utils.thread_utils import SeseThreadPool, Future
+from ..utils.thread_utils import SSGThreadPool, Future
 from ..utils.trace import logger
-from ..request import seserequest as ssreq
+from ..request import requests
 from ..utils.file_utils import *
 from ..config.config_manager import config
 
@@ -103,7 +102,7 @@ class HanimeFetcher(VideoFetcher):
             finish_cnt = finish_cnt + 1
             logger.info('下载系列视频缩略图中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
 
-        with SeseThreadPool(max_workers=10) as pool:
+        with SSGThreadPool(max_workers=10) as pool:
             pool.set_done_callback(done_callback)
 
             for video in series:
@@ -116,7 +115,7 @@ class HanimeFetcher(VideoFetcher):
                 thumbnail_path = dir + "%s.jpg" % vid
 
                 # 加入下载线程
-                pool.submit(ssreq.download_file, thumbnail_path, thumbnail_url)
+                pool.submit(downloader.download_file, thumbnail_path, thumbnail_url)
                 video["thumbnail"] = thumbnail_path
 
             try:
@@ -141,7 +140,7 @@ class HanimeFetcher(VideoFetcher):
         if config["hanime"]["cookie"]:
             req_kwargs["headers"] = HANIME_HEADERS.copy()
             req_kwargs["headers"]["cookie"] = config["hanime"]["cookie"]
-        response = ssreq.request("GET", url, **req_kwargs)
+        response = requests.request("GET", url, **req_kwargs)
         video_soup = BeautifulSoup(response.text, 'html.parser')
 
         # 提取视频信息
@@ -175,7 +174,7 @@ class HanimeFetcher(VideoFetcher):
             if config["hanime"]["cookie"]:
                 req_kwargs["headers"] = HANIME_HEADERS.copy()
                 req_kwargs["headers"]["cookie"] = config["hanime"]["cookie"]
-            response = ssreq.request("GET", search_url, params={'query': metadata.title}, **req_kwargs)
+            response = requests.request("GET", search_url, params={'query': metadata.title}, **req_kwargs)
 
             search_soup = BeautifulSoup(response.text, 'html.parser')
 

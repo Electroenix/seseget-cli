@@ -4,10 +4,11 @@ import json
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
+from ..request import requests
+from ..request.downloadtask import TaskDLProgress
+from ..request import ytdlp
 from ..utils.trace import logger
-from ..request import seserequest as ssreq
 from ..utils.file_utils import *
-from ..request import seseytdlp
 
 
 class YtbVideoInfo(VideoInfo):
@@ -48,7 +49,7 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
             vid = match.group(1)
 
         # 发送请求获取网页html
-        response = ssreq.request("GET", video_url)
+        response = requests.request("GET", video_url)
         # PRINTLOG(response.text)
 
         # 解析视频信息
@@ -97,7 +98,7 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
         if match:
             vid = match.group(1)
 
-        info = seseytdlp.get_info(video_url)
+        info = ytdlp.get_info(video_url)
 
         if not info:
             logger.error("video info is None!")
@@ -153,7 +154,7 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
         else:
             return self._get_video_info_by_yt_dlp(url)
 
-    def _download_process(self, video_info: YtbVideoInfo, progress: ssreq.TaskDLProgress | None = None):
+    def _download_process(self, video_info: YtbVideoInfo, progress: TaskDLProgress | None = None):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
 
-        seseytdlp.download_by_yt_dlp(video_path, video_info.view_url, progress=progress)
+        ytdlp.download_by_yt_dlp(video_path, video_info.view_url, progress=progress)

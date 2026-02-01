@@ -4,8 +4,9 @@ import threading
 import shutil
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Dict, Type, Optional, TypeVar, Generic, Union, List
+from typing import Dict, Type, Optional, TypeVar, Generic, Union
 
+from . import downloader
 from ..config.config_manager import config
 from ..metadata.comic import ComicMetaData
 from ..metadata.video import VideoMetaData
@@ -13,8 +14,7 @@ from ..metadata.video.doc import make_video_metadata_file
 from ..metadata.comic.doc import make_comic
 from ..utils.file_utils import make_filename_valid, make_diff_dir_name
 from ..utils.trace import logger
-from . import seserequest as ssreq
-from .downloadtask import ProgressStatus
+from .downloadtask import FileDLProgress, TaskDLProgress, download_manager
 
 
 class ChapterInfo:
@@ -145,7 +145,7 @@ T_ComicInfo = TypeVar('T_ComicInfo', bound=ComicInfo)
 T_ChapterInfo = TypeVar('T_ChapterInfo', bound=ChapterInfo)
 
 
-class SeseBaseFetcher(AbstractFetcher, Generic[T_Info]):
+class SSGBaseFetcher(AbstractFetcher, Generic[T_Info]):
     site_dir = ""  # 站点目录，需要在子类中指定目录
 
     def __init__(self, max_tasks=5):
@@ -173,7 +173,7 @@ class SeseBaseFetcher(AbstractFetcher, Generic[T_Info]):
         return self._fetch_info(url, **kwargs)
 
 
-class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
+class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
     """视频抓取器基类，已实现视频下载标准流程，子类需要实现get_info函数获取必须的视频信息"""
 
     def __init__(self, max_tasks=5):
@@ -215,11 +215,11 @@ class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         if video_info.cover_url:
             poster_path = video_info.video_dir + '/' + 'poster.jpg'  # 封面图保存路径
             # 下载封面
-            result = ssreq.download_file(poster_path, video_info.cover_url)
+            result = downloader.download_file(poster_path, video_info.cover_url)
         if video_info.thumbnail_url:
             fanart_path = video_info.video_dir + '/' + 'fanart.jpg'  # 背景图保存路径
             # 下载缩略图
-            result = result | ssreq.download_file(fanart_path, video_info.thumbnail_url)
+            result = result | downloader.download_file(fanart_path, video_info.thumbnail_url)
 
         if result == 0:
             video_info.metadata.describe = video_info.metadata.describe + '\r\n%s' % video_info.view_url
@@ -231,16 +231,16 @@ class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
     def _make_source_info_file(self, info: T_VideoInfo):
         make_source_info_file(info.video_dir, info)
 
-    def _download_process(self, video_info: T_VideoInfo, progress: ssreq.TaskDLProgress = None):
+    def _download_process(self, video_info: T_VideoInfo, progress: TaskDLProgress = None):
         """此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
 
         if '.m3u8' in video_info.download_url.split('/')[-1]:
-            ssreq.download_mp4_by_m3u8(video_path, video_info.download_url, progress)
+            downloader.download_mp4_by_m3u8(video_path, video_info.download_url, progress)
         else:
-            ssreq.download_mp4(video_path, video_info.download_url, progress)
+            downloader.download_mp4(video_path, video_info.download_url, progress)
 
-    def _download_process_with_semaphore(self, video_info: T_VideoInfo, progress: ssreq.TaskDLProgress = None):
+    def _download_process_with_semaphore(self, video_info: T_VideoInfo, progress: TaskDLProgress = None):
         try:
             self._download_process(video_info, progress)
         except Exception:
@@ -249,7 +249,7 @@ class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
             self.task_semaphore.release()
 
     def _start_download_task(self, video_info: T_VideoInfo):
-        ssreq.download_task(video_info.name, self._download_process_with_semaphore, video_info)
+        download_manager.create_task(video_info.name, self._download_process_with_semaphore, video_info)
 
     @abstractmethod
     def _fetch_info(self, url, **kwargs) -> T_VideoInfo:
@@ -284,7 +284,7 @@ class VideoFetcher(SeseBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         self._make_source_info_file(video_info)
 
 
-class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterInfo]):
+class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterInfo]):
     """漫画抓取器基类，已实现漫画下载标准流程，子类需要实现get_info函数获取必须的漫画信息"""
 
     def __init__(self, max_tasks=1):
@@ -315,7 +315,7 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
         if not os.path.exists(info.comic_dir):
             os.mkdir(info.comic_dir)
 
-    def _download_process(self, comic_title: str, chapter: T_ChapterInfo, progress: ssreq.TaskDLProgress = None):
+    def _download_process(self, comic_title: str, chapter: T_ChapterInfo, progress: TaskDLProgress = None):
         """此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
         comic_info = chapter.comic_info
         comic_dir = comic_info.comic_dir
@@ -325,13 +325,13 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
         if not os.path.exists(image_temp_dir_path):
             os.mkdir(image_temp_dir_path)
 
-        res = ssreq.download_comic_capter_images(image_temp_dir_path, chapter.image_urls, progress)
+        res = downloader.download_comic_capter_images(image_temp_dir_path, chapter.image_urls, progress)
 
         # 图片下载完成，打包成漫画文件
         make_comic(comic_dir, comic_title, image_temp_dir_path, chapter.metadata)
 
         if progress:
-            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+            progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
 
         # 删除图片文件夹
         if not config["download"]["comic"]["leave_images"]:
@@ -340,7 +340,7 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
 
         return res
 
-    def _download_process_with_semaphore(self, comic_title: str, chapter: T_ChapterInfo, progress: ssreq.TaskDLProgress = None):
+    def _download_process_with_semaphore(self, comic_title: str, chapter: T_ChapterInfo, progress: TaskDLProgress = None):
         try:
             # 控制同时只能下载一个章节，避免请求过多
             with self.capter_lock:
@@ -368,7 +368,7 @@ class ComicFetcher(SeseBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterI
         # 创建下载任务
         logger.info("正在下载第%d章" % chapter.id)
         task_name = comic_title
-        ssreq.download_task(task_name, self._download_process_with_semaphore, comic_title, chapter)
+        download_manager.create_task(task_name, self._download_process_with_semaphore, comic_title, chapter)
 
     def _make_source_info_file(self, info: T_ComicInfo):
         make_source_info_file(info.comic_dir, info)

@@ -2,11 +2,13 @@ import copy
 import json
 from bs4 import BeautifulSoup
 
+from ..request import downloader
+from ..request.downloadtask import TaskDLProgress
 from ..config.path import DATA_DIR
 from ..metadata.video import *
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry, make_source_info_file
 from ..utils.trace import logger
-from ..request import seserequest as ssreq
+from ..request import requests
 from ..utils.file_utils import *
 from ..config.config_manager import config
 
@@ -58,7 +60,7 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
         headers = self.BILI_HEADERS.copy()
         if config['bilibili']['cookie']:
             headers["Cookie"] = config['bilibili']['cookie']
-        response = ssreq.request("GET", url, headers=headers)
+        response = requests.request("GET", url, headers=headers)
         video_soup = BeautifulSoup(response.text, 'html.parser')
 
         # 关键元素
@@ -130,7 +132,7 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
 
         return copy.deepcopy(video_info)
 
-    def _download_process(self, video_info: BiliVideoInfo, progress: ssreq.TaskDLProgress = None):
+    def _download_process(self, video_info: BiliVideoInfo, progress: TaskDLProgress = None):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
 
         headers = self.BILI_HEADERS.copy()
@@ -139,7 +141,7 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
             headers["Cookie"] = config['bilibili']['cookie']
 
         # 创建下载任务
-        ssreq.download_mp4_by_merge_video_audio(
+        downloader.download_mp4_by_merge_video_audio(
                             video_path,
                             video_info.audio_download_url,
                             video_info.video_download_url,

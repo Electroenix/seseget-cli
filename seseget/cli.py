@@ -2,10 +2,9 @@ import argparse
 import signal
 import time
 
-from .config import settings
 from .request.downloadtask import download_manager
 from .request.fetcher import FetcherRegistry
-from .request.seserequest import ss_session
+from .request.requests import session_manager
 from .utils.trace import logger
 
 
@@ -15,7 +14,7 @@ def process_worker():
         # 终止所有线程
         download_manager.shutdown()
         # 关闭所有连接
-        ss_session.close_all()
+        session_manager.close_all()
         exit(0)
 
     signal.signal(signal.SIGINT, handle_signal)

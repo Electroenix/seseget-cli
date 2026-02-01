@@ -1,4 +1,3 @@
-import base64
 import json
 import os
 import re
@@ -11,12 +10,11 @@ from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, JmApiClient, 
 
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..metadata.comic.doc import make_comic
-from ..request import seserequest as ssreq
 from ..config.path import DATA_DIR
 from ..utils.file_utils import *
-from ..utils.trace import logger, SSLogger
+from ..utils.trace import logger, SSGLogger
 from ..config.config_manager import config
-from ..request.downloadtask import TaskDLProgress, ProgressStatus
+from ..request.downloadtask import TaskDLProgress, FileDLProgress
 
 
 class JMChapterInfo(ChapterInfo):
@@ -31,7 +29,7 @@ class JMComicInfo(ComicInfo):
         self.chapter_list: list[JMChapterInfo] = []
 
 
-class SeseJmStreamResponse:
+class SSGJmStreamResponse:
     """包装JM请求的响应体，内部使用Stream方式读取响应并更新进度，且支持非Stream的调用属性"""
 
     def __init__(self, response):
@@ -83,9 +81,9 @@ class SeseJmStreamResponse:
         return getattr(self._response, name)
 
 
-class SeseJmClient(JmApiClient):
+class SSGJmClient(JmApiClient):
     """自定义 JM Client, 继承JmApiClient, 增加了下载进度功能"""
-    client_key = 'sese_jm_client'
+    client_key = 'ssg_jm_client'
 
     def __init__(self, postman: Postman, domain_list: List[str], **kwargs):
         super().__init__(postman, domain_list)
@@ -162,7 +160,7 @@ class SeseJmClient(JmApiClient):
                     #     logger.warning(f"resp header no 'Content-Length', url[{url}]")
                     #     logger.info(f"{resp.headers}")
                     #
-                    # resp = SeseJmStreamResponse(resp)
+                    # resp = SSGJmStreamResponse(resp)
                     # for chunk in resp.iter_content():
                     #     self.progress.update(url, len(chunk))
                     pass
@@ -191,12 +189,12 @@ class SeseJmClient(JmApiClient):
             return self.request_with_retry(request, url_backup, domain_index + 1, 0, callback, **kwargs)
 
 
-class SeseJmDownloader(JmDownloader):
+class SSGJmDownloader(JmDownloader):
     """继承JmDownloader类，加入漫画下载过程追踪和处理功能"""
 
     def __init__(self, option: JmOption, progress: TaskDLProgress):
         super().__init__(option)
-        self.client: SeseJmClient = option.new_jm_client(impl=SeseJmClient)
+        self.client: SSGJmClient = option.new_jm_client(impl=SSGJmClient)
         self.progress: TaskDLProgress = progress
         try:
             self.client.set_progress(self.progress)
@@ -249,7 +247,7 @@ class SeseJmDownloader(JmDownloader):
         pass
 
 
-class SeseJmOption(JmOption):
+class SSGJmOption(JmOption):
     """自定义JmOption, 修改部分默认配置"""
 
     def __init__(self,
@@ -271,24 +269,24 @@ class SeseJmOption(JmOption):
             logger.debug("load jmcomic cookie failed!")
             pass
         # option.client['domain'] = ["18comic.vip"]
-        # option.client['impl'] = "sese_jm_client"
+        # option.client['impl'] = "ssg_jm_client"
         option.plugins['login'] = [{'plugin': 'login', 'kwargs': {'username': config["jmcomic"]["login"]["username"],
                                                                   'password': config["jmcomic"]["login"]["password"]}}]
         return option
 
 
-jm_logger = SSLogger("jmcomic")
+jm_logger = SSGLogger("jmcomic")
 
 
-def seseJmLog(topic: str, msg: str):
+def ssgJmLog(topic: str, msg: str):
     jm_logger.info(f"[{topic}] {msg}")
 
 
 # jmcomic自定义配置
-jmcomic.JmModuleConfig.CLASS_DOWNLOADER = SeseJmDownloader
-jmcomic.JmModuleConfig.EXECUTOR_LOG = seseJmLog
-jmcomic.JmModuleConfig.CLASS_OPTION = SeseJmOption
-jmcomic.JmModuleConfig.register_client(SeseJmClient)
+jmcomic.JmModuleConfig.CLASS_DOWNLOADER = SSGJmDownloader
+jmcomic.JmModuleConfig.EXECUTOR_LOG = ssgJmLog
+jmcomic.JmModuleConfig.CLASS_OPTION = SSGJmOption
+jmcomic.JmModuleConfig.register_client(SSGJmClient)
 
 
 @FetcherRegistry.register("jmcomic")
@@ -425,31 +423,31 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
 
         if progress:
             progress.init_progress()
-            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
+            progress.set_status(FileDLProgress.Status.DOWNLOADING)
 
         # 创建option
         self.jm_option.dir_rule = DirRule("Bd", image_temp_dir_path)
 
         # 创建downloader并下载
-        downloader = SeseJmDownloader(self.jm_option.copy_option(), progress)  # 传递进度回调给downloader
+        downloader = SSGJmDownloader(self.jm_option.copy_option(), progress)  # 传递进度回调给downloader
         downloader.download_photo(int(cid))
         if downloader.has_download_failures:
             logger.error("JM下载失败！")
-            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
             return -1
 
         if progress:
-            progress.set_status(ProgressStatus.PROGRESS_STATUS_PROCESS)
+            progress.set_status(FileDLProgress.Status.PROCESS)
 
         # 下载完成，生成漫画文件
         make_comic(save_dir, comic_title, image_temp_dir_path, chapter.metadata)
 
         if progress:
-            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+            progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
 
         return 0
 
-    def _download_process(self, comic_title: str, chapter: JMChapterInfo, progress: ssreq.TaskDLProgress = None):
+    def _download_process(self, comic_title: str, chapter: JMChapterInfo, progress: TaskDLProgress = None):
         comic_info = chapter.comic_info
         res = self.download_jmcomic(comic_info.comic_dir, comic_title, chapter.url, chapter, progress)
         return res

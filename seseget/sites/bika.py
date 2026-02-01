@@ -8,7 +8,7 @@ from ..config.path import DATA_DIR
 from ..config.config_manager import config
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..utils.trace import logger
-from ..request import seserequest as ssreq
+from ..request import requests
 from ..utils.file_utils import *
 
 
@@ -98,7 +98,7 @@ class BikaClient:
         headers_api["time"] = str(int(time.time()))
         headers_api["nonce"] = self.get_nonce()
         headers_api["signature"] = self.get_signature(path_name, headers_api["time"], "POST")
-        response = ssreq.request("POST", url, headers=headers_api, json=data)
+        response = requests.request("POST", url, headers=headers_api, json=data)
         # print(response.text)
         resp_json = response.json()
 
@@ -116,7 +116,7 @@ class BikaClient:
         headers_api["nonce"] = self.get_nonce()
         headers_api["signature"] = self.get_signature(path_name, headers_api["time"], method)
 
-        response = ssreq.request(method, url, headers=headers_api)
+        response = requests.request(method, url, headers=headers_api)
         if "unauthorized" in response.text:
             logger.info("哔咔认证失败，重新登录")
             if self.login():
@@ -124,7 +124,7 @@ class BikaClient:
                 headers_api["authorization"] = self.get_token()
                 headers_api["nonce"] = self.get_nonce()
                 headers_api["signature"] = self.get_signature(path_name, headers_api["time"], method)
-                response = ssreq.request(method, url, headers=headers_api)
+                response = requests.request(method, url, headers=headers_api)
                 # print(response.text)
             else:
                 logger.error("哔咔登录失败")

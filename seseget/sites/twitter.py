@@ -1,13 +1,10 @@
-import copy
-import json
-
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
 from ..utils.trace import logger
-from ..request import seserequest as ssreq
+from ..request.downloadtask import TaskDLProgress
 from ..utils.file_utils import *
-from ..request import seseytdlp
+from ..request import ytdlp
 from ..config.config_manager import config
 
 
@@ -28,7 +25,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         extend_opts = {
             'cookiefile': config["twitter"]["cookie_file"]
         }
-        twitter_info = seseytdlp.get_info(video_url, extend_opts)
+        twitter_info = ytdlp.get_info(video_url, extend_opts)
 
         if not twitter_info:
             logger.error("video info is None!")
@@ -94,7 +91,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
     def _fetch_info(self, url, **kwargs) -> VideoInfo:
         return self._get_video_info_list_by_yt_dlp(url)[0]
 
-    def _download_process(self, video_info: VideoInfo, progress: ssreq.TaskDLProgress | None = None):
+    def _download_process(self, video_info: VideoInfo, progress: TaskDLProgress | None = None):
         artist_dir = os.path.dirname(video_info.video_dir)
 
         extend_opts = {
@@ -104,7 +101,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         }
 
         # 因为重写了路径规则，这里filename参数传递空即可
-        seseytdlp.download_by_yt_dlp("", video_info.view_url, extend_opts, progress=progress)
+        ytdlp.download_by_yt_dlp("", video_info.view_url, extend_opts, progress=progress)
 
     def _make_save_dir(self, info: VideoInfo):
         if not self.__class__.site_dir:

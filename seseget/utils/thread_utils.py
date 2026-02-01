@@ -1,14 +1,13 @@
-import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 from typing import Callable, Optional, List
 
 from .trace import logger
 
 
-class SeseThreadPool:
+class SSGThreadPool:
     def __init__(self, max_workers: int, name: Optional[str] = None):
         self._max_workers = max_workers
-        self._name = name or f"SeseThreadPool-{id(self)}"
+        self._name = name or f"SSGThreadPool-{id(self)}"
         self._threads_list: List[Future] = []
         self._pool = ThreadPoolExecutor(
             max_workers=max_workers,

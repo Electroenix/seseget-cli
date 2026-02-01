@@ -1,10 +1,9 @@
-import os
 import yt_dlp
-from .downloadtask import TaskDLProgress, ProgressStatus
-from ..utils.trace import SSLogger, logger
+from .downloadtask import TaskDLProgress, FileDLProgress
+from ..utils.trace import SSGLogger, logger
 
 
-yt_logger = SSLogger("yt_dlp")
+yt_logger = SSGLogger("yt_dlp")
 
 
 class YtDlpLogger:
@@ -100,19 +99,19 @@ def download_by_yt_dlp(filename, url, extend_opts=None, progress: TaskDLProgress
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             progress.init_progress()
             progress.set_progress_count(2)
-            progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOADING)
+            progress.set_status(FileDLProgress.Status.DOWNLOADING)
             error_code = ydl.download([url])
 
             if error_code:
                 logger.error(f'YoutubeDL.download error! code:{error_code}')
-                progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+                progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
                 return -1
             else:
-                progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_OK)
+                progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
 
     except Exception as result:
         logger.error('Error! info: %s' % result)
-        progress.set_status(ProgressStatus.PROGRESS_STATUS_DOWNLOAD_ERROR)
+        progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
         return -1
 
     return 0

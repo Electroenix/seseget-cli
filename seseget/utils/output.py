@@ -69,4 +69,4 @@ try:
 except ImportError:
     pass
 
-sese_stdout = TQDMSafeOutput(sys.__stdout__)
+ssg_stdout = TQDMSafeOutput(sys.__stdout__)
