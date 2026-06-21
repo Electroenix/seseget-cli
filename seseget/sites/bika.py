@@ -8,11 +8,10 @@ from ..config.path import DATA_DIR
 from ..config.config_manager import config
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..utils.trace import logger
-from ..request import requests
+from ..request.requests import async_request
 from ..utils.file_utils import *
 
 
-# 用来存储从bika获取到的数据
 class BikaComicInfo:
     def __init__(self):
         self.view_url = ""
@@ -66,9 +65,6 @@ applekillflag = "C69BAF41DA5ABD1FFEDC6D2FEA56B"
 appleversion = r"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUBL5n|0/*Cn"
 
 
-# comic_save_path = seseget.config.path.bika_data_local_path  # 漫画保存路径
-
-
 class BikaClient:
     def __init__(self):
         self.context = BikaComicInfo()
@@ -85,7 +81,7 @@ class BikaClient:
         hmac_object = hmac.new(appleversion.encode(), raw.encode(), digestmod=sha256)
         return hmac_object.hexdigest()
 
-    def login(self) -> bool:
+    async def login(self) -> bool:
         path_name = "auth/sign-in"
         url = base_url + path_name
 
@@ -98,17 +94,16 @@ class BikaClient:
         headers_api["time"] = str(int(time.time()))
         headers_api["nonce"] = self.get_nonce()
         headers_api["signature"] = self.get_signature(path_name, headers_api["time"], "POST")
-        response = requests.request("POST", url, headers=headers_api, json=data)
-        # print(response.text)
-        resp_json = response.json()
+        response = await async_request("POST", url, headers=headers_api, json=data)
 
+        resp_json = response.json()
         if "token" in response.text:
             config["bika"]["token"] = resp_json["data"]["token"]
             return True
         else:
             return False
 
-    def request_api(self, method, path_name):
+    async def request_api(self, method, path_name):
         url = base_url + path_name
         headers_api = HEADERS_API.copy()
         headers_api["time"] = str(int(time.time()))
@@ -116,25 +111,23 @@ class BikaClient:
         headers_api["nonce"] = self.get_nonce()
         headers_api["signature"] = self.get_signature(path_name, headers_api["time"], method)
 
-        response = requests.request(method, url, headers=headers_api)
+        response = await async_request(method, url, headers=headers_api)
         if "unauthorized" in response.text:
             logger.info("哔咔认证失败，重新登录")
-            if self.login():
+            if await self.login():
                 headers_api["time"] = str(int(time.time()))
                 headers_api["authorization"] = self.get_token()
                 headers_api["nonce"] = self.get_nonce()
                 headers_api["signature"] = self.get_signature(path_name, headers_api["time"], method)
-                response = requests.request(method, url, headers=headers_api)
-                # print(response.text)
+                response = await async_request(method, url, headers=headers_api)
             else:
                 logger.error("哔咔登录失败")
 
         return response
 
-    # 获取漫画详情页面的信息
-    def get_comic_view_info(self, cid):
+    async def get_comic_view_info(self, cid):
         path_name = "comics/" + cid
-        response = self.request_api("GET", path_name)
+        response = await self.request_api("GET", path_name)
         resp_json = response.json()
         comic_json = resp_json["data"]["comic"]
 
@@ -144,26 +137,23 @@ class BikaClient:
         self.context.description = comic_json["description"]
         self.context.cover = urljoin(urljoin(comic_json["thumb"]["fileServer"], "static/"), comic_json["thumb"]["path"])
 
-    # 获取漫画章节
-    def get_comic_chapter(self, cid, page_cnt=1):
+    async def get_comic_chapter(self, cid, page_cnt=1):
         path_name = "comics/" + cid + "/eps?page=" + str(page_cnt)
-        response = self.request_api("GET", path_name)
+        response = await self.request_api("GET", path_name)
 
         resp_json = response.json()
         self.context.chapter = self.context.chapter + resp_json["data"]["eps"]["docs"]
         page_max = int(resp_json["data"]["eps"]["pages"])
 
         if page_cnt < page_max:
-            self.get_comic_chapter(cid, page_cnt + 1)
+            await self.get_comic_chapter(cid, page_cnt + 1)
         else:
-            # 获取完所有章节信息后，列表中order是降序的，将列表反转便于后续通过order查找元素，由于order从1开始，在列表前面补位一个和列表index对齐
             self.context.chapter.reverse()
             self.context.chapter.insert(0, {"order": "0", "title": "占位用的，使 chapter order 和列表 index 对齐，方便定位"})
 
-    # 获取漫画章节图片
-    def get_comic_chapter_pages(self, cid, chapter_id, page_cnt=1):
+    async def get_comic_chapter_pages(self, cid, chapter_id, page_cnt=1):
         path_name = "comics/" + cid + "/order/" + str(chapter_id) + "/pages?page=" + str(page_cnt)
-        response = self.request_api("GET", path_name)
+        response = await self.request_api("GET", path_name)
 
         resp_json = response.json()
         if "pages" in self.context.chapter[chapter_id]:
@@ -174,16 +164,12 @@ class BikaClient:
 
         pages_max = int(resp_json["data"]["pages"]["pages"])
         if page_cnt < pages_max:
-            self.get_comic_chapter_pages(cid, chapter_id, page_cnt + 1)
+            await self.get_comic_chapter_pages(cid, chapter_id, page_cnt + 1)
 
-    def get_bika_comic_info(self, cid, chapter_id_list) -> BikaComicInfo:
-        # 获取详情页信息
-        self.get_comic_view_info(cid)
+    async def get_bika_comic_info(self, cid, chapter_id_list) -> BikaComicInfo:
+        await self.get_comic_view_info(cid)
+        await self.get_comic_chapter(cid)
 
-        # 获取全部章节信息
-        self.get_comic_chapter(cid)
-
-        # 若未指定章节，则默认下载全部章节
         if not chapter_id_list:
             chapter_id_list = range(1, len(self.context.chapter))
 
@@ -192,8 +178,7 @@ class BikaClient:
             if int(chapter_id) != chapter["order"]:
                 raise Exception("哔咔章节号无法匹配！")
 
-            # 获取章节图片信息
-            self.get_comic_chapter_pages(cid, chapter["order"])
+            await self.get_comic_chapter_pages(cid, chapter["order"])
 
         return self.context
 
@@ -203,16 +188,14 @@ class BikaFetcher(ComicFetcher):
     site_dir = os.path.join(DATA_DIR, "bika")
 
     def _get_image_urls(self, bika_context: BikaComicInfo, chapter: ChapterInfo) -> List[str]:
-        # 获取图片url列表
         image_urls = []
         for page in bika_context.chapter[chapter.id]["pages"]:
-            # 这里 page["path"] 不用处理也能get到图片，但是看浏览器里地址 “static/” 后面直接跟的文件名，就改成一样吧
             url = page["media"]["fileServer"] + "/static/" + page["media"]["path"].split("/")[-1]
             image_urls.append(url)
 
         return image_urls
 
-    def _fetch_info(self, url, **kwargs) -> ComicInfo:
+    async def _fetch_info(self, url, **kwargs) -> ComicInfo:
         chapter_id_list = kwargs.get("chapter_id_list", None)
 
         view_url_parse = urlparse(url)
@@ -223,7 +206,7 @@ class BikaFetcher(ComicFetcher):
         comic_info.cid = cid
 
         bika_client = BikaClient()
-        bika_context = bika_client.get_bika_comic_info(cid, chapter_id_list)
+        bika_context = await bika_client.get_bika_comic_info(cid, chapter_id_list)
 
         comic_info.title = bika_context.title
         comic_info.author = bika_context.author
@@ -258,7 +241,6 @@ class BikaFetcher(ComicFetcher):
                 chapter_info.metadata.language = "zh"
             chapter_info.metadata.description = bika_context.description
 
-            # 请求章节图片url列表
             chapter_info.image_urls = self._get_image_urls(bika_context, chapter_info)
 
             comic_info.chapter_list.append(chapter_info)

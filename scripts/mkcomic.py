@@ -8,8 +8,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from seseget.metadata.comic import ComicMetaData
 from seseget.metadata.comic.cbz import make_cbz
 from seseget.utils.file_utils import make_filename_valid
+from seseget.utils.trace import logger
 
-setup_logger()
 
 if __name__ == "__main__":
     paser = argparse.ArgumentParser()
@@ -43,9 +43,9 @@ if __name__ == "__main__":
         metadata.language = args.language if args.language else "zh"
         metadata.subjects = args.tag
 
-        print(f"title: {metadata.title}")
-        print(f"imagepath: {args.imagepath}")
+        logger.info(f"title: {metadata.title}")
+        logger.info(f"imagepath: {args.imagepath}")
         if not os.path.exists(args.imagepath):
-            print("目录不存在: {args.imagepath}")
+            logger.error("目录不存在: {args.imagepath}")
 
         make_cbz(args.outpath, metadata.title, args.imagepath, metadata)

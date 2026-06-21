@@ -8,12 +8,11 @@ from ..config.path import DATA_DIR
 from ..metadata.video import *
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry, make_source_info_file
 from ..utils.trace import logger
-from ..request import requests
+from ..request.requests import async_request
 from ..utils.file_utils import *
 from ..config.config_manager import config
 
 
-# 视频信息
 class BiliVideoInfo(VideoInfo):
     def __init__(self):
         super().__init__()
@@ -49,21 +48,18 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     }
 
-    # 通过视频页面url请求bilibili,获取视频信息和下载地址
-    def _fetch_info(self, url, **kwargs) -> BiliVideoInfo:
+    async def _fetch_info(self, url, **kwargs) -> BiliVideoInfo:
         vid = ""
         match = re.search(r'https?://www\.bilibili\.com/video/([^/?]+)', url)
         if match:
             vid = match.group(1)
 
-        # 发送请求获取网页html
         headers = self.BILI_HEADERS.copy()
         if config['bilibili']['cookie']:
             headers["Cookie"] = config['bilibili']['cookie']
-        response = requests.request("GET", url, headers=headers)
+        response = await async_request("GET", url, headers=headers)
         video_soup = BeautifulSoup(response.text, 'html.parser')
 
-        # 关键元素
         viewbox_report = video_soup.find("div", attrs={"id": "viewbox_report"})
         view_text = viewbox_report.find("div", attrs={"class": "view-text"})
         arc_toolbar_report = video_soup.find("div", attrs={"id": "arc_toolbar_report"})
@@ -73,7 +69,6 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
         video_share_info = arc_toolbar_report.find("span", attrs={"class": "video-share-info"})
         v_desc = video_soup.find("div", attrs={"id": "v_desc"})
 
-        # 提取视频信息
         video_title = viewbox_report.find("h1").text
         video_desc_span = v_desc.find("span")
         video_descript = ""
@@ -89,13 +84,12 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
         for e in video_tags_element:
             video_tags.append(e.text)
 
-        video_view = view_text.text  # 播放量
-        video_like = video_like_info.text  # 点赞
-        video_coin = video_coin_info.text  # 投币
-        video_fav = video_fav_info.text  # 收藏
-        video_share = video_share_info.text  # 转发
+        video_view = view_text.text
+        video_like = video_like_info.text
+        video_coin = video_coin_info.text
+        video_fav = video_fav_info.text
+        video_share = video_share_info.text
 
-        # 元数据
         metadata = VideoMetaData()
         metadata.title = video_title
         metadata.sub_title = video_title
@@ -106,11 +100,9 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
         metadata.series = video_author
         metadata.tag_list = video_tags.copy()
 
-        # 解析视频信息
         info = re.findall('window.__playinfo__=(.*?)</script>', response.text)[0]
         json_data = json.loads(info)
 
-        # 提取视频链接和音频链接
         video_download_url = json_data['data']['dash']['video'][0]['baseUrl']
         audio_download_url = json_data['data']['dash']['audio'][0]['baseUrl']
 
@@ -132,21 +124,20 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
 
         return copy.deepcopy(video_info)
 
-    def _download_process(self, video_info: BiliVideoInfo, progress: TaskDLProgress = None):
-        video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
+    async def _download_process(self, video_info: BiliVideoInfo, progress: TaskDLProgress = None):
+        video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)
 
         headers = self.BILI_HEADERS.copy()
         headers["Referer"] = video_info.view_url
         if config['bilibili']['cookie']:
             headers["Cookie"] = config['bilibili']['cookie']
 
-        # 创建下载任务
-        downloader.download_mp4_by_merge_video_audio(
-                            video_path,
-                            video_info.audio_download_url,
-                            video_info.video_download_url,
-                            headers,
-                            progress)
+        await downloader.download_mp4_by_merge_video_audio(
+            video_path,
+            video_info.audio_download_url,
+            video_info.video_download_url,
+            headers,
+            progress)
 
     def _make_source_info_file(self, info: BiliVideoInfo):
         source_info = 'video url: %s\r\n' % info.view_url

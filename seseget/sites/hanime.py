@@ -7,9 +7,8 @@ from ..request import downloader
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
-from ..utils.thread_utils import SSGThreadPool, Future
+from ..request.requests import async_request, session_manager
 from ..utils.trace import logger
-from ..request import requests
 from ..utils.file_utils import *
 from ..config.config_manager import config
 
@@ -44,15 +43,13 @@ class HanimeFetcher(VideoFetcher):
     site_dir = os.path.join(DATA_DIR, "hanime")
 
     @staticmethod
-    # 从html数据中获取数据到metadata
     def get_metadata(soup):
         metadata = VideoMetaData()
 
-        # 提取视频信息到metadata
         metadata.title = soup.find('h3', attrs={'id': 'shareBtn-title'}).string
         metadata.sub_title = soup.find_all('div', attrs={'style': 'margin-bottom: 5px'})[1].string
         metadata.describe = soup.find('div', attrs={'class': 'video-caption-text caption-ellipsis',
-                                                    'style': 'color: #b8babc; font-weight: normal;'}).string
+                                                    'style': 'color: #b8babc; font-weight: normal;'}).get_text()
         metadata.author = soup.find('a', attrs={'id': "video-artist-name"}).string
         metadata.author = metadata.author.replace('\n', '')
         metadata.author = metadata.author.replace(' ', '')
@@ -93,40 +90,38 @@ class HanimeFetcher(VideoFetcher):
         return series
 
     @staticmethod
-    def download_series_thumbnail(series, dir):
+    async def download_series_thumbnail(series, dir):
+        import asyncio
         totle_cnt = len(series)
         finish_cnt = 0
 
-        def done_callback(future: Future):
+        semaphore = asyncio.Semaphore(10)
+
+        async def _download_one(video):
             nonlocal finish_cnt
-            finish_cnt = finish_cnt + 1
-            logger.info('下载系列视频缩略图中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
+            video_url = video["url"]
+            view_url_parse = urlparse(video_url)
+            vid = parse_qs(view_url_parse.query)["v"][0]
 
-        with SSGThreadPool(max_workers=10) as pool:
-            pool.set_done_callback(done_callback)
+            thumbnail_url = video["thumbnail"]
+            thumbnail_path = dir + "%s.jpg" % vid
 
-            for video in series:
-                video_url = video["url"]
-                view_url_parse = urlparse(video_url)
-                vid = parse_qs(view_url_parse.query)["v"][0]
-
-                # 下载封面
-                thumbnail_url = video["thumbnail"]
-                thumbnail_path = dir + "%s.jpg" % vid
-
-                # 加入下载线程
-                pool.submit(downloader.download_file, thumbnail_path, thumbnail_url)
+            async with semaphore:
+                await downloader.download_file(thumbnail_path, thumbnail_url)
                 video["thumbnail"] = thumbnail_path
+                finish_cnt = finish_cnt + 1
+                logger.info('下载系列视频缩略图中(%d/%d)' % (finish_cnt, totle_cnt), end="\r")
 
-            try:
-                pool.wait_all()
-            except Exception as e:
-                logger.error('\n下载失败!')
-                raise
+        tasks = [_download_one(v) for v in series]
+        try:
+            await asyncio.gather(*tasks)
+        except Exception as e:
+            logger.error('\n下载失败!')
+            raise
 
         logger.info('\n下载完成!')
 
-    def _fetch_info(self, url, **kwargs) -> VideoInfo:
+    async def _fetch_info(self, url, **kwargs) -> VideoInfo:
         view_url_parse = urlparse(url)
         vid = parse_qs(view_url_parse.query)["v"][0]
 
@@ -135,15 +130,13 @@ class HanimeFetcher(VideoFetcher):
             logger.info("匹配到缓存中的视频信息(vid-%s)" % vid)
             return copy.deepcopy(video_info)
 
-        # 发送请求获取网页html
         req_kwargs = {}
         if config["hanime"]["cookie"]:
             req_kwargs["headers"] = HANIME_HEADERS.copy()
             req_kwargs["headers"]["cookie"] = config["hanime"]["cookie"]
-        response = requests.request("GET", url, **req_kwargs)
+        response = await async_request("GET", url, **req_kwargs)
         video_soup = BeautifulSoup(response.text, 'html.parser')
 
-        # 提取视频信息
         video_elem = video_soup.find('video')
         video_thumbnail_url = video_elem.get("poster")
         video_source = video_elem.find("source", {"size": "1080"})
@@ -154,11 +147,9 @@ class HanimeFetcher(VideoFetcher):
 
         video_download_url = video_source.get("src")
 
-        # 从html中获取metadata
         metadata = self.get_metadata(video_soup)
         series_info = self.get_series_info(video_soup)
 
-        # 通过视频类别和视频名字请求搜索页面，可以获取到搜索页面中视频的封面，主要是因为里番在搜索里有竖版封面，但是在视频页面里只有预览图
         cover_url = None
         search_genre = video_soup.find('a', attrs={'class': "hidden-sm hidden-md hidden-lg hidden-xl"}).string
         search_genre = search_genre.replace('\n', '')
@@ -174,11 +165,10 @@ class HanimeFetcher(VideoFetcher):
             if config["hanime"]["cookie"]:
                 req_kwargs["headers"] = HANIME_HEADERS.copy()
                 req_kwargs["headers"]["cookie"] = config["hanime"]["cookie"]
-            response = requests.request("GET", search_url, params={'query': metadata.title}, **req_kwargs)
+            response = await async_request("GET", search_url, params={'query': metadata.title}, **req_kwargs)
 
             search_soup = BeautifulSoup(response.text, 'html.parser')
 
-            # 匹配封面url
             cover_element = (search_soup.find('a', href=url)).find('img', src=re.compile('cover'))
             if cover_element:
                 cover_url = cover_element.attrs['src']
@@ -197,7 +187,6 @@ class HanimeFetcher(VideoFetcher):
         video_info.metadata = metadata
         video_info.series_info = series_info
 
-        # 将video_info保存，供后续使用
-        self.video_info_cache.update_cache(vid, video_info)
+        await self.video_info_cache.update_cache(vid, video_info)
 
         return copy.deepcopy(video_info)

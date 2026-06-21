@@ -1,9 +1,10 @@
+import asyncio
 import json
 import os
 import re
 from typing import Dict, List
 import jmcomic
-import requests
+import requests as sync_requests
 from bs4 import BeautifulSoup
 from common import Postman
 from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, JmApiClient, catch_exception, JmImageDetail, jm_log
@@ -47,22 +48,17 @@ class SSGJmStreamResponse:
 
     @property
     def content(self):
-        """模拟response.content属性"""
         return self._content
 
     @property
     def text(self):
-        """模拟response.text属性"""
-        # 解码内容
         self._text = self._content.decode(
             self._encoding or 'utf-8',
             errors='replace'
         )
-
         return self._text
 
     def json(self, **kwargs):
-        """解析JSON响应（基于已加载的内容）"""
         if self._json is None:
             try:
                 self._json = json.loads(self.text, **kwargs)
@@ -70,14 +66,13 @@ class SSGJmStreamResponse:
                 try:
                     self._json = json.loads(self._content.decode('utf-8', errors='replace'), **kwargs)
                 except json.JSONDecodeError as e:
-                    raise requests.exceptions.JSONDecodeError(
+                    raise sync_requests.exceptions.JSONDecodeError(
                         f"Failed to parse JSON: {e}",
                         doc=self.text
                     )
         return self._json
 
     def __getattr__(self, name):
-        """代理其他属性到原始响应对象"""
         return getattr(self._response, name)
 
 
@@ -102,17 +97,6 @@ class SSGJmClient(JmApiClient):
                            ):
         """
         支持重试和切换域名的机制
-
-        如果url包含了指定域名，则不会切换域名，例如图片URL。
-
-        如果需要拿到域名进行回调处理，可以重写 self.update_request_with_specify_domain 方法，例如更新headers
-
-        :param request: 请求方法
-        :param url: 图片url / path (/album/xxx)
-        :param domain_index: 域名下标
-        :param retry_count: 重试次数
-        :param callback: 回调，可以接收resp返回新的resp，也可以抛出异常强制重试
-        :param kwargs: 请求方法的kwargs
         """
         if domain_index >= len(self.domain_list):
             return self.fallback(request, url, domain_index, retry_count, **kwargs)
@@ -120,7 +104,6 @@ class SSGJmClient(JmApiClient):
         url_backup = url
 
         if url.startswith('/'):
-            # path → url
             domain = self.domain_list[domain_index]
             url = self.of_api_url(url, domain)
 
@@ -128,7 +111,6 @@ class SSGJmClient(JmApiClient):
 
             jm_log(self.log_topic(), self.decode(url))
         else:
-            # 图片url
             self.update_request_with_specify_domain(kwargs, None, True)
 
         if domain_index != 0 or retry_count != 0:
@@ -142,38 +124,17 @@ class SSGJmClient(JmApiClient):
                    )
 
         try:
-            # 增加进度更新
             resp = None
             if self.progress is None:
                 resp = request(url, **kwargs)
             else:
-                STREAM_REQUEST = False
-                if STREAM_REQUEST:
-                    # 此处原本用来支持实时更新下载进度的，后来发现JM图片响应头没有'Content-Length'，无法计算下载进度，暂时保留这部分代码
-                    # if "stream" not in kwargs:
-                    #     kwargs["stream"] = True
-                    # resp = request(url, **kwargs)
-                    # try:
-                    #     total_size = int(resp.headers['Content-Length'])
-                    #     self.progress.set_total(url, total_size)
-                    # except Exception as e:
-                    #     logger.warning(f"resp header no 'Content-Length', url[{url}]")
-                    #     logger.info(f"{resp.headers}")
-                    #
-                    # resp = SSGJmStreamResponse(resp)
-                    # for chunk in resp.iter_content():
-                    #     self.progress.update(url, len(chunk))
-                    pass
-                else:
-                    resp = request(url, **kwargs)
-                    self.progress.set_total(url, len(resp.content))
-                    self.progress.update(url, len(resp.content))
+                resp = request(url, **kwargs)
+                self.progress.set_total(url, len(resp.content))
+                self.progress.update(url, len(resp.content))
 
-            # 回调，可以接收resp返回新的resp，也可以抛出异常强制重试
             if callback is not None:
                 resp = callback(resp)
 
-            # 依然是回调，在最后返回之前，还可以判断resp是否重试
             resp = self.raise_if_resp_should_retry(resp)
 
             return resp
@@ -215,11 +176,9 @@ class SSGJmDownloader(JmDownloader):
             self.after_image(image, img_save_path)
             return
 
-        # let option decide use_cache and decode_image
         use_cache = self.option.decide_download_cache(image)
         decode_image = self.option.decide_download_image_decode(image)
 
-        # skip download
         if use_cache is True and image.exists:
             self.after_image(image, img_save_path)
             return
@@ -241,7 +200,6 @@ class SSGJmDownloader(JmDownloader):
 
     def before_image(self, image: jmcomic.JmImageDetail, img_save_path):
         self.progress.add_progress(image.img_url)
-        pass
 
     def after_image(self, image: jmcomic.JmImageDetail, img_save_path):
         pass
@@ -268,8 +226,6 @@ class SSGJmOption(JmOption):
         except json.JSONDecodeError:
             logger.debug("load jmcomic cookie failed!")
             pass
-        # option.client['domain'] = ["18comic.vip"]
-        # option.client['impl'] = "ssg_jm_client"
         option.plugins['login'] = [{'plugin': 'login', 'kwargs': {'username': config["jmcomic"]["login"]["username"],
                                                                   'password': config["jmcomic"]["login"]["password"]}}]
         return option
@@ -307,7 +263,7 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
         except Exception as result:
             logger.warning(f"JM登录失败, info: {result}")
 
-    def _fetch_info(self, url, **kwargs) -> JMComicInfo:
+    def _fetch_info_sync(self, url, **kwargs) -> JMComicInfo:
         chapter_id_list = kwargs.get("chapter_id_list", None)
 
         cid = ""
@@ -315,16 +271,13 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
         if match:
             cid = match.group(1)
 
-        # 生成详情页url
-        url = f"/album/{cid}"
+        url_path = f"/album/{cid}"
 
-        # 请求详情页
         self.jm_login()
         client = self.jm_option.new_jm_client(impl=JmHtmlClient)
-        response = client.get_jm_html(url)
+        response = client.get_jm_html(url_path)
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # 关键元素
         panel_body = soup.find_all('div', attrs={'class': 'panel-body'})[1]
         cover_soup = panel_body.find("div", attrs={"id": "album_photo_cover"}).find("img", attrs={"itemprop": "image"})
         web_tags_tag_list = panel_body.find("span", attrs={"data-type": "tags"}).find_all("a", attrs={"name": "vote_"})
@@ -357,7 +310,6 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
 
         photo_list = []
         if episode_soup:
-            # 如果存在章节列表，则收集所有章节信息
             photo_soups = episode_soup.find_all("a")
             for photo_soup in photo_soups:
                 photo_info = {
@@ -366,9 +318,8 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
                 }
                 photo_list.append(photo_info)
         else:
-            # 如果不存在章节列表，则设置唯一的章节信息
             photo_info = {
-                "href": url,
+                "href": url_path,
                 "title": comic_title
             }
             photo_list.append(photo_info)
@@ -382,7 +333,6 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
         comic_info.genres = comic_tag_list
         comic_info.description = comic_desc
 
-        # 若未指定章节，则默认下载全部章节
         if not chapter_id_list:
             chapter_id_list = range(1, len(photo_list) + 1)
 
@@ -409,8 +359,8 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
 
         return comic_info
 
-    def download_jmcomic(self, save_dir: str, comic_title: str, url: str, chapter: JMChapterInfo,
-                         progress: TaskDLProgress = None):
+    def download_jmcomic_sync(self, save_dir: str, comic_title: str, url: str, chapter: JMChapterInfo,
+                               progress: TaskDLProgress = None):
         cid = ""
         match = re.search(r"(?:album|photo)/(\d+)", url)
         if match:
@@ -425,13 +375,11 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
             progress.init_progress()
             progress.set_status(FileDLProgress.Status.DOWNLOADING)
 
-        # 创建option
         self.jm_option.dir_rule = DirRule("Bd", image_temp_dir_path)
 
-        # 创建downloader并下载
-        downloader = SSGJmDownloader(self.jm_option.copy_option(), progress)  # 传递进度回调给downloader
-        downloader.download_photo(int(cid))
-        if downloader.has_download_failures:
+        downloader_obj = SSGJmDownloader(self.jm_option.copy_option(), progress)
+        downloader_obj.download_photo(int(cid))
+        if downloader_obj.has_download_failures:
             logger.error("JM下载失败！")
             progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
             return -1
@@ -439,7 +387,6 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
         if progress:
             progress.set_status(FileDLProgress.Status.PROCESS)
 
-        # 下载完成，生成漫画文件
         make_comic(save_dir, comic_title, image_temp_dir_path, chapter.metadata)
 
         if progress:
@@ -447,7 +394,12 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
 
         return 0
 
-    def _download_process(self, comic_title: str, chapter: JMChapterInfo, progress: TaskDLProgress = None):
+    async def _fetch_info(self, url, **kwargs) -> JMComicInfo:
+        return await asyncio.to_thread(self._fetch_info_sync, url, **kwargs)
+
+    async def _download_process(self, comic_title: str, chapter: JMChapterInfo, progress: TaskDLProgress = None):
         comic_info = chapter.comic_info
-        res = self.download_jmcomic(comic_info.comic_dir, comic_title, chapter.url, chapter, progress)
-        return res
+        return await asyncio.to_thread(
+            self.download_jmcomic_sync,
+            comic_info.comic_dir, comic_title, chapter.url, chapter, progress
+        )

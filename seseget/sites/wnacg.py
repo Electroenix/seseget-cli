@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..utils.file_utils import *
-from ..request import requests
+from ..request.requests import async_request
 from ..config.path import DATA_DIR
 
 
@@ -11,12 +11,12 @@ from ..config.path import DATA_DIR
 class WnacgFetcher(ComicFetcher):
     site_dir = os.path.join(DATA_DIR, "wnacg")
 
-    def _get_image_urls(self, url: str) -> List[str]:
+    async def _get_image_urls(self, url: str) -> List[str]:
         cid = re.search(r"\d+(?=\.html)", url).group()
         base_url = url.replace("/" + url.split("/")[-1], "")
         webp_url = base_url + "/photos-webp-aid-%s.html" % cid
 
-        response = requests.request("GET", webp_url)
+        response = await async_request("GET", webp_url)
 
         image_list_str = re.search(r"(?<=var imglist = )\[[\s\S]+]", response.text).group()
         image_list_str = image_list_str.replace("\\", "")
@@ -27,19 +27,15 @@ class WnacgFetcher(ComicFetcher):
             if "//" in image_url_list[i]:
                 image_url_list[i] = "https:" + image_url_list[i]
             else:
-                #image_url_list[i] = base_url + image_url_list[i]
                 image_url_list.pop(i)
 
         return image_url_list
 
-    def _fetch_info(self, url, **kwargs) -> ComicInfo:
+    async def _fetch_info(self, url, **kwargs) -> ComicInfo:
         cid = re.search(r"\d+(?=\.html)", url).group()
-        base_url = url.replace("/" + url.split("/")[-1], "")
 
-        # 请求详情页
-        response = requests.request("GET", url)
+        response = await async_request("GET", url)
 
-        # 关键元素
         soup = BeautifulSoup(response.text, 'html.parser')
         soup_userwrap = soup.find_all('div', attrs={'id': 'bodywrap'})[0]
         soup_cc = soup.find_all('div', attrs={'id': 'bodywrap'})[1]
@@ -92,8 +88,7 @@ class WnacgFetcher(ComicFetcher):
         comic_chapter.metadata.day = date_match.group(3)
         comic_chapter.comic_info = comic_info
 
-        # 获取章节所有图片的url
-        comic_chapter.image_urls = self._get_image_urls(url)
+        comic_chapter.image_urls = await self._get_image_urls(url)
 
         comic_info.chapter_list.append(comic_chapter)
 

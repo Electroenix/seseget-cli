@@ -1,10 +1,11 @@
+import asyncio
 import copy
 import json
 
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
-from ..request import requests
+from ..request.requests import async_request
 from ..request.downloadtask import TaskDLProgress
 from ..request import ytdlp
 from ..utils.trace import logger
@@ -41,33 +42,29 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
         super().__init__(max_tasks=max_tasks)
 
     @staticmethod
-    def _get_video_info_by_html(video_url):
+    async def _get_video_info_by_html(video_url):
         """通过视频页面url请求youtube,获取视频信息"""
         vid = ""
         match = re.search(r'https?://www\.youtube\.com/watch\?v=([^/?]+)', video_url)
         if match:
             vid = match.group(1)
 
-        # 发送请求获取网页html
-        response = requests.request("GET", video_url)
-        # PRINTLOG(response.text)
+        response = await async_request("GET", video_url)
 
-        # 解析视频信息
         info = re.findall('var ytInitialPlayerResponse = (.*?);var', response.text)[0]
         json_data = json.loads(info)
 
-        # 提取视频信息
         video_title = json_data['videoDetails']['title']
         video_descript = json_data['videoDetails']['shortDescription']
         video_author = json_data['videoDetails']['author']
         video_cover = json_data['videoDetails']['thumbnail']['thumbnails'][-1]['url']
         video_thumbnail = json_data['videoDetails']['thumbnail']['thumbnails'][-1]['url']
         video_date = json_data['microformat']['playerMicroformatRenderer']['uploadDate']
-        video_tags = [json_data['microformat']['playerMicroformatRenderer']['category'], json_data['microformat']['playerMicroformatRenderer']['ownerChannelName']]
+        video_tags = [json_data['microformat']['playerMicroformatRenderer']['category'],
+                       json_data['microformat']['playerMicroformatRenderer']['ownerChannelName']]
 
-        video_view = json_data['microformat']['playerMicroformatRenderer']['viewCount']  # 播放量
+        video_view = json_data['microformat']['playerMicroformatRenderer']['viewCount']
 
-        # 元数据
         metadata = VideoMetaData()
         metadata.title = video_title
         metadata.sub_title = video_title
@@ -91,28 +88,28 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
         return copy.deepcopy(video_info)
 
     @staticmethod
-    def _get_video_info_by_yt_dlp(video_url):
+    async def _get_video_info_by_yt_dlp(video_url):
         """通过yt_dlp请求视频信息"""
         vid = ""
         match = re.search(r'https?://www\.youtube\.com/watch\?v=([^/?]+)', video_url)
         if match:
             vid = match.group(1)
 
-        info = ytdlp.get_info(video_url)
+        # yt-dlp 是同步的，放到线程池执行
+        info = await asyncio.to_thread(ytdlp.get_info, video_url)
 
         if not info:
             logger.error("video info is None!")
-            return -1
+            return None
 
         if "id" not in info:
             logger.error("video info is error!")
-            return -1
+            return None
 
         if info["id"] != vid:
             logger.error("video id not match!")
-            return -1
+            return None
 
-        # 提取视频信息
         video_title = info["title"]
         video_descript = info["description"]
         video_author = info["uploader"]
@@ -122,10 +119,9 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
         video_tags: list = info["categories"]
         video_tags.append(info["channel"])
 
-        video_view = str(info["view_count"])  # 播放量
-        video_like = str(info["like_count"])  # 点赞
+        video_view = str(info["view_count"])
+        video_like = str(info["like_count"])
 
-        # 元数据
         metadata = VideoMetaData()
         metadata.title = video_title
         metadata.sub_title = video_title
@@ -148,13 +144,14 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
 
         return copy.deepcopy(video_info)
 
-    def _fetch_info(self, url, **kwargs) -> YtbVideoInfo:
+    async def _fetch_info(self, url, **kwargs) -> YtbVideoInfo:
         if self.__class__.GET_INFO_BY_HTML:
-            return self._get_video_info_by_html(url)
+            return await self._get_video_info_by_html(url)
         else:
-            return self._get_video_info_by_yt_dlp(url)
+            return await self._get_video_info_by_yt_dlp(url)
 
-    def _download_process(self, video_info: YtbVideoInfo, progress: TaskDLProgress | None = None):
-        video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)  # 视频保存路径
+    async def _download_process(self, video_info: YtbVideoInfo, progress: TaskDLProgress | None = None):
+        video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)
 
-        ytdlp.download_by_yt_dlp(video_path, video_info.view_url, progress=progress)
+        # yt-dlp 是同步的，放到线程池执行
+        await asyncio.to_thread(ytdlp.download_by_yt_dlp, video_path, video_info.view_url, None, progress)
