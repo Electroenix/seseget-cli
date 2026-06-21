@@ -1,0 +1,16 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+
+# Virtual environments
+.venv
+venv/
+
+# Logs
+*.log
+
+# Static files
+static/files
+
+# Runtime web config
+web_conf.yaml
