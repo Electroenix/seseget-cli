@@ -9,8 +9,13 @@ venv/
 # Logs
 *.log
 
-# Static files
+# Static files — user data
 static/files
+
+# Static files — built frontend
+static/index.html
+static/assets/
+static/vite.svg
 
 # Runtime web config
 web_conf.yaml

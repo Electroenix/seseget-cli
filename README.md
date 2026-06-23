@@ -13,48 +13,37 @@
   - 视频：emby, 群晖VideoStation
   - 漫画：komga
 
-## 部署
+## 使用方式
 
-### 环境要求：
+### 命令行模式
+#### 环境要求：
 - **Python3.11**
-- **[FFmpeg](https://www.ffmpeg.org/)**: 用于处理视频，下载bilibili/youtube/twitter视频需要安装此软件，并配置好环境变量
 
-### 安装：
-#### Windows
-```cmd
+#### 安装：
+```bash
+# Windows
 python -m venv .venv
 .venv\Scripts\activate.bat
 pip install -r requirements.txt
-```
 
-#### Linux
-
-```bash
+# Linux
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-
-
-## 使用
+#### 使用
 指定下载站点和资源页面url即可使用，如下： (一些站点需要登录，请查看**配置**章节先修改相关配置)
 
-#### Windows
-
-```cmd
+```bash
+# Windows
 .venv\Scripts\activate.bat  # 激活环境
-python seseget -s hanime https://资源页面地址
-```
+python seseget -s hanime https://<资源页面URL>
 
-#### Linux
-
-``````bash
+# Linux
 source .venv/bin/activate  # 激活环境
-python seseget -s hanime https://资源页面地址
-``````
-
-
+python seseget -s hanime https://<资源页面URL>
+```
 
 更多参数用法请参照下面的参数说明:
 
@@ -73,8 +62,77 @@ options:
   --no-download         不下载资源，仅显示资源信息
 ```
 
+### Web面板模式
+
+新增了Web操作面板功能，使用起来更加方便
+
+#### 环境要求
+- python 3.11+
+- node.js 22+
+
+#### 一键安装
+Windows运行根目录下的 ```start.bat```, Linux 运行 ```start.sh``` 脚本，将会自动安装依赖并运行
+
+#### 手动安装
+安装依赖
+```bash
+# 1, 激活python虚拟环境
+
+# Windows
+python -m venv .venv
+.venv\Scripts\activate.bat
+
+# Linux
+python -m venv .venv
+source .venv/bin/activate
+
+# 2, 安装python依赖
+pip install -r requirements.txt -r web_server/requirements.txt
+
+# 3, 安装node依赖
+cd web_front
+npm install
+
+# 4, 编译静态文件
+npm run build
+```
+
+启动Web应用:
+
+```bash
+python -m web_server --prod --host 0.0.0.0 --port 12450
+```
+
+#### 访问
+web应用启动后会在终端显示 Auth Token 和服务器地址，浏览器中访问对应地址，并输入 Auth Token, 即可开始使用
+```
+==================================================
+  [Production Mode]  Flask + SocketIO
+  debug=False
+  Listening on http://0.0.0.0:12450
+==================================================
+
+==================================================
+  [Auth Token]: xxxxxxxxxxxxxxxxxxxxxx
+==================================================
+
+ * Serving Flask app 'web_server'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:12450
+ * Running on http://192.168.xxx.xxx:12450
+```
+
 ## 配置
 初次运行脚本会生成```conf/conf.yaml```文件，或者手动复制项目目录下的```seseget/config/default_conf.yaml```到```conf/conf.yaml```，修改文件中配置并保存，下次运行将会应用新的配置，更多配置说明见 [配置文件](seseget/config/default_conf.yaml)
+
+
+## 依赖项说明
+- **python** 必须安装，推荐版本3.11+
+- **node.js** 使用web面板必须安装，推荐版本22+
+- **[FFmpeg](https://www.ffmpeg.org/)**: 用于处理视频，下载bilibili/youtube/twitter视频需要安装此软件，并配置好环境变量
+
 
 ## 下载文件说明
 

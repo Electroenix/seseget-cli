@@ -5,17 +5,13 @@ import secrets
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-import seseget
-from seseget.config.config_manager import config
 from web_server.config.web_config import web_config
 
-from .utils import get_or_create_event_loop, shutdown_event_loop
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# 配置 - 确保正确处理静态文件
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # 开发时禁用缓存，生产环境应调整
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600
 
 
 # --- 认证 token 初始化 ---
@@ -24,14 +20,8 @@ def _init_auth_token():
     if not web_config.get('auth_token', ''):
         token = secrets.token_urlsafe(16)
         web_config['auth_token'] = token
-        print(f"\n{'='*50}")
-        print(f"  [Auth Token] (generated & saved to web_conf.yaml): {token}")
-        print(f"{'='*50}\n")
     else:
         token = web_config['auth_token']
-        print(f"\n{'='*50}")
-        print(f"  [Auth Token]: {token}")
-        print(f"{'='*50}\n")
 
 
 _init_auth_token()
