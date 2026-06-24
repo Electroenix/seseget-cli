@@ -1,13 +1,13 @@
 # web_config.py — Web 服务端配置管理器
-# 配置文件位于 web_server/web_conf.yaml，独立于 seseget 配置系统
+# 配置文件位于 web_app/web_conf.yaml，独立于 seseget 配置系统
 import os
 from ruamel.yaml import YAML
 
 from seseget.config.config_manager import ObservableDict
 
-# 配置文件路径：web_server/web_conf.yaml
-_WEB_SERVER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WEB_CONFIG_PATH = os.path.join(_WEB_SERVER_DIR, "web_conf.yaml")
+# 配置文件路径：web_app/web_conf.yaml
+_WEB_APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WEB_CONFIG_PATH = os.path.join(_WEB_APP_DIR, "web_conf.yaml")
 
 _yaml = YAML()
 _yaml.preserve_quotes = True

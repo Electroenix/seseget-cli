@@ -1,5 +1,5 @@
 from flask import request, Blueprint
-from web_server.config.web_config import web_config
+from web_app.config.web_config import web_config
 from .response import ResponseCode, ApiResponse
 
 

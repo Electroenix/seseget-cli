@@ -1,10 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PYTHON="$SCRIPT_DIR/.venv/bin/python"
-STATIC_INDEX="$SCRIPT_DIR/web_server/static/index.html"
-NODE_MODULES="$SCRIPT_DIR/web_front/node_modules"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+PYTHON="$ROOT/.venv/bin/python"
+WEB_APP_DIR="$ROOT/web_app"
+WEB_FRONTEND_DIR="$ROOT/web_frontend"
+STATIC_INDEX="$WEB_APP_DIR/static/index.html"
+NODE_MODULES="$WEB_FRONTEND_DIR/node_modules"
 
 # Track current step for cleanup on failure
 CLEANUP_STEP=""
@@ -15,16 +17,16 @@ cleanup_on_error() {
     echo "ERROR: Step '$CLEANUP_STEP' failed (exit code: $err)"
 
     # Always cd back to project root
-    cd "$SCRIPT_DIR" 2>/dev/null || true
+    cd "$ROOT" 2>/dev/null || true
 
     case "$CLEANUP_STEP" in
         venv|pip)
             echo "Cleaning up broken .venv..."
-            rm -rf "$SCRIPT_DIR/.venv"
+            rm -rf "$ROOT/.venv"
             ;;
         npm)
             echo "Cleaning up broken node_modules..."
-            rm -rf "$SCRIPT_DIR/web_front/node_modules"
+            rm -rf "$WEB_FRONTEND_DIR/node_modules"
             ;;
         build)
             # Build failure — no cleanup needed, artifacts in dist/ are harmless
@@ -78,11 +80,11 @@ echo "[Check] Node.js found: v${NODE_VERSION}"
 if [ ! -f "$PYTHON" ]; then
     CLEANUP_STEP="venv"
     echo "[Setup] Creating Python virtual environment..."
-    $PYTHON3 -m venv "$SCRIPT_DIR/.venv"
+    $PYTHON3 -m venv "$ROOT/.venv"
 
     CLEANUP_STEP="pip"
     echo "[Setup] Installing Python dependencies..."
-    "$PYTHON" -m pip install -r "$SCRIPT_DIR/requirements.txt" -r "$SCRIPT_DIR/web_server/requirements.txt"
+    "$PYTHON" -m pip install -r "$ROOT/requirements.txt" -r "$WEB_APP_DIR/requirements.txt"
 
     CLEANUP_STEP=""
     echo "[Setup] Python environment ready."
@@ -96,9 +98,9 @@ fi
 if [ ! -d "$NODE_MODULES" ]; then
     CLEANUP_STEP="npm"
     echo "[Setup] Installing npm dependencies..."
-    cd "$SCRIPT_DIR/web_front"
+    cd "$WEB_FRONTEND_DIR"
     npm install
-    cd "$SCRIPT_DIR"
+    cd "$ROOT"
 
     CLEANUP_STEP=""
     echo "[Setup] npm dependencies ready."
@@ -116,9 +118,9 @@ if [ -f "$STATIC_INDEX" ]; then
 else
     CLEANUP_STEP="build"
     echo "[Build] Building React frontend (first run)..."
-    cd "$SCRIPT_DIR/web_front"
+    cd "$WEB_FRONTEND_DIR"
     npm run build
-    cd "$SCRIPT_DIR"
+    cd "$ROOT"
 
     CLEANUP_STEP=""
     echo "[Build] Frontend built successfully."
@@ -133,4 +135,4 @@ CLEANUP_STEP=""
 trap - ERR  # No cleanup needed for server runtime errors
 
 echo "[Start] Starting server..."
-"$PYTHON" -m web_server --prod --host 0.0.0.0 --port 12450
+"$PYTHON" -m web_app --prod --host 0.0.0.0 --port 12450

@@ -5,7 +5,7 @@ import secrets
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from web_server.config.web_config import web_config
+from web_app.config.web_config import web_config
 
 
 app = Flask(__name__)

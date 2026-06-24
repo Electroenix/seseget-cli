@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const src = join(__dirname, '..', 'dist');
-const dest = join(__dirname, '..', '..', 'web_server', 'static');
+const dest = join(__dirname, '..', '..', 'web_app', 'static');
 
 // 需要保留的目录/文件（不会被删除）
 const KEEP = new Set(['files']);
@@ -20,10 +20,10 @@ async function main() {
   }
 
   // 2. 复制 dist 产物到 static
-  console.log(`  [copy] dist/ -> web_server/static/`);
+  console.log(`  [copy] dist/ -> ${dest}`);
   await cp(src, dest, { recursive: true });
 
-  console.log('  ✓ Build artifacts copied to web_server/static/');
+  console.log(`  ✓ Build artifacts copied to ${dest}`);
 }
 
 async function readDirSafe(dir) {

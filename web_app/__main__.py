@@ -4,10 +4,10 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from web_server import app, socketio
-from web_server.utils import get_or_create_event_loop, shutdown_event_loop
-from web_server.api.download import emit_download_status
-from web_server.config.web_config import web_config
+from web_app import app, socketio
+from web_app.utils import get_or_create_event_loop, shutdown_event_loop
+from web_app.api.download import emit_download_status
+from web_app.config.web_config import web_config
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seseget Web Server")

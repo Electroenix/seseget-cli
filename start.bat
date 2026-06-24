@@ -9,6 +9,8 @@ echo.
 
 set "ROOT=%~dp0"
 set "PYTHON=%ROOT%.venv\Scripts\python.exe"
+set "WEB_FRONTEND_DIR=%ROOT%web_frontend"
+set "WEB_APP_DIR=%ROOT%web_app"
 
 :: ============================================================
 :: Step 0: Check prerequisites
@@ -70,7 +72,7 @@ if not exist "%PYTHON%" (
     )
 
     echo [Setup] Installing Python dependencies...
-    "%PYTHON%" -m pip install -r "%ROOT%requirements.txt" -r "%ROOT%web_server\requirements.txt"
+    "%PYTHON%" -m pip install -r "%ROOT%requirements.txt" -r "%WEB_APP_DIR%\requirements.txt"
     if !errorlevel! neq 0 (
         echo ERROR: Failed to install Python dependencies!
         echo Cleaning up broken .venv...
@@ -86,15 +88,15 @@ if not exist "%PYTHON%" (
 :: ============================================================
 :: Step 2: Install npm dependencies
 :: ============================================================
-if not exist "%ROOT%web_front\node_modules" (
+if not exist "%WEB_FRONTEND_DIR%\node_modules" (
     echo [Setup] Installing npm dependencies...
-    cd /d "%ROOT%web_front"
+    cd /d "%WEB_FRONTEND_DIR%"
     call npm install
     if !errorlevel! neq 0 (
         echo ERROR: Failed to install npm dependencies!
         echo Cleaning up broken node_modules...
         cd /d "%ROOT%"
-        rmdir /s /q "%ROOT%web_front\node_modules" 2>nul
+        rmdir /s /q "%WEB_FRONTEND_DIR%\node_modules" 2>nul
         pause
         exit /b !errorlevel!
     )
@@ -108,11 +110,11 @@ echo.
 :: ============================================================
 :: Step 3: Build frontend (skip if already built)
 :: ============================================================
-if exist "%ROOT%web_server\static\index.html" (
+if exist "%WEB_APP_DIR%\static\index.html" (
     echo [Build] Frontend already built, skipping.
 ) else (
     echo [Build] Building React frontend ^(first run^)...
-    cd /d "%ROOT%web_front"
+    cd /d "%WEB_FRONTEND_DIR%"
     call npm run build
     if !errorlevel! neq 0 (
         echo ERROR: Frontend build failed!
@@ -129,7 +131,7 @@ echo.
 :: Step 4: Start server
 :: ============================================================
 echo [Start] Starting server...
-"%PYTHON%" -m web_server --prod --host 0.0.0.0 --port 12450
+"%PYTHON%" -m web_app --prod --host 0.0.0.0 --port 12450
 
 pause
 endlocal

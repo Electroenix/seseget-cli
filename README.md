@@ -87,10 +87,10 @@ python -m venv .venv
 source .venv/bin/activate
 
 # 2, 安装python依赖
-pip install -r requirements.txt -r web_server/requirements.txt
+pip install -r requirements.txt -r web_app/requirements.txt
 
 # 3, 安装node依赖
-cd web_front
+cd web_frontend
 npm install
 
 # 4, 编译静态文件
@@ -100,7 +100,7 @@ npm run build
 启动Web应用:
 
 ```bash
-python -m web_server --prod --host 0.0.0.0 --port 12450
+python -m web_app --prod --host 0.0.0.0 --port 12450
 ```
 
 #### 访问
@@ -116,7 +116,7 @@ web应用启动后会在终端显示 Auth Token 和服务器地址，浏览器�
   [Auth Token]: xxxxxxxxxxxxxxxxxxxxxx
 ==================================================
 
- * Serving Flask app 'web_server'
+ * Serving Flask app 'web_app'
  * Debug mode: off
 WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
  * Running on all addresses (0.0.0.0)
