@@ -1,23 +1,25 @@
-# seseget-cli
-视频/漫画资源下载工具
+# seseget
+支持多站点的媒体资源下载工具
 
 ## 功能
-- 下载指定视频/漫画资源
-- 当前支持站点：
-  - 视频资源：Hanime.me, Bilibili, Youtube, Twitter
-  - 漫画资源：哔咔, JMComic, Wnacg
+- 下载指定媒体资源（支持视频/漫画）
+- 支持站点：
+  - 视频站：Hanime.me, Bilibili, Youtube, Twitter
+  - 漫画站：哔咔, JMComic, Wnacg
 
-- 下载资源支持刮削资源页面上的数据，导入媒体库自动识别信息  
+- 下载时自动刮削站点上的媒体信息，导入媒体库自动填充信息
 
 - 支持媒体库：
-  - 视频：emby, 群晖VideoStation
+  - 视频：emby, jellyfin, 群晖VideoStation
   - 漫画：komga
+  >- 以上媒体库已经验证过完全适配，其它的可能也支持
+  >- 漫画支持保存为标准格式，一般的阅读软件也是可以识别的
 
 ## 使用方式
 
 ### 命令行模式
 #### 环境要求：
-- **Python3.11**
+- **Python3.11+**
 
 #### 安装：
 ```bash
@@ -33,16 +35,16 @@ pip install -r requirements.txt
 ```
 
 #### 使用
-指定下载站点和资源页面url即可使用，如下： (一些站点需要登录，请查看**配置**章节先修改相关配置)
+指定资源站点和资源页面url即可使用，如下： (一些站点需要登录，请查看**配置**章节先修改相关配置)
 
 ```bash
 # Windows
 .venv\Scripts\activate.bat  # 激活环境
-python seseget -s hanime https://<资源页面URL>
+python seseget -s hanime https://hanime1.me/watch?v=xxxxxxx
 
 # Linux
 source .venv/bin/activate  # 激活环境
-python seseget -s hanime https://<资源页面URL>
+python seseget -s hanime https://hanime1.me/watch?v=xxxxxxx
 ```
 
 更多参数用法请参照下面的参数说明:
@@ -67,10 +69,10 @@ options:
 新增了Web操作面板功能，使用起来更加方便
 
 #### 环境要求
-- python 3.11+
-- node.js 22+
+- Python 3.11+
+- Node.js 22+
 
-#### 一键安装
+#### 一键安装运行
 Windows运行根目录下的 ```start.bat```, Linux 运行 ```start.sh``` 脚本，将会自动安装依赖并运行
 
 #### 手动安装
@@ -129,8 +131,8 @@ WARNING: This is a development server. Do not use it in a production deployment.
 
 
 ## 依赖项说明
-- **python** 必须安装，推荐版本3.11+
-- **node.js** 使用web面板必须安装，推荐版本22+
+- **Python** 必须安装，推荐版本3.11+
+- **Node.js** 使用web面板必须安装，推荐版本22+
 - **[FFmpeg](https://www.ffmpeg.org/)**: 用于处理视频，下载bilibili/youtube/twitter视频需要安装此软件，并配置好环境变量
 
 
