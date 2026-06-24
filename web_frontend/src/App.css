@@ -1,0 +1,246 @@
+/* ===== Theme ===== */
+:root {
+  --bs-primary: #d87093;
+  --bs-primary-rgb: 216, 112, 147;
+}
+
+body {
+  padding-top: 72px;
+}
+
+/* ===== Bootstrap overrides ===== */
+.btn-primary {
+  --bs-btn-bg: #d87093;
+  --bs-btn-border-color: #d87093;
+  --bs-btn-hover-bg: #c45d7e;
+  --bs-btn-hover-border-color: #b85374;
+  --bs-btn-active-bg: #a84869;
+  --bs-btn-active-border-color: #9a3f5e;
+}
+
+.btn-outline-primary {
+  --bs-btn-color: #d87093;
+  --bs-btn-border-color: #d87093;
+  --bs-btn-hover-bg: #d87093;
+  --bs-btn-hover-border-color: #d87093;
+  --bs-btn-active-bg: #a84869;
+  --bs-btn-active-border-color: #9a3f5e;
+}
+
+/* ===== Navbar ===== */
+.logo {
+  font-size: 28px;
+  font-weight: bold;
+  color: #d87093;
+  text-decoration: none;
+}
+
+.logo:hover {
+  color: #c45d7e;
+}
+
+/* ===== Tags ===== */
+.tag {
+  display: inline-block;
+  padding: 0.25em 0.6em;
+  margin: 0.15em 0.3em;
+  font-size: 0.8em;
+  font-weight: 500;
+  color: #ddd;
+  background-color: #3f3f3f;
+  border-radius: 0.375rem;
+  white-space: nowrap;
+}
+
+/* ===== Search bar ===== */
+.search-form .form-select {
+  text-align: left;
+  font-weight: 600;
+}
+
+/* ===== Info panel ===== */
+.info-panel {
+  margin: 20px 0;
+}
+
+.cover-image {
+  border-radius: 8px;
+  width: 100%;
+  object-fit: cover;
+}
+
+.metadata-panel h1 {
+  font-size: 1.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.metadata-panel .meta-row {
+  margin-bottom: 0.35rem;
+  color: #bbb;
+  font-size: 0.95rem;
+}
+
+.metadata-panel .meta-label {
+  color: #888;
+  margin-right: 0.3em;
+}
+
+.series-btn {
+  padding: 0;
+  color: #d87093;
+  text-decoration: none;
+}
+
+.series-btn:hover {
+  color: #e890a8;
+  text-decoration: underline;
+}
+
+.description-text {
+  color: #aaa;
+  line-height: 1.6;
+}
+
+/* ===== Chapter list ===== */
+.chapter-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chapter-thumb {
+  width: 100px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.chapter-title-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ===== Download list dropdown ===== */
+.download-list-panel {
+  min-width: 480px;
+}
+
+@media (max-width: 575.98px) {
+  .download-list-panel {
+    min-width: 100vw;
+  }
+}
+
+/* ===== Config panel ===== */
+.config-sidebar .list-group-item {
+  border-radius: 0;
+  transition: background-color 0.15s;
+}
+
+.config-sidebar .list-group-item.active {
+  background-color: #d87093;
+  border-color: #d87093;
+}
+
+.config-field {
+  margin-bottom: 1rem;
+}
+
+.config-field label {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 0.25rem;
+}
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #555;
+  transition: 0.2s;
+  border-radius: 22px;
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #fff;
+  transition: 0.2s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: #d87093;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(22px);
+}
+
+.toggle-label {
+  font-size: 0.85rem;
+  color: #aaa;
+  min-width: 2.5em;
+}
+
+/* Nested sub-section inside config */
+.config-sub-section {
+  border-left: 3px solid #d87093;
+  padding-left: 16px;
+  margin: 12px 0;
+}
+
+.config-sub-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #d87093;
+  margin-bottom: 8px;
+}
+
+/* ===== Batch download bar ===== */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.select-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  margin-bottom: 12px;
+}
