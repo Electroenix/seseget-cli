@@ -7,7 +7,7 @@ const src = join(__dirname, '..', 'dist');
 const dest = join(__dirname, '..', '..', 'web_app', 'static');
 
 // 需要保留的目录/文件（不会被删除）
-const KEEP = new Set(['files']);
+const KEEP = new Set(['files', '.gitkeep']);
 
 async function main() {
   // 1. 清理 static 目录中上次构建的前端文件（保留 files 等用户数据）
