@@ -50,7 +50,7 @@ if __name__ == "__main__":
             debug=use_debug,
             host=args.host,
             port=args.port,
-            allow_unsafe_werkzeug=use_debug,
+            allow_unsafe_werkzeug=True,
         )
     finally:
         shutdown_event_loop()
