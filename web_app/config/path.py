@@ -1,7 +1,12 @@
 import os
 
+from seseget.config.path import CONFIG_DIR
+
+
 SESEGET_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 WEB_PKG_BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
+WEB_CONFIG_PATH = str(CONFIG_DIR / "web_conf.yaml")
 
 STATIC_FILES_URI = "/static/files"
 STATIC_COVER_URI = STATIC_FILES_URI + "/cover"

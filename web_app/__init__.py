@@ -16,12 +16,25 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600
 
 # --- 认证 token 初始化 ---
 def _init_auth_token():
-    """启动时检查/生成认证 token"""
-    if not web_config.get('auth_token', ''):
-        token = secrets.token_urlsafe(16)
-        web_config['auth_token'] = token
-    else:
-        token = web_config['auth_token']
+    """启动时初始化认证 token
+
+    auth_token 读取优先级: 
+    - 从环境变量 AUTH_TOKEN 读取 -> 从 web_config.yaml 中读取 -> 随机生成一个
+    - 最终都会保存到 web_config.yaml 中 
+    """
+    env_token = os.environ.get('SESEGET_AUTH_TOKEN', '').strip()
+
+    if env_token:
+        web_config['auth_token'] = env_token
+        return env_token
+
+    config_token = web_config.get('auth_token', '')
+    if config_token:
+        return config_token
+
+    token = secrets.token_urlsafe(16)
+    web_config['auth_token'] = token
+    return token
 
 
 _init_auth_token()

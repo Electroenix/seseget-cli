@@ -1,24 +1,20 @@
-# web_config.py — Web 服务端配置管理器
-# 配置文件位于 web_app/web_conf.yaml，独立于 seseget 配置系统
 import os
 from ruamel.yaml import YAML
 
 from seseget.config.config_manager import ObservableDict
+from .path import WEB_CONFIG_PATH
 
-# 配置文件路径：web_app/web_conf.yaml
-_WEB_APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WEB_CONFIG_PATH = os.path.join(_WEB_APP_DIR, "web_conf.yaml")
 
 _yaml = YAML()
 _yaml.preserve_quotes = True
 _yaml.width = 2147483647
 
-# 默认配置内容
 _DEFAULT_CONFIG = {"auth_token": ""}
 
 
 def _init_web_config():
     """初始化 web 配置文件"""
+    os.makedirs(os.path.dirname(WEB_CONFIG_PATH), exist_ok=True)
     if not os.path.exists(WEB_CONFIG_PATH):
         with open(WEB_CONFIG_PATH, "w", encoding="utf-8") as f:
             _yaml.dump(_DEFAULT_CONFIG, f)
