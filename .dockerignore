@@ -1,0 +1,42 @@
+# Git
+.git
+.gitignore
+
+# Python
+.venv
+__pycache__
+*.pyc
+*.pyo
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+README.md
+LICENSE
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Node
+/web_frontend/node_modules
+/web_frontend/dist
+
+# Scripts
+/start.sh
+/start.bat
+/scripts
+
+# Runtime data（通过卷挂载，不打包进镜像）
+/data
+/conf
+/tmp

@@ -1,0 +1,19 @@
+services:
+  seseget:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: seseget:latest
+    container_name: seseget
+    ports:
+      - "12450:12450"
+    volumes:
+      # 下载文件目录
+      - ./data:/app/data
+      # 配置文件目录
+      - ./conf:/app/conf
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+      # 可选：设置 Auth Token 用于登录认证，不设置则自动生成一个，可在 conf/web_conf.yaml 中查看
+      # - SESEGET_AUTH_TOKEN=your_custom_token_here
