@@ -99,7 +99,7 @@ docker compose up -d
 
 ```
 ==================================================
-  [Production Mode]  Flask + SocketIO
+  [Production Mode]  FastAPI + Socket.IO (ASGI)
   debug=False
   Listening on http://0.0.0.0:12450
 ==================================================
