@@ -1,14 +1,14 @@
 # Web 面板开发
 
-基于 Flask + SocketIO 的 Web 服务，为 seseget 提供可视化操作面板。
+基于 FastAPI + Socket.IO (ASGI) 的 Web 服务，为 seseget 提供可视化操作面板。
 
 ## 架构总览
 
 ```
-seseget(core) ──调用接口──> Flask 后端 <──托管静态文件── React SPA (Vite 构建)
+seseget(core) ──调用接口──> FastAPI 后端 <──托管静态文件── React SPA (Vite 构建)
 ```
 
-- 前端是独立项目 [web_frontend](../web_frontend)，构建后产物复制到 `static/` 目录，由 Flask 统一提供
+- 前端是独立项目 [web_frontend](../web_frontend)，构建后产物复制到 `static/` 目录，由 FastAPI 统一提供
 
 ## 开发环境
 

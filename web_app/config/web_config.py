@@ -4,7 +4,6 @@ from ruamel.yaml import YAML
 from seseget.config.config_manager import ObservableDict
 from .path import WEB_CONFIG_PATH
 
-
 _yaml = YAML()
 _yaml.preserve_quotes = True
 _yaml.width = 2147483647

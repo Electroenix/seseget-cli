@@ -4,9 +4,8 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from web_app import app, socketio
-from web_app.utils import get_or_create_event_loop, shutdown_event_loop
-from web_app.api.download import emit_download_status
+import uvicorn
+from web_app import socket_app
 from web_app.config.web_config import web_config
 
 if __name__ == "__main__":
@@ -29,14 +28,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    get_or_create_event_loop()
-    socketio.start_background_task(emit_download_status)
-
     use_debug = not args.prod
     mode_label = "Production" if args.prod else "Development"
 
     print(f"\n{'='*50}")
-    print(f"  [{mode_label} Mode]  Flask + SocketIO")
+    print(f"  [{mode_label} Mode]  FastAPI + Socket.IO (ASGI)")
     print(f"  debug={use_debug}")
     print(f"  Listening on http://{args.host}:{args.port}")
     print(f"{'='*50}\n")
@@ -44,13 +40,10 @@ if __name__ == "__main__":
     print(f"  [Auth Token]: {web_config['auth_token']}")
     print(f"{'='*50}\n")
 
-    try:
-        socketio.run(
-            app,
-            debug=use_debug,
-            host=args.host,
-            port=args.port,
-            allow_unsafe_werkzeug=True,
-        )
-    finally:
-        shutdown_event_loop()
+    uvicorn.run(
+        "web_app:socket_app",
+        host=args.host,
+        port=args.port,
+        reload=use_debug,
+        log_level="info",
+    )

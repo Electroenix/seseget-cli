@@ -1,72 +1,120 @@
-from flask import Flask, send_from_directory, abort
-from flask_socketio import SocketIO
+import asyncio
+import logging
 import os
-import secrets
+from contextlib import asynccontextmanager
 
 import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from web_app.config.web_config import web_config
+
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+import socketio
+
+logger = logging.getLogger(__name__)
 
 
-app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+# --- 后台任务生命周期 ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from .api.download import emit_download_status
 
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600
-
-
-# --- 认证 token 初始化 ---
-def _init_auth_token():
-    """启动时初始化认证 token
-
-    auth_token 读取优先级: 
-    - 从环境变量 AUTH_TOKEN 读取 -> 从 web_config.yaml 中读取 -> 随机生成一个
-    - 最终都会保存到 web_config.yaml 中 
-    """
-    env_token = os.environ.get('SESEGET_AUTH_TOKEN', '').strip()
-
-    if env_token:
-        web_config['auth_token'] = env_token
-        return env_token
-
-    config_token = web_config.get('auth_token', '')
-    if config_token:
-        return config_token
-
-    token = secrets.token_urlsafe(16)
-    web_config['auth_token'] = token
-    return token
+    status_task = asyncio.create_task(emit_download_status())
+    logger.info("Download status emitter started")
+    yield
+    status_task.cancel()
+    try:
+        await status_task
+    except asyncio.CancelledError:
+        pass
+    logger.info("Download status emitter stopped")
 
 
-_init_auth_token()
-
-# --- 注册认证中间件 ---
-from .api.auth import check_auth
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
+app = FastAPI(lifespan=lifespan)
 
 
-@app.before_request
-def _auth_middleware():
-    return check_auth()
+from .api.auth import AUTH_WHITELIST, get_stored_token, check_token
+from .api.response import ApiResponse
 
 
-# --- 注册蓝图 ---
-from .api import api_bp
+# --- Auth 中间件 ---
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    path = request.url.path
 
-app.register_blueprint(api_bp, url_prefix='/api')
+    # 跳过非 API 请求
+    if not path.startswith("/api/"):
+        return await call_next(request)
+
+    # 跳过白名单
+    for allowed in AUTH_WHITELIST:
+        if path.startswith(allowed):
+            return await call_next(request)
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header:
+        return ApiResponse(code=401, message="Missing Authorization header")
+
+    client_token = auth_header[7:] if auth_header.startswith("Bearer ") else auth_header
+
+    if not check_token(client_token):
+        return ApiResponse(code=401, message="Invalid token")
+
+    return await call_next(request)
 
 
-@app.route('/')
-def serve_index():
-    return send_from_directory('static', 'index.html')
+# --- Socket.IO 连接认证 ---
+@sio.event
+async def connect(sid, environ, auth):
+    """Socket.IO 连接时校验 token"""
+    stored = get_stored_token()
+    if not stored:
+        return True
+    token = auth.get("token", "") if auth else ""
+    if token == stored:
+        return True
+    raise ConnectionRefusedError("Invalid token")
 
 
-@app.route('/<path:path>')
-def serve_static(path):
-    print(f"path: {path}")
+# --- API 路由 ---
+from .api import api_router
 
-    # 查找静态文件
-    static_file = os.path.join(os.path.dirname(__file__), 'static', path)
-    print(f"static_file: {static_file}")
+app.include_router(api_router, prefix="/api")
+
+
+# --- 静态文件 ---
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+assets_dir = os.path.join(static_dir, "assets")
+files_dir = os.path.join(static_dir, "files")
+if os.path.isdir(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+if os.path.isdir(files_dir):
+    app.mount("/static/files", StaticFiles(directory=files_dir), name="static_files")
+
+
+# --- index.html ---
+@app.get("/")
+async def serve_index():
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    return ApiResponse(code=404, message="Frontend not built")
+
+
+# --- 未匹配的其它路由 ---
+@app.get("/{path:path}")
+async def serve_static(path: str):
+    if path.startswith("api/"):
+        return ApiResponse(code=404, message="Not Found")
+
+    static_file = os.path.join(static_dir, path)
     if os.path.exists(static_file) and os.path.isfile(static_file):
-        return send_from_directory('static', path)
+        return FileResponse(static_file)
 
-    return abort(404)
+    return ApiResponse(code=404, message="Not Found")
+
+
+# --- Socket.IO 包装 FastAPI ---
+socket_app = socketio.ASGIApp(sio, other_asgi_app=app)

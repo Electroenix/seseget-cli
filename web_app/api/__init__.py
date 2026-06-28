@@ -1,11 +1,10 @@
-from flask import Blueprint
-
-api_bp = Blueprint('api', __name__)
-
+from fastapi import APIRouter
 from . import download, search, settings, auth, web_settings
 
-api_bp.register_blueprint(download.download_bp, url_prefix='/download')
-api_bp.register_blueprint(search.search_bp, url_prefix='/search')
-api_bp.register_blueprint(settings.settings_bp, url_prefix='/settings')
-api_bp.register_blueprint(auth.auth_bp, url_prefix='/auth')
-api_bp.register_blueprint(web_settings.web_settings_bp, url_prefix='/web-settings')
+api_router = APIRouter()
+
+api_router.include_router(download.router, prefix="/download")
+api_router.include_router(search.router, prefix="/search")
+api_router.include_router(settings.router, prefix="/settings")
+api_router.include_router(auth.router, prefix="/auth")
+api_router.include_router(web_settings.router, prefix="/web-settings")
