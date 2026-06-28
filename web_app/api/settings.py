@@ -1,35 +1,23 @@
-from flask import request, Blueprint
+from fastapi import APIRouter, Request
+
 from seseget.config.config_manager import config
 from .response import ResponseCode, ApiResponse
 
+router = APIRouter()
 
-settings_bp = Blueprint('api/settings', __name__)
 
-
-@settings_bp.route('', methods=['GET'])
+@router.get("")
 def settings():
-    response = ApiResponse(
-        code=ResponseCode.SUCCESS,
-        message="Success",
-        data=config.dict
-    )
-    print("response: ", response.to_dict())
-    return response.to_response()
+    return ApiResponse(code=ResponseCode.SUCCESS, message="Success", data=config.dict)
 
 
-@settings_bp.route('/save', methods=['POST'])
-def save():
-    data = request.json
+@router.post("/save")
+async def save(request: Request):
+    data = await request.json()
     print("data: ", data)
 
     print("old config: ", config.dict)
     config.update(data)
     print("new config: ", config.dict)
 
-    response = ApiResponse(
-        code=ResponseCode.SUCCESS,
-        message="Success",
-        data=""
-    )
-    print("response: ", response.to_dict())
-    return response.to_response()
+    return ApiResponse(code=ResponseCode.SUCCESS, message="Success")

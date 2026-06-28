@@ -2,7 +2,6 @@ import os
 
 from seseget.config.path import CONFIG_DIR
 
-
 SESEGET_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 WEB_PKG_BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 

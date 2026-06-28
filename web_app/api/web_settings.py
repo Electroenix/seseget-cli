@@ -1,29 +1,20 @@
-from flask import request, Blueprint
+from fastapi import APIRouter, Request
+
 from web_app.config.web_config import web_config
 from .response import ResponseCode, ApiResponse
 
+router = APIRouter()
 
-web_settings_bp = Blueprint('api/web-settings', __name__)
 
-
-@web_settings_bp.route('', methods=['GET'])
+@router.get("")
 def web_settings():
-    response = ApiResponse(
-        code=ResponseCode.SUCCESS,
-        message="Success",
-        data=web_config.dict
+    return ApiResponse(
+        code=ResponseCode.SUCCESS, message="Success", data=web_config.dict
     )
-    return response.to_response()
 
 
-@web_settings_bp.route('/save', methods=['POST'])
-def save_web_settings():
-    data = request.json
+@router.post("/save")
+async def save_web_settings(request: Request):
+    data = await request.json()
     web_config.update(data)
-
-    response = ApiResponse(
-        code=ResponseCode.SUCCESS,
-        message="Success",
-        data=""
-    )
-    return response.to_response()
+    return ApiResponse(code=ResponseCode.SUCCESS, message="Success")
