@@ -87,6 +87,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ffmpeg-builder /ffmpeg-install/usr/local/bin/ffmpeg /usr/local/bin/
 COPY --from=ffmpeg-builder /ffmpeg-install/usr/local/bin/ffprobe /usr/local/bin/
 
+# 创建用户和运行时目录
+RUN useradd --create-home --uid 1000 seseget \
+    && mkdir -p /app/data /app/conf \
+    && chown -R seseget:seseget /app
+
 WORKDIR /app
 
 # 安装 Python 依赖
@@ -94,17 +99,17 @@ COPY requirements.txt ./
 COPY web_app/requirements.txt web_app-requirements.txt
 RUN pip install --no-cache-dir \
     -r requirements.txt \
-    -r web_app-requirements.txt
+    -r web_app-requirements.txt \
+    && find /usr/local/lib/python*/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null; true \
+    && find /usr/local/lib/python*/site-packages -type f -name "*.pyc" -delete 2>/dev/null; true \
+    && find /usr/local/lib/python*/site-packages -type d -name "tests" -exec rm -rf {} + 2>/dev/null; true \
+    && find /usr/local/lib/python*/site-packages -type d -name "docs" -exec rm -rf {} + 2>/dev/null; true \
+    && rm -rf /usr/local/lib/python*/site-packages/pip /usr/local/lib/python*/site-packages/pip-*.dist-info
 
 # 复制源码 + 前端静态文件
-COPY seseget/ ./seseget/
-COPY web_app/ ./web_app/
-COPY --from=frontend-builder /app/dist/ ./web_app/static/
-
-# 创建用户和运行时目录
-RUN useradd --create-home --uid 1000 seseget \
-    && mkdir -p /app/data /app/conf \
-    && chown -R seseget:seseget /app
+COPY --chown=seseget:seseget seseget/ ./seseget/
+COPY --chown=seseget:seseget web_app/ ./web_app/
+COPY --chown=seseget:seseget --from=frontend-builder /app/dist/ ./web_app/static/
 
 USER seseget
 
