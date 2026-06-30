@@ -1,26 +1,38 @@
 # Git
 .git
-.gitignore
+**/.gitignore
+**/.gitattributes
 
 # Python
 .venv
-__pycache__
-*.pyc
-*.pyo
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.egg-info/
+
+# Env & secrets
+**/.env
+**/.env.*
+
+# Cache & logs
+**/.ruff_cache/
+**/.mypy_cache/
+**/.pytest_cache/
+**/*.log
 
 # IDE
 .idea
 .vscode
-*.swp
-*.swo
+**/*.swp
+**/*.swo
 
 # OS
-.DS_Store
-Thumbs.db
+**/.DS_Store
+**/Thumbs.db
 
 # Docs
-README.md
-LICENSE
+**/README.md
+**/LICENSE
 
 # Docker
 Dockerfile
@@ -28,15 +40,16 @@ docker-compose.yml
 .dockerignore
 
 # Node
-/web_frontend/node_modules
-/web_frontend/dist
+web_frontend/node_modules
+web_frontend/dist
 
 # Scripts
-/start.sh
-/start.bat
-/scripts
+start.sh
+start.bat
+scripts/
 
-# Runtime data（通过卷挂载，不打包进镜像）
-/data
-/conf
-/tmp
+# Runtime data
+data/
+conf/
+tmp/
+web_app/static/
