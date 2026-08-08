@@ -16,14 +16,11 @@ jobs:
     timeout-minutes: 90
 
     permissions:
-      contents: write  # 创建 GitHub Release 需要 write 权限
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
         if: github.event_name != 'pull_request'
@@ -31,6 +28,9 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Docker meta
         id: meta
@@ -48,14 +48,14 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            # PR 构建验证用（不推送，仅本地标签）
+            # PR 构建验证
             type=raw,value=ci-test,enable=${{ github.event_name == 'pull_request' }}
 
       - name: Build and Push
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' }}  # PR 构建不推送
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
