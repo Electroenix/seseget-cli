@@ -1,0 +1,68 @@
+name: Docker Publish
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master, dev]
+    tags: ['v*']
+
+env:
+  IMAGE_NAME: electroenix/seseget
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    permissions:
+      contents: write  # 创建 GitHub Release 需要 write 权限
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=false
+          tags: |
+            # master 分支 → :latest
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            # dev 分支 → :beta
+            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/dev' }}
+            # 语义化版本 tag (v1.0.0) → :1.0.0, :1.0, :latest
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            # PR 构建验证用（不推送，仅本地标签）
+            type=raw,value=ci-test,enable=${{ github.event_name == 'pull_request' }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
