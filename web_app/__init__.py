@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+import socketio
 
 import sys
 
@@ -10,8 +11,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-import socketio
 
+from seseget.config import settings
+
+settings.PROGRESS_BAR_ENABLED = False
 logger = logging.getLogger(__name__)
 
 

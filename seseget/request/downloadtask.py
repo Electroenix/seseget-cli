@@ -8,6 +8,7 @@ import traceback
 from ..utils.trace import logger
 from ..utils.file_utils import *
 from ..utils.output import ProgressBar
+from ..config import settings
 
 
 class FileDLProgress:
@@ -70,7 +71,7 @@ class TaskDLProgress:
 
     def init_progress(self):
         if not self.bar:
-            self.bar = ProgressBar(self.name, 0, False)
+            self.bar = ProgressBar(self.name, 0, not settings.PROGRESS_BAR_ENABLED)
 
     def set_progress_count(self, count):
         """设置下载文件总数，必须在add_progress之前调用"""
