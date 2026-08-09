@@ -20,3 +20,6 @@ REQUEST_TIMEOUT = 10
 
 # 工作进程退出超时时间(s)，超过设定时间还在运行则强制中断进程
 WORKER_PROGRESS_TERMINAL_TIMEOUT = 3
+
+# 是否启用下载进度条
+PROGRESS_BAR_ENABLED = True
