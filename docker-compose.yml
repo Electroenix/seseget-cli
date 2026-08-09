@@ -1,9 +1,6 @@
 services:
   seseget:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: seseget:latest
+    image: electroenix/seseget:latest
     container_name: seseget
     ports:
       - "12450:12450"
