@@ -10,6 +10,7 @@ router = APIRouter()
 
 AUTH_WHITELIST = [
     "/api/auth/verify",
+    "/api/version",
     "/socket.io",
 ]
 

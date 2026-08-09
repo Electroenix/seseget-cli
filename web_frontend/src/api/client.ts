@@ -98,6 +98,15 @@ export async function fetchWebSettings(): Promise<ApiResponse<ConfigObject>> {
   return handleResponse<ConfigObject>(response);
 }
 
+// GET /api/version
+export async function fetchVersion(): Promise<ApiResponse<{ version: string }>> {
+  const response = await fetch("/api/version", {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  return handleResponse<{ version: string }>(response);
+}
+
 // POST /api/web-settings/save
 export async function saveWebSettings(config: ConfigObject): Promise<ApiResponse> {
   const response = await fetch("/api/web-settings/save", {

@@ -14,7 +14,11 @@ async function verifyToken(token: string): Promise<boolean> {
   }
 }
 
-export default function LoginPage() {
+interface LoginPageProps {
+  version?: string;
+}
+
+export default function LoginPage({ version }: LoginPageProps) {
   const { login } = useAuth();
   const [value, setValue] = useState("");
   const [error, setError] = useState("");
@@ -60,6 +64,12 @@ export default function LoginPage() {
             </div>
             <h4 className="text-light mb-1">seseGet</h4>
           </div>
+
+          {version && (
+            <p className="text-center text-muted small">
+              seseGet v{version}
+            </p>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="mb-3">

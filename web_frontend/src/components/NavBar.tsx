@@ -5,11 +5,13 @@ import DownloadListPanel from "./DownloadListPanel";
 interface NavBarProps {
   downloadTasks: DownloadTask[];
   onOpenConfig: () => void;
+  version: string;
 }
 
 export default function NavBar({
   downloadTasks,
   onOpenConfig,
+  version,
 }: NavBarProps) {
   const { logout } = useAuth();
 
@@ -17,7 +19,12 @@ export default function NavBar({
     <nav className="navbar navbar-expand bg-body-tertiary fixed-top border-bottom">
       <div className="container-fluid">
         <a className="logo" href="#">
-          seseGet
+          seseGet{" "}
+          {version && (
+            <span className="badge bg-secondary fw-normal" style={{ fontSize: "0.65rem", verticalAlign: "text-top" }}>
+              v{version}
+            </span>
+          )}
         </a>
         <ul className="navbar-nav ms-auto">
           <li className="nav-item dropdown me-2">
