@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import signal
 
+from . import __version__
 from .request.downloadtask import download_manager
 from .request.fetcher import FetcherRegistry
 from .request.requests import session_manager
@@ -22,6 +23,7 @@ async def process_worker_async():
     signal.signal(signal.SIGINT, handle_signal)
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--version", action="version", version=f"seseget {__version__}")
     parser.add_argument("url", nargs="+", default="", help="url，可接受多个url")
     parser.add_argument("-s", "--site", default="", help=f"站点名，支持{FetcherRegistry.list_sites()}")
     parser.add_argument("-c", "--chapter", default="", help="章节号，指定漫画下载章节号，多个章节请使用逗号分隔, 未指定章节则下载全部章节")

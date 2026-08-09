@@ -9,6 +9,7 @@ import {
   saveSettings,
   fetchWebSettings,
   saveWebSettings,
+  fetchVersion,
 } from "./api/client";
 import { useDownloadSocket } from "./hooks/useSocket";
 import { useAuth } from "./contexts/AuthContext";
@@ -20,15 +21,22 @@ import ConfigPanel from "./components/ConfigPanel";
 
 export default function App() {
   const { isAuthenticated } = useAuth();
+  const [version, setVersion] = useState<string>("");
+
+  useEffect(() => {
+    fetchVersion()
+      .then((res) => setVersion(res.data?.version ?? ""))
+      .catch(console.error);
+  }, []);
 
   if (!isAuthenticated) {
-    return <LoginPage />;
+    return <LoginPage version={version} />;
   }
 
-  return <MainApp />;
+  return <MainApp version={version} />;
 }
 
-function MainApp() {
+function MainApp({ version }: { version: string }) {
   // Search / site state
   const [siteList, setSiteList] = useState<string[]>([]);
   const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null);
@@ -212,6 +220,7 @@ function MainApp() {
       <NavBar
         downloadTasks={downloadTasks}
         onOpenConfig={handleOpenConfig}
+        version={version}
       />
 
       <div className="container-fluid">

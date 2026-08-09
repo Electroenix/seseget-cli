@@ -5,11 +5,15 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import uvicorn
+from seseget import __version__
 from web_app import socket_app
 from web_app.config.web_config import web_config
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seseget Web Server")
+    parser.add_argument(
+        "-v", "--version", action="version", version=f"seseget {__version__}"
+    )
     parser.add_argument(
         "--prod",
         action="store_true",
@@ -32,6 +36,7 @@ if __name__ == "__main__":
     mode_label = "Production" if args.prod else "Development"
 
     print(f"\n{'='*50}")
+    print(f"  Version: {__version__}")
     print(f"  [{mode_label} Mode]  FastAPI + Socket.IO (ASGI)")
     print(f"  debug={use_debug}")
     print(f"  Listening on http://{args.host}:{args.port}")

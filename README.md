@@ -51,13 +51,14 @@ python seseget -s hanime https://hanime1.me/watch?v=xxxxxxx
 
 ```bash
 python seseget -h
-usage: seseget [-h] [-s SITE] [-c CHAPTER] [--no-download] url [url ...]
+usage: seseget [-h] [-v] [-s SITE] [-c CHAPTER] [--no-download] url [url ...]
 
 positional arguments:
   url                   url，可接受多个url
 
 options:
   -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
   -s SITE, --site SITE  站点名，支持['bika', 'bilibili', 'hanime', 'jmcomic', 'twitter', 'wnacg', 'youtube']
   -c CHAPTER, --chapter CHAPTER
                         章节号，指定漫画下载章节号，多个章节请使用逗号分隔, 未指定章节则下载全部章节
@@ -99,8 +100,9 @@ docker compose up -d
 
 ```
 ==================================================
-  [Production Mode]  FastAPI + Socket.IO (ASGI)
-  debug=False
+  Version: 0.1.0
+  [Development Mode]  FastAPI + Socket.IO (ASGI)
+  debug=True
   Listening on http://0.0.0.0:12450
 ==================================================
 
