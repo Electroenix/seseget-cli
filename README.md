@@ -80,13 +80,18 @@ Windows 运行根目录下的 ```start.bat```，Linux 运行 ```start.sh```，�
 **环境要求：** Docker + Docker Compose
 
 ```bash
-# 1. 克隆项目
-git clone https://github.com/Electroenix/seseget-cli.git
-cd seseget-cli
+# 1. 创建一个目录并切换
+mkdir seseget && cd seseget
 
-# 2. （可选）编辑 docker-compose.yml，按需调整端口映射、挂载路径、SESEGET_AUTH_TOKEN 等配置
+# 2. 下载 docker-compose.yml
+curl -O https://raw.githubusercontent.com/Electroenix/seseget-cli/master/docker-compose.yml
 
-# 3. 启动服务
+# 3. 创建conf和data目录，如果选择在其它位置创建，记得要修改下一步中docker-compose.yml中对应的挂载路径
+mkdir conf && mkdir data
+
+# 4. （可选）编辑 docker-compose.yml，按需调整端口映射、挂载路径、SESEGET_AUTH_TOKEN 等配置
+
+# 5. 拉取镜像并启动服务
 docker compose up -d
 ```
 
