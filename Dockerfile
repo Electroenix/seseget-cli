@@ -9,14 +9,19 @@
 FROM alpine:3.22 AS ffmpeg-builder
 
 RUN apk add --no-cache \
-    gcc g++ make pkgconf nasm xz wget ca-certificates \
+    gcc g++ make pkgconf nasm wget ca-certificates \
     zlib-dev zlib-static \
     openssl-dev openssl-libs-static
 
 # 下载 ffmpeg
 ARG FFMPEG_VERSION=7.1.1
-RUN wget -q https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz -O /tmp/ffmpeg.tar.xz \
-    && cd /tmp && tar xf ffmpeg.tar.xz
+ARG FFMPEG_URL=https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n${FFMPEG_VERSION}.tar.gz
+RUN wget --retry-connrefused --waitretry=5 --tries=3 \
+    -nv ${FFMPEG_URL} \
+    -O /tmp/ffmpeg.tar.gz \
+    && mkdir -p /tmp/ffmpeg-${FFMPEG_VERSION} \
+    && tar xf /tmp/ffmpeg.tar.gz -C /tmp/ffmpeg-${FFMPEG_VERSION} --strip-components=1 \
+    && rm /tmp/ffmpeg.tar.gz
 
 WORKDIR /tmp/ffmpeg-${FFMPEG_VERSION}
 
