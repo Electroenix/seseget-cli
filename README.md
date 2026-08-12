@@ -105,7 +105,7 @@ docker compose up -d
 
 ```
 ==================================================
-  Version: 0.1.0
+  Version: x.x.x
   [Development Mode]  FastAPI + Socket.IO (ASGI)
   debug=True
   Listening on http://0.0.0.0:12450
