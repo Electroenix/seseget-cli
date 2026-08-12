@@ -37,9 +37,17 @@ HANIME_HEADERS = {
     'cookie': '',
 }
 
+GENRES_SIMP = ["里番", "泡面番", "Motion Anime", "3DCG", "2.5D", "2D动画", "AI生成", "MMD", "Cosplay"]
+GENRES_TRAD = ["裏番", "泡麵番", "Motion Anime", "3DCG", "2.5D", "2D動畫", "AI生成", "MMD", "Cosplay"]
+
+class HanimeVideoInfo(VideoInfo):
+    def __init__(self):
+        super().__init__()
+        self.video_genre = ""         # 视频类型
+
 
 @FetcherRegistry.register("hanime")
-class HanimeFetcher(VideoFetcher):
+class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
     site_dir = os.path.join(DATA_DIR, "hanime")
 
     @staticmethod
@@ -121,7 +129,29 @@ class HanimeFetcher(VideoFetcher):
 
         logger.info('\n下载完成!')
 
-    async def _fetch_info(self, url, **kwargs) -> VideoInfo:
+    def _make_save_dir(self, info: HanimeVideoInfo):
+        if not self.__class__.site_dir:
+            raise ValueError("未指定下载目录!")
+        if not os.path.exists(self.__class__.site_dir):
+            os.mkdir(self.__class__.site_dir)
+
+        if config["hanime"]["organize_by_genre"]:
+            genre_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.video_genre))
+            series_dir = os.path.join(genre_dir, make_filename_valid(info.metadata.series))
+            if not os.path.exists(genre_dir):
+                os.mkdir(genre_dir)
+        else:
+            series_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.metadata.series))
+
+        info.video_dir = os.path.join(series_dir, make_filename_valid(info.name))
+        info.video_dir = make_diff_dir_name(info.video_dir)
+
+        if not os.path.exists(series_dir):
+            os.mkdir(series_dir)
+        if not os.path.exists(info.video_dir):
+            os.mkdir(info.video_dir)
+
+    async def _fetch_info(self, url, **kwargs) -> HanimeVideoInfo:
         view_url_parse = urlparse(url)
         vid = parse_qs(view_url_parse.query)["v"][0]
 
@@ -151,16 +181,14 @@ class HanimeFetcher(VideoFetcher):
         series_info = self.get_series_info(video_soup)
 
         cover_url = None
-        search_genre = video_soup.find('a', attrs={'class': "hidden-sm hidden-md hidden-lg hidden-xl"}).string
-        search_genre = search_genre.replace('\n', '')
-        search_genre = search_genre.replace(' ', '')
+        video_genre = video_soup.find('a', attrs={'class': "hidden-sm hidden-md hidden-lg hidden-xl"}).string
+        video_genre = video_genre.replace('\n', '')
+        video_genre = video_genre.replace(' ', '')
 
-        genres_simp = ["里番", "泡面番"]
-        genres_trad = ["裏番", "泡麵番"]
-        if search_genre in genres_simp + genres_trad:
-            if search_genre in genres_simp:
-                search_genre = dict(zip(genres_simp, genres_trad)).get(search_genre)
-            search_url = f'https://hanime1.me/search?type=&genre={search_genre}&sort=&date=&duration='
+        if video_genre in GENRES_SIMP + GENRES_TRAD:
+            if video_genre in GENRES_SIMP:
+                video_genre = dict(zip(GENRES_SIMP, GENRES_TRAD)).get(video_genre)
+            search_url = f'https://hanime1.me/search?type=&genre={video_genre}&sort=&date=&duration='
             req_kwargs = {}
             if config["hanime"]["cookie"]:
                 req_kwargs["headers"] = HANIME_HEADERS.copy()
@@ -176,7 +204,7 @@ class HanimeFetcher(VideoFetcher):
         if cover_url is None:
             cover_url = video_thumbnail_url
 
-        video_info = VideoInfo()
+        video_info = HanimeVideoInfo()
 
         video_info.vid = vid
         video_info.name = metadata.title
@@ -186,6 +214,7 @@ class HanimeFetcher(VideoFetcher):
         video_info.thumbnail_url = video_thumbnail_url
         video_info.metadata = metadata
         video_info.series_info = series_info
+        video_info.video_genre = video_genre
 
         await self.video_info_cache.update_cache(vid, video_info)
 
