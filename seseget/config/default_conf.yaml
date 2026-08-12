@@ -9,6 +9,8 @@ common:
 hanime:
   # 如请求被拦截，尝试设置下方cookie
   cookie: ""
+  # 是否按影片类型整理下载文件，true: 会创建影片类型目录(如 里番/泡面番/Motion Anime 等)，下载文件将保存在对应目录中
+  organize_by_genre: false
 
 # 哔咔配置
 bika:
