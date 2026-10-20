@@ -1,26 +1,43 @@
 name: Docker Publish
 
+# master 每次代码变更构建一次：
+# - beta：最新测试镜像
+# - sha-<commit>：不可变镜像，供 docker-release.yml 在打 tag 时直接晋升
+
 on:
-  pull_request:
-    branches: [master]
   push:
     branches: [master]
-    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
+      - 'LICENSE'
+  # 允许手动重建 beta（例如基础镜像更新），只允许从 master 触发
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 同一时间只保留最新的 master 构建
+concurrency:
+  group: docker-master
+  cancel-in-progress: true
 
 env:
   IMAGE_NAME: electroenix/seseget
 
 jobs:
   build:
+    name: Build beta image
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -37,22 +54,17 @@ jobs:
           flavor: |
             latest=false
           tags: |
-            # master 分支 → :beta
-            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/master' }}
-            # 语义化版本 tag (v0.1.0) → :0.1.0, :0.1, :latest
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            # PR 构建验证
-            type=raw,value=ci-test,enable=${{ github.event_name == 'pull_request' }}
+            # master 最新测试镜像
+            type=raw,value=beta
+            # 不可变镜像，供 tag 发布时直接晋升
+            type=raw,value=sha-${{ github.sha }}
 
-      - name: Build and Push
+      - name: Build and push beta
         uses: docker/build-push-action@v7
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}  # PR 构建不推送
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-

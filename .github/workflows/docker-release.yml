@@ -1,0 +1,146 @@
+name: Docker Release
+
+# 打 tag 时优先把 master 已构建的 sha-<commit> 镜像晋升为版本镜像；
+# 只有找不到对应镜像时才回退到完整构建，避免 tag 重复构建。
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: electroenix/seseget
+  # 等待 master 构建的时间：60 * 15s = 15 分钟
+  WAIT_ATTEMPTS: "60"
+  WAIT_SECONDS: "15"
+
+jobs:
+  promote:
+    name: Promote master image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      found: ${{ steps.lookup.outputs.found }}
+      sha: ${{ steps.target.outputs.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve target commit
+        id: target
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Check whether tag commit is on master
+        id: branch
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          if git rev-parse --verify --quiet origin/master >/dev/null \
+             && git merge-base --is-ancestor "$TARGET_SHA" origin/master; then
+            echo "on_master=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "on_master=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Look for matching master image
+        id: lookup
+        env:
+          ON_MASTER: ${{ steps.branch.outputs.on_master }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          SOURCE="${IMAGE_NAME}:sha-${TARGET_SHA}"
+          FOUND=false
+
+          if [ "$ON_MASTER" = "true" ]; then
+            for i in $(seq 1 "$WAIT_ATTEMPTS"); do
+              if docker buildx imagetools inspect "$SOURCE" >/dev/null 2>&1; then
+                FOUND=true
+                break
+              fi
+              echo "Waiting for $SOURCE to be published ($i/$WAIT_ATTEMPTS)..."
+              sleep "$WAIT_SECONDS"
+            done
+          else
+            echo "Tag commit is not reachable from master; release image will be built directly."
+          fi
+
+          echo "found=$FOUND" >> "$GITHUB_OUTPUT"
+          if [ "$FOUND" != "true" ]; then
+            echo "::warning::No image found for ${TARGET_SHA}; falling back to a full release build."
+          fi
+
+      - name: Promote image
+        if: steps.lookup.outputs.found == 'true'
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          MAJOR_MINOR=$(echo "$VERSION" | cut -d. -f1,2)
+          SOURCE="${IMAGE_NAME}:sha-${TARGET_SHA}"
+
+          docker buildx imagetools create \
+            -t "${IMAGE_NAME}:${VERSION}" \
+            -t "${IMAGE_NAME}:${MAJOR_MINOR}" \
+            -t "${IMAGE_NAME}:latest" \
+            "$SOURCE"
+
+  build-fallback:
+    name: Build release image
+    needs: promote
+    if: needs.promote.outputs.found != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+            type=raw,value=sha-${{ needs.promote.outputs.sha }}
+
+      - name: Build and push release
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
