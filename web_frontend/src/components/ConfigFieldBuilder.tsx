@@ -1,10 +1,28 @@
-import type { ConfigObject } from "../types/api";
+import type { ConfigObject, FormatOptions } from "../types/api";
 
 interface ConfigFieldBuilderProps {
   config: ConfigObject;
   prefix?: string;
   values: Record<string, unknown>;
   onChange: (path: string, value: unknown) => void;
+  formatOptions?: FormatOptions | null;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return Array.from(new Set(value.map(String)));
+  }
+  if (typeof value === "string" && value.trim()) {
+    return Array.from(
+      new Set(
+        value
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      )
+    );
+  }
+  return [];
 }
 
 export default function ConfigFieldBuilder({
@@ -12,6 +30,7 @@ export default function ConfigFieldBuilder({
   prefix = "",
   values,
   onChange,
+  formatOptions,
 }: ConfigFieldBuilderProps) {
   return (
     <>
@@ -34,6 +53,83 @@ export default function ConfigFieldBuilder({
                 prefix={fieldId}
                 values={values}
                 onChange={onChange}
+                formatOptions={formatOptions}
+              />
+            </div>
+          );
+        }
+
+        const formatChoices = formatOptions?.[fieldId];
+
+        if (formatChoices) {
+          const selected = normalizeStringArray(values[fieldId]);
+          const extraSelected = selected.filter(
+            (item) => !formatChoices.includes(item)
+          );
+          const allChoices = [...formatChoices, ...extraSelected];
+
+          return (
+            <div className="config-field" key={fieldId}>
+              <label className="d-block">{key}</label>
+              <div className="d-flex flex-wrap gap-3">
+                {allChoices.map((option) => {
+                  const isExtra = !formatChoices.includes(option);
+                  return (
+                    <div className="form-check" key={option}>
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id={`${fieldId}-${option}`}
+                        checked={selected.includes(option)}
+                        onChange={(e) => {
+                          const next = e.target.checked
+                            ? [...selected, option]
+                            : selected.filter((item) => item !== option);
+                          onChange(fieldId, next);
+                        }}
+                      />
+                      <label
+                        className={`form-check-label small ${
+                          isExtra ? "text-warning" : ""
+                        }`}
+                        htmlFor={`${fieldId}-${option}`}
+                        title={isExtra ? "该格式当前未注册" : undefined}
+                      >
+                        {option}
+                        {isExtra ? "（未注册）" : ""}
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
+
+        if (Array.isArray(value)) {
+          const arrayValue = normalizeStringArray(values[fieldId]).join(", ");
+
+          return (
+            <div className="config-field" key={fieldId}>
+              <label htmlFor={fieldId} className="d-block">
+                {key}
+              </label>
+              <input
+                type="text"
+                id={fieldId}
+                className="form-control form-control-sm"
+                value={arrayValue}
+                placeholder="多个值用逗号分隔"
+                onChange={(e) =>
+                  onChange(
+                    fieldId,
+                    e.target.value
+                      .split(",")
+                      .map((item) => item.trim())
+                      .filter(Boolean)
+                  )
+                }
+                style={{ maxWidth: "100%" }}
               />
             </div>
           );

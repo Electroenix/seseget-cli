@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Modal from "react-bootstrap/Modal";
-import type { ConfigObject } from "../types/api";
+import type { ConfigObject, FormatOptions } from "../types/api";
 import ConfigFieldBuilder from "./ConfigFieldBuilder";
 
 /** 侧边栏中 Web 标签页的标识键 */
@@ -10,6 +10,7 @@ interface ConfigPanelProps {
   open: boolean;
   config: ConfigObject | null;
   webConfig: ConfigObject | null;
+  formatOptions: FormatOptions | null;
   onSave: (config: ConfigObject) => void;
   onSaveWeb: (config: ConfigObject) => void;
   onClose: () => void;
@@ -54,6 +55,7 @@ export default function ConfigPanel({
   open,
   config,
   webConfig,
+  formatOptions,
   onSave,
   onSaveWeb,
   onClose,
@@ -161,6 +163,7 @@ export default function ConfigPanel({
                       prefix={isWebTab ? "" : activeSection}
                       values={isWebTab ? localWebValues : localValues}
                       onChange={isWebTab ? handleWebFieldChange : handleFieldChange}
+                      formatOptions={formatOptions}
                     />
                   ) : (
                     <ConfigFieldBuilder
@@ -171,6 +174,7 @@ export default function ConfigPanel({
                       }
                       values={isWebTab ? localWebValues : localValues}
                       onChange={isWebTab ? handleWebFieldChange : handleFieldChange}
+                      formatOptions={formatOptions}
                     />
                   )}
                 </>

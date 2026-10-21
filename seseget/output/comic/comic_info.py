@@ -1,15 +1,14 @@
-import os
-import zipfile
+"""ComicInfo.xml 元数据序列化。
+"""
 
-from . import ComicMetaData
-from ...utils.trace import logger
+from ...metadata.comic import ComicMetaData
 
 
 # 翻页方向: YesAndRightToLeft - 右至左    No - 左至右
 MANGA_DIRECTION = "No"
 
 
-def make_cbz_comic_info_xml(output_dir, metadata: ComicMetaData):
+def write_comic_info_xml(output_dir: str, metadata: ComicMetaData):
     output_path = output_dir + "/" + "ComicInfo.xml"
 
     with open(output_path, "w", encoding='utf-8') as f:
@@ -71,27 +70,3 @@ def make_cbz_comic_info_xml(output_dir, metadata: ComicMetaData):
         f.write(f"""
   <Manga>{MANGA_DIRECTION}</Manga>
 </ComicInfo>""")
-
-
-def make_cbz(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
-    """
-    下载的漫画图片合成CBZ文件
-    Args:
-        save_dir: 漫画保存的目录路径
-        comic_title: 漫画名，基于此名字创建文件名
-        image_path: 图片文件夹路径
-        metadata: 漫画元数据对象
-
-    """
-    file_name = save_dir + "/" + comic_title + ".cbz"
-    logger.info("打包图片为CBZ格式...")
-
-    make_cbz_comic_info_xml(image_path, metadata)
-    with zipfile.ZipFile(file_name, "w") as cbz:
-        for root, dirs, files in os.walk(image_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                arcname = os.path.relpath(file_path, image_path)
-                cbz.write(file_path, arcname)
-
-    logger.info("打包完成, 漫画保存在%s" % file_name)

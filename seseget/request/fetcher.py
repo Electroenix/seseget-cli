@@ -10,8 +10,8 @@ from . import downloader
 from ..config.config_manager import config
 from ..metadata.comic import ComicMetaData
 from ..metadata.video import VideoMetaData
-from ..metadata.video.doc import make_video_metadata_file
-from ..metadata.comic.doc import make_comic
+from ..output.comic import package_comic
+from ..output.video import make_video_metadata_file
 from ..utils.file_utils import make_filename_valid, make_diff_dir_name
 from ..utils.trace import logger
 from .downloadtask import FileDLProgress, TaskDLProgress, download_manager
@@ -326,7 +326,7 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
         res = await downloader.download_comic_capter_images(image_temp_dir_path, chapter.image_urls, progress)
 
         # 图片下载完成，打包成漫画文件
-        make_comic(comic_dir, comic_title, image_temp_dir_path, chapter.metadata)
+        package_comic(comic_dir, comic_title, image_temp_dir_path, chapter.metadata)
 
         if progress:
             progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)

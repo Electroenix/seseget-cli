@@ -1,10 +1,13 @@
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 
-from . import VideoMetaData
+from ...metadata.video import VideoMetaData
+from ...utils.file_utils import make_filename_valid
 
 
-def make_nfo_file(filename: str, metadata: VideoMetaData):
+def write_nfo(save_dir: str, video_name: str, metadata: VideoMetaData):
+    """生成 NFO 元数据文件。"""
+    filename = save_dir + '/' + make_filename_valid(f"{video_name}.nfo")
     movie = ET.Element('movie')
 
     plot = ET.SubElement(movie, 'plot')
