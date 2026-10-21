@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from seseget.metadata.comic import ComicMetaData
-from seseget.metadata.comic.cbz import make_cbz
+from seseget.output.comic.cbz import write_cbz
 from seseget.utils.file_utils import make_filename_valid
 from seseget.utils.trace import logger
 
@@ -48,4 +48,4 @@ if __name__ == "__main__":
         if not os.path.exists(args.imagepath):
             logger.error("目录不存在: {args.imagepath}")
 
-        make_cbz(args.outpath, metadata.title, args.imagepath, metadata)
+        write_cbz(args.outpath, metadata.title, args.imagepath, metadata)

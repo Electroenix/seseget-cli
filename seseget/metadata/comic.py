@@ -1,3 +1,5 @@
+"""漫画元数据模型。"""
+
 
 class ComicMetaData:
     """comic元数据，以EPUB文件中元数据的标签命名"""

@@ -7,7 +7,7 @@ import shutil
 from datetime import datetime, timezone
 from PIL import Image
 
-from . import ComicMetaData
+from ...metadata.comic import ComicMetaData
 from ...utils.trace import logger
 
 
@@ -387,7 +387,7 @@ html, body {
             raise e
 
 
-def make_epub(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
+def write_epub(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
     """
     下载的漫画图片合成EPUB电子书文件
     Args:

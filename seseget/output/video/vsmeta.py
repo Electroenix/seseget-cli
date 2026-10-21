@@ -1,7 +1,9 @@
 import base64
 import hashlib
 import time
-from . import VideoMetaData
+
+from ...metadata.video import VideoMetaData
+from ...utils.file_utils import make_filename_valid
 
 
 # 计算vsmeta中数据的校验码
@@ -24,7 +26,9 @@ def get_check_code(len: int):
 
 
 # 生成适用于video station的vsmeta文件
-def make_vsmeta_file(filename: str, metadata: VideoMetaData):
+def write_vsmeta(save_dir: str, video_name: str, metadata: VideoMetaData):
+    """生成群晖 VideoStation 的 vsmeta 元数据文件。"""
+    filename = save_dir + '/' + make_filename_valid(f"{video_name}.mp4.vsmeta")
     f_vsmeta = open(filename, 'wb')
 
     # 标题

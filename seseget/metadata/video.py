@@ -1,3 +1,4 @@
+"""视频元数据模型。"""
 
 
 class VideoMetaData:

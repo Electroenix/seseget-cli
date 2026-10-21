@@ -10,7 +10,7 @@ from common import Postman
 from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, JmApiClient, catch_exception, JmImageDetail, jm_log
 
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
-from ..metadata.comic.doc import make_comic
+from ..output.comic import package_comic
 from ..config.path import DATA_DIR
 from ..utils.file_utils import *
 from ..utils.trace import logger, SSGLogger
@@ -387,7 +387,7 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
         if progress:
             progress.set_status(FileDLProgress.Status.PROCESS)
 
-        make_comic(save_dir, comic_title, image_temp_dir_path, chapter.metadata)
+        package_comic(save_dir, comic_title, image_temp_dir_path, chapter.metadata)
 
         if progress:
             progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
