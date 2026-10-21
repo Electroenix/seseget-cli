@@ -9,6 +9,23 @@ from ..utils.trace import logger
 from .path import CONFIG_PATH, DEFAULT_CONFIG_PATH
 
 
+def _update_nested_dict(target: dict, source: dict) -> None:
+    """将 source 中的值合并到 target 的同名键上。
+
+    只更新 target 中已存在的键；字典递归合并，列表和其它值整体替换。
+    列表不能按下标合并，否则列表缩短时旧元素会残留。
+    """
+    for key, new_value in source.items():
+        if key not in target:
+            continue
+
+        old_value = target[key]
+        if isinstance(old_value, dict) and isinstance(new_value, dict):
+            _update_nested_dict(old_value, new_value)
+        else:
+            target[key] = new_value
+
+
 class ObservableDict(UserDict):
     """
     模拟字典类型，支持在检测到内容修改时自动更新文件
@@ -47,29 +64,9 @@ class ObservableDict(UserDict):
             super().__setitem__(key, observ_value)
 
             # 2. 同步更新内部origin_data中的值
-            if isinstance(value, dict):
-                def update_nested_dict(dict1, dict2):
-                    """递归更新dict1，将dict2的值应用到dict1的相同键上"""
-                    for key, value in dict1.items():
-                        if key in dict2:
-                            # 如果两个值都是字典，递归处理
-                            if isinstance(value, dict) and isinstance(dict2[key], dict):
-                                update_nested_dict(value, dict2[key])
-                            # 如果两个值都是列表，可以按索引更新（假设长度相同）
-                            elif isinstance(value, list) and isinstance(dict2[key], list):
-                                for i in range(min(len(value), len(dict2[key]))):
-                                    # 如果列表元素是字典，递归处理
-                                    if isinstance(value[i], dict) and isinstance(dict2[key][i], dict):
-                                        update_nested_dict(value[i], dict2[key][i])
-                                    else:
-                                        # 否则直接替换
-                                        value[i] = dict2[key][i]
-                            else:
-                                # 其他类型直接替换
-                                dict1[key] = dict2[key]
-                    return dict1
-
-                update_nested_dict(self.origin_data[key], value)
+            origin_value = self.origin_data.get(key)
+            if isinstance(value, dict) and isinstance(origin_value, dict):
+                _update_nested_dict(origin_value, value)
             else:
                 self.origin_data[key] = value
 
