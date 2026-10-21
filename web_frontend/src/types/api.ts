@@ -39,7 +39,10 @@ export interface DownloadTask {
 }
 
 // --- Config (recursive, any shape) ---
-export type ConfigValue = string | number | boolean | ConfigObject;
+export type ConfigValue = string | number | boolean | string[] | ConfigObject;
 export interface ConfigObject {
   [key: string]: ConfigValue;
 }
+
+// --- Config field options (field path -> available formats) ---
+export type FormatOptions = Record<string, string[]>;

@@ -1,4 +1,9 @@
-import type { ApiResponse, MediaInfo, ConfigObject } from "../types/api";
+import type {
+  ApiResponse,
+  MediaInfo,
+  ConfigObject,
+  FormatOptions,
+} from "../types/api";
 
 const TOKEN_KEY = "seseget_auth_token";
 
@@ -77,6 +82,17 @@ export async function fetchSettings(): Promise<ApiResponse<ConfigObject>> {
     headers: authHeaders(),
   });
   return handleResponse<ConfigObject>(response);
+}
+
+// GET /api/settings/formats
+export async function fetchFormatOptions(): Promise<
+  ApiResponse<FormatOptions>
+> {
+  const response = await fetch("/api/settings/formats", {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  return handleResponse<FormatOptions>(response);
 }
 
 // POST /api/settings/save

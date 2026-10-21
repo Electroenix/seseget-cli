@@ -1,3 +1,6 @@
+"""视频元数据文件输出。
+"""
+
 from typing import Callable
 
 from ...config.config_manager import config

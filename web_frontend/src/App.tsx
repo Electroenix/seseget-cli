@@ -1,11 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
-import type { MediaInfo, DownloadTask, ConfigObject } from "./types/api";
+import type {
+  MediaInfo,
+  DownloadTask,
+  ConfigObject,
+  FormatOptions,
+} from "./types/api";
 import {
   fetchSiteList,
   fetchSearch,
   fetchSeriesInfo,
   downloadMedia,
   fetchSettings,
+  fetchFormatOptions,
   saveSettings,
   fetchWebSettings,
   saveWebSettings,
@@ -53,6 +59,7 @@ function MainApp({ version }: { version: string }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [configData, setConfigData] = useState<ConfigObject | null>(null);
   const [webConfigData, setWebConfigData] = useState<ConfigObject | null>(null);
+  const [formatOptions, setFormatOptions] = useState<FormatOptions | null>(null);
   const [configKey, setConfigKey] = useState(0);
 
   // Load site list on mount
@@ -180,12 +187,18 @@ function MainApp({ version }: { version: string }) {
   // --- Config handlers ---
   const handleOpenConfig = useCallback(async () => {
     try {
-      const [mainRes, webRes] = await Promise.all([
+      const formatsPromise = fetchFormatOptions().catch((err) => {
+        console.error("Failed to load format options:", err);
+        return null;
+      });
+      const [mainRes, webRes, formatsRes] = await Promise.all([
         fetchSettings(),
         fetchWebSettings(),
+        formatsPromise,
       ]);
       setConfigData(mainRes.data as ConfigObject);
       setWebConfigData(webRes.data as ConfigObject);
+      setFormatOptions(formatsRes?.data ?? null);
       setConfigKey((k) => k + 1);
       setConfigOpen(true);
     } catch (err) {
@@ -252,6 +265,7 @@ function MainApp({ version }: { version: string }) {
           open={configOpen}
           config={configData}
           webConfig={webConfigData}
+          formatOptions={formatOptions}
           onSave={handleSaveConfig}
           onSaveWeb={handleSaveWebConfig}
           onClose={handleCloseConfig}
