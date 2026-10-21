@@ -9,7 +9,6 @@ MANGA_DIRECTION = "No"
 
 
 def write_comic_info_xml(output_dir: str, metadata: ComicMetaData):
-    """在指定目录生成 ComicInfo.xml（纯元数据，不负责打包）。"""
     output_path = output_dir + "/" + "ComicInfo.xml"
 
     with open(output_path, "w", encoding='utf-8') as f:
