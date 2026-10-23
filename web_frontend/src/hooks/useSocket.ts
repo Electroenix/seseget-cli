@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import type { DownloadTask } from "../types/api";
 
-const SOCKET_URL = import.meta.env.DEV ? "http://localhost:5000" : "";
+// 使用同源连接：生产环境直连当前服务，开发环境由 Vite 代理 /socket.io 到 12450
+const SOCKET_URL = "";
 const TOKEN_KEY = "seseget_auth_token";
 
 function getToken(): string | null {
