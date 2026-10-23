@@ -67,5 +67,5 @@ async def verify(request: Request):
         )
 
     return ApiResponse(
-        code=ResponseCode.UNAUTHORIZED, message="Invalid token", status_code=200
+        code=ResponseCode.UNAUTHORIZED, message="Invalid token"
     )

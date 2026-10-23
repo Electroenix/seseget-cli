@@ -8,7 +8,8 @@ async function verifyToken(token: string): Promise<boolean> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
     });
-    return response.ok;
+    const data = await response.json().catch(() => null);
+    return response.ok && data?.code === 200;
   } catch {
     return false;
   }
