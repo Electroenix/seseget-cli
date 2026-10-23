@@ -5,10 +5,15 @@ from tempfile import TemporaryDirectory
 from pathlib import Path
 import shutil
 from datetime import datetime, timezone
+from xml.sax.saxutils import escape
 from PIL import Image
 
 from ...metadata.comic import ComicMetaData
 from ...utils.trace import logger
+
+
+def _escape(value) -> str:
+    return escape(str(value))
 
 
 # 是否生成封面页
@@ -219,12 +224,12 @@ html, body {
             # 元数据: 标题
             if self.metadata.title:
                 f.write(f"""
-    <dc:title id="main-title">{self.metadata.title}</dc:title>""")
+    <dc:title id="main-title">{_escape(self.metadata.title)}</dc:title>""")
 
             # 元数据: 作者
             if self.metadata.creator:
                 f.write(f"""
-    <dc:creator id="author">{self.metadata.creator}</dc:creator>""")
+    <dc:creator id="author">{_escape(self.metadata.creator)}</dc:creator>""")
 
             # 元数据: id
             f.write(f"""
@@ -233,29 +238,29 @@ html, body {
             # 元数据: 语言
             if self.metadata.language:
                 f.write(f"""
-    <dc:language>{self.metadata.language}</dc:language>""")
+    <dc:language>{_escape(self.metadata.language)}</dc:language>""")
 
             # 元数据: 发布日期
             if self.metadata.year and self.metadata.month and self.metadata.day:
                 f.write(f"""
-    <dc:date>{"-".join([self.metadata.year, self.metadata.month, self.metadata.day])}</dc:date>""")
+    <dc:date>{_escape("-".join([self.metadata.year, self.metadata.month, self.metadata.day]))}</dc:date>""")
 
             # 元数据: 标签
             for subject in self.metadata.subjects:
                 f.write(f"""
-    <dc:subject>{subject}</dc:subject>""")
+    <dc:subject>{_escape(subject)}</dc:subject>""")
 
             # 元数据增强: 标题
             if self.metadata.title:
                 f.write(f"""
     <meta refines="#main-title" property="title-type">main</meta>
-    <meta refines="#main-title" property="file-as">{self.metadata.title}</meta>""")
+    <meta refines="#main-title" property="file-as">{_escape(self.metadata.title)}</meta>""")
 
             # 元数据增强: 作者
             if self.metadata.creator:
                 f.write(f"""
     <meta refines="#author" property="role" scheme="marc:relators">aut</meta>
-    <meta refines="#author" property="file-as">{self.metadata.creator}</meta>""")
+    <meta refines="#author" property="file-as">{_escape(self.metadata.creator)}</meta>""")
 
             # 修改时间
             f.write(f"""
@@ -265,9 +270,9 @@ html, body {
             # 系列
             if self.metadata.series:
                 f.write(f"""
-    <meta property="belongs-to-collection" id="series">{self.metadata.series}</meta>
+    <meta property="belongs-to-collection" id="series">{_escape(self.metadata.series)}</meta>
     <meta refines="#series" property="collection-type">series</meta>
-    <meta refines="#series" property="group-position">{self.metadata.number}</meta>""")
+    <meta refines="#series" property="group-position">{_escape(self.metadata.number)}</meta>""")
 
             # 版型
             f.write(f"""
