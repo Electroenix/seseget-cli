@@ -19,11 +19,13 @@ import {
 } from "./api/client";
 import { useDownloadSocket } from "./hooks/useSocket";
 import { useAuth } from "./contexts/AuthContext";
+import type { MainPage } from "./types/ui";
 import LoginPage from "./components/LoginPage";
 import NavBar from "./components/NavBar";
 import SearchBar from "./components/SearchBar";
 import InfoPanel from "./components/InfoPanel";
 import ConfigPanel from "./components/ConfigPanel";
+import DownloadPage from "./components/DownloadPage";
 
 const VIDEO_STATIONS = new Set(["hanime", "bilibili", "youtube", "twitter"]);
 
@@ -49,13 +51,20 @@ function MainApp({ version }: { version: string }) {
   const [siteList, setSiteList] = useState<string[]>([]);
   const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null);
 
+  // Main page navigation, ready to extend to settings later
+  const [activePage, setActivePage] = useState<MainPage>("search");
+
   // Batch download state
   const [showCheckboxes, setShowCheckboxes] = useState(false);
   const [selectedChapters, setSelectedChapters] = useState<Set<number>>(new Set());
 
   // Download list via WebSocket
   const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([]);
-  useDownloadSocket(setDownloadTasks);
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const handleDownloadFinished = useCallback(() => {
+    setHistoryVersion((version) => version + 1);
+  }, []);
+  useDownloadSocket(setDownloadTasks, handleDownloadFinished);
 
   // Config modal state
   const [configOpen, setConfigOpen] = useState(false);
@@ -233,33 +242,42 @@ function MainApp({ version }: { version: string }) {
   return (
     <>
       <NavBar
+        activePage={activePage}
+        onNavigate={setActivePage}
         downloadTasks={downloadTasks}
         onOpenConfig={handleOpenConfig}
         version={version}
       />
 
-      <div className="container-fluid">
-        <div className="row justify-content-center">
-          <div className="col-lg-6">
-            <SearchBar siteList={siteList} onSubmit={handleSearch} />
+      {activePage === "download" ? (
+        <DownloadPage
+          tasks={downloadTasks}
+          historyVersion={historyVersion}
+        />
+      ) : (
+        <div className="container-fluid">
+          <div className="row justify-content-center">
+            <div className="col-lg-6">
+              <SearchBar siteList={siteList} onSubmit={handleSearch} />
 
-            {mediaInfo && (
-              <InfoPanel
-                info={mediaInfo}
-                showCheckboxes={showCheckboxes}
-                selectedChapters={selectedChapters}
-                onSeriesClick={handleSeriesClick}
-                onJump={handleChapterJump}
-                onDownloadSingle={handleDownloadSingle}
-                onToggleBatch={handleToggleBatch}
-                onSelectAll={handleSelectAll}
-                onDownloadSelected={handleDownloadSelected}
-                onToggleChapter={handleToggleChapter}
-              />
-            )}
+              {mediaInfo && (
+                <InfoPanel
+                  info={mediaInfo}
+                  showCheckboxes={showCheckboxes}
+                  selectedChapters={selectedChapters}
+                  onSeriesClick={handleSeriesClick}
+                  onJump={handleChapterJump}
+                  onDownloadSingle={handleDownloadSingle}
+                  onToggleBatch={handleToggleBatch}
+                  onSelectAll={handleSelectAll}
+                  onDownloadSelected={handleDownloadSelected}
+                  onToggleChapter={handleToggleChapter}
+                />
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {configOpen && (
         <ConfigPanel

@@ -10,9 +10,17 @@ function getToken(): string | null {
 }
 
 export function useDownloadSocket(
-  onData: (tasks: DownloadTask[]) => void
+  onData: (tasks: DownloadTask[]) => void,
+  onFinished?: () => void
 ) {
   const socketRef = useRef<Socket | null>(null);
+  const onDataRef = useRef(onData);
+  const onFinishedRef = useRef(onFinished);
+
+  useEffect(() => {
+    onDataRef.current = onData;
+    onFinishedRef.current = onFinished;
+  }, [onData, onFinished]);
 
   useEffect(() => {
     const socket = io(window.location.origin, {
@@ -30,7 +38,11 @@ export function useDownloadSocket(
     });
 
     socket.on("download_status", (data: DownloadTask[]) => {
-      onData(data);
+      onDataRef.current(data);
+    });
+
+    socket.on("download_finished", () => {
+      onFinishedRef.current?.();
     });
 
     socket.on("disconnect", (reason) => {

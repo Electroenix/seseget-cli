@@ -26,6 +26,15 @@ def _update_nested_dict(target: dict, source: dict) -> None:
             target[key] = new_value
 
 
+def _merge_missing_defaults(target: dict, defaults: dict) -> None:
+    """把默认配置中存在、用户配置中缺失的键补进用户配置。"""
+    for key, value in defaults.items():
+        if key not in target:
+            target[key] = value
+        elif isinstance(value, dict) and isinstance(target.get(key), dict):
+            _merge_missing_defaults(target[key], value)
+
+
 class ObservableDict(UserDict):
     """
     模拟字典类型，支持在检测到内容修改时自动更新文件
@@ -111,6 +120,14 @@ class ConfigManager:
 
             with open(self._config_path, "r", encoding='utf-8') as f:
                 raw_config = self._yaml.load(f)
+
+            # 让已有配置文件自动获得新版本新增的默认配置项，例如 max_history
+            if os.path.exists(self._default_config_path):
+                with open(self._default_config_path, "r", encoding='utf-8') as f:
+                    default_config = self._yaml.load(f)
+                if isinstance(raw_config, dict) and isinstance(default_config, dict):
+                    _merge_missing_defaults(raw_config, default_config)
+
             self._config = self._wrap_dict(raw_config)
             logger.debug("Config loaded.")
         except Exception as e:

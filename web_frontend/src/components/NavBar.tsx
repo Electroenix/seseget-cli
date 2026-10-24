@@ -1,14 +1,18 @@
 import type { DownloadTask } from "../types/api";
+import type { MainPage } from "../types/ui";
 import { useAuth } from "../contexts/AuthContext";
-import DownloadListPanel from "./DownloadListPanel";
 
 interface NavBarProps {
+  activePage: MainPage;
+  onNavigate: (page: MainPage) => void;
   downloadTasks: DownloadTask[];
   onOpenConfig: () => void;
   version: string;
 }
 
 export default function NavBar({
+  activePage,
+  onNavigate,
   downloadTasks,
   onOpenConfig,
   version,
@@ -18,7 +22,14 @@ export default function NavBar({
   return (
     <nav className="navbar navbar-expand bg-body-tertiary fixed-top border-bottom">
       <div className="container-fluid">
-        <a className="logo" href="#">
+        <a
+          className="logo"
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            onNavigate("search");
+          }}
+        >
           seseGet{" "}
           {version && (
             <span className="badge bg-secondary fw-normal" style={{ fontSize: "0.65rem", verticalAlign: "text-top" }}>
@@ -27,21 +38,40 @@ export default function NavBar({
           )}
         </a>
         <ul className="navbar-nav ms-auto">
-          <li className="nav-item dropdown me-2">
+          <li className="nav-item me-2">
             <a
-              className="nav-link dropdown-toggle"
+              className={`nav-link ${activePage === "search" ? "active" : ""}`}
               href="#"
               role="button"
-              data-bs-toggle="dropdown"
-              data-bs-auto-close="outside"
-              aria-expanded="false"
+              aria-current={activePage === "search" ? "page" : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("search");
+              }}
+            >
+              <i className="bi bi-search me-1" />
+              搜索
+            </a>
+          </li>
+          <li className="nav-item me-2">
+            <a
+              className={`nav-link ${activePage === "download" ? "active" : ""}`}
+              href="#"
+              role="button"
+              aria-current={activePage === "download" ? "page" : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("download");
+              }}
             >
               <i className="bi bi-download me-1" />
-              下载列表
+              下载
+              {downloadTasks.length > 0 && (
+                <span className="badge bg-secondary ms-1">
+                  {downloadTasks.length}
+                </span>
+              )}
             </a>
-            <div className="dropdown-menu dropdown-menu-end p-0">
-              <DownloadListPanel tasks={downloadTasks} />
-            </div>
           </li>
           <li className="nav-item me-2">
             <a className="nav-link" href="#" role="button" onClick={(e) => { e.preventDefault(); onOpenConfig(); }}>

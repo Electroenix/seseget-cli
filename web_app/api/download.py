@@ -54,15 +54,50 @@ async def download(request: Request):
         return ApiResponse(code=ResponseCode.NOT_FOUND, message="Error")
 
 
+@router.get("/history")
+async def get_download_history(limit: int | None = None, offset: int = 0):
+    """获取已结束的下载历史。"""
+    effective_limit = download_manager.get_history_limit() if limit is None else limit
+    items, total = download_manager.get_history(limit=effective_limit, offset=offset)
+    return ApiResponse(
+        data={
+            "items": items,
+            "total": total,
+            "max_items": download_manager.get_history_limit(),
+        }
+    )
+
+
+@router.delete("/history")
+async def clear_download_history():
+    """清空下载历史。"""
+    try:
+        download_manager.clear_history()
+    except OSError as e:
+        logger.error(f"清空下载历史失败: {e}")
+        return ApiResponse(
+            code=ResponseCode.SERVER_ERROR,
+            message="清空下载历史失败",
+        )
+    return ApiResponse(code=ResponseCode.SUCCESS, message="Success")
+
+
 async def emit_download_status():
-    """后台任务：每秒通过 WebSocket 推送下载任务状态"""
+    """后台任务：每秒通过 WebSocket 推送活动下载任务状态"""
+    last_history_id = download_manager.latest_history_id
     while True:
+        latest_history_id = download_manager.latest_history_id
+        if latest_history_id != last_history_id:
+            last_history_id = latest_history_id
+            await sio.emit("download_finished", {"id": latest_history_id})
+
         tasks_info = []
-        # 新任务排在列表最前面
-        for task in reversed(download_manager.tasks):
+        # 活动任务按创建顺序倒序，新任务排在列表最前面
+        for task in reversed(list(download_manager.tasks)):
             progress = task.task_progress
             tasks_info.append(
                 {
+                    "id": task.id,
                     "name": progress.name,
                     "progress": progress.total_progress.percent,
                     "speed": progress.total_progress.speed,

@@ -2,26 +2,33 @@ import type { DownloadTask } from "../types/api";
 
 interface DownloadListPanelProps {
   tasks: DownloadTask[];
+  title?: string;
+  emptyText?: string;
 }
 
-export default function DownloadListPanel({ tasks }: DownloadListPanelProps) {
+export default function DownloadListPanel({
+  tasks,
+  title = "正在下载",
+  emptyText = "暂无正在下载的任务",
+}: DownloadListPanelProps) {
   return (
     <div className="download-list-panel card">
-      <div className="card-header py-2">
-        <span className="fw-semibold">下载列表</span>
+      <div className="card-header py-2 d-flex justify-content-between align-items-center">
+        <span className="fw-semibold">{title}</span>
+        <span className="badge bg-secondary">{tasks.length}</span>
       </div>
       <div
         className="list-group list-group-flush"
-        style={{ maxHeight: "70vh", overflowY: "auto" }}
+        style={{ maxHeight: "60vh", overflowY: "auto" }}
       >
         {tasks.length === 0 ? (
           <div className="list-group-item text-center text-muted py-4">
             <i className="bi bi-inbox" style={{ fontSize: "1.5rem" }} />
-            <div className="mt-1">暂无下载任务</div>
+            <div className="mt-1">{emptyText}</div>
           </div>
         ) : (
-          tasks.map((task, idx) => (
-            <div className="list-group-item" key={idx}>
+          tasks.map((task) => (
+            <div className="list-group-item" key={task.id}>
               <div className="text-truncate small mb-2">{task.name}</div>
               <div className="d-flex align-items-center gap-2">
                 <div className="flex-grow-1">
@@ -42,10 +49,18 @@ export default function DownloadListPanel({ tasks }: DownloadListPanelProps) {
                   </span>
                   <span
                     className={`small ${
-                      task.status === "OK" ? "text-success" : "text-muted"
+                      task.status === "ERR"
+                        ? "text-danger"
+                        : task.status === "OK"
+                          ? "text-success"
+                          : "text-muted"
                     }`}
                   >
-                    {task.status === "OK" ? "OK" : task.progress.toFixed(1) + "%"}
+                    {task.status === "ERR"
+                      ? "失败"
+                      : task.status === "OK"
+                        ? "OK"
+                        : task.progress.toFixed(1) + "%"}
                   </span>
                 </div>
               </div>

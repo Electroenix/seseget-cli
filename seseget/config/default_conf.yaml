@@ -39,6 +39,9 @@ twitter:
 
 # 下载配置
 download:
+  # 下载历史最多保留的条数
+  max_history: 200
+
   # true: 会在下载目录下生成source.txt文件保存下载资源的来源信息，false: 不生成source.txt
   save_source_info: false
 
