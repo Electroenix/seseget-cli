@@ -130,15 +130,9 @@ body {
   flex-shrink: 0;
 }
 
-/* ===== Download list dropdown ===== */
+/* ===== Download page ===== */
 .download-list-panel {
-  min-width: 480px;
-}
-
-@media (max-width: 575.98px) {
-  .download-list-panel {
-    min-width: 100vw;
-  }
+  width: 100%;
 }
 
 /* ===== Config panel ===== */

@@ -3,6 +3,7 @@ import type {
   MediaInfo,
   ConfigObject,
   FormatOptions,
+  DownloadHistoryData,
 } from "../types/api";
 
 const TOKEN_KEY = "seseget_auth_token";
@@ -71,6 +72,32 @@ export async function downloadMedia(
     method: "POST",
     body: JSON.stringify({ station, url, chapters }),
     headers: { "Content-Type": "application/json", ...authHeaders() },
+  });
+  return handleResponse(response);
+}
+
+// GET /api/download/history
+export async function fetchDownloadHistory(
+  limit?: number,
+  offset = 0
+): Promise<ApiResponse<DownloadHistoryData>> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) {
+    params.set("limit", String(limit));
+  }
+  params.set("offset", String(offset));
+  const response = await fetch(`/api/download/history?${params}`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  return handleResponse<DownloadHistoryData>(response);
+}
+
+// DELETE /api/download/history
+export async function clearDownloadHistory(): Promise<ApiResponse> {
+  const response = await fetch("/api/download/history", {
+    method: "DELETE",
+    headers: authHeaders(),
   });
   return handleResponse(response);
 }

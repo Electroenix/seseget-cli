@@ -1,14 +1,19 @@
 import asyncio
 import uuid
 import functools
+from datetime import datetime, timezone
 from typing import Callable
 import inspect
 import traceback
 
+from ..config.config_manager import config
 from ..utils.trace import logger
 from ..utils.file_utils import *
 from ..utils.output import ProgressBar
 from ..config import settings
+from .download_history import DownloadHistoryStore
+
+DEFAULT_MAX_HISTORY = 200
 
 
 class FileDLProgress:
@@ -189,21 +194,83 @@ class DownloadTask:
         self.name: str = name
         self.task_progress: TaskDLProgress = TaskDLProgress(name)
         self.asyncio_task: asyncio.Task | None = None
+        self.started_at: datetime | None = None
+        self.finalized: bool = False
 
 
 class DownloadManager:
     """下载任务管理器"""
 
-    def __init__(self, max_concurrent=3):
+    def __init__(self, max_concurrent=3, history_store: DownloadHistoryStore | None = None):
         self.max_concurrent = max_concurrent
         self.tasks: list[DownloadTask] = []
         self.id_to_task: dict[str, DownloadTask] = {}
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._id_counter = 0
+        self.history_store = history_store or DownloadHistoryStore()
+        self.history_store.trim(self.get_history_limit())
 
     def _generate_task_id(self):
         self._id_counter += 1
         return f"{self._id_counter}-{uuid.uuid4().hex[:6]}"
+
+    def get_history_limit(self) -> int:
+        """读取可配置的下载历史保留条数，非法配置回退到默认值。"""
+        try:
+            value = config["download"].get("max_history", DEFAULT_MAX_HISTORY)
+            return max(1, int(value))
+        except (KeyError, TypeError, ValueError):
+            return DEFAULT_MAX_HISTORY
+
+    def get_history(self, limit: int = DEFAULT_MAX_HISTORY, offset: int = 0):
+        """返回历史记录切片和总条数。"""
+        max_items = self.get_history_limit()
+        if len(self.history_store.items) > max_items:
+            self.history_store.trim(max_items)
+        limit = max(1, min(int(limit), max_items))
+        offset = max(0, int(offset))
+        return self.history_store.items[offset:offset + limit], len(self.history_store.items)
+
+    def clear_history(self):
+        self.history_store.clear()
+
+    @property
+    def latest_history_id(self) -> str | None:
+        return self.history_store.latest_id
+
+    def _finalize_task(self, task: DownloadTask, status: str, error: str | None = None):
+        """把终态任务写入历史，并从活动任务中移除。"""
+        if task.finalized:
+            return
+        task.finalized = True
+
+        finished_at = datetime.now(timezone.utc)
+        started_at = task.started_at or finished_at
+        progress = task.task_progress
+
+        if (
+            status == "success"
+            and progress.total_progress.status == FileDLProgress.Status.DOWNLOAD_ERROR
+        ):
+            status = "failed"
+            error = error or progress.total_progress.error or "下载失败"
+
+        record = {
+            "id": task.id,
+            "name": task.name,
+            "status": status,
+            "started_at": started_at.isoformat(),
+            "finished_at": finished_at.isoformat(),
+            "duration": round((finished_at - started_at).total_seconds(), 2),
+            "file_count": progress.progress_count,
+            "file_finish_count": progress.finish_count,
+            "progress": round(progress.total_progress.percent, 2),
+            "error": error or "",
+        }
+        self.history_store.add(record, self.get_history_limit())
+
+        self.tasks = [t for t in self.tasks if t.id != task.id]
+        self.id_to_task.pop(task.id, None)
 
     def _wrap_download_func(self, original_func: Callable, progress: TaskDLProgress) -> Callable:
         """向original_func中注入关键字参数progress（如果函数支持）"""
@@ -226,13 +293,25 @@ class DownloadManager:
         wrapped_func = self._wrap_download_func(func, task.task_progress)
 
         async def _run_with_semaphore():
-            async with self._semaphore:
-                try:
-                    return await wrapped_func(*args)
-                except Exception:
-                    logger.error("下载任务异常! traceback:\r\n%s" %
-                                 ''.join(traceback.format_exc()))
-                    raise
+            status = "failed"
+            error = None
+            try:
+                async with self._semaphore:
+                    task.started_at = datetime.now(timezone.utc)
+                    result = await wrapped_func(*args)
+                status = "success"
+                return result
+            except asyncio.CancelledError:
+                status = "cancelled"
+                error = "任务已取消"
+                raise
+            except Exception as exc:
+                error = str(exc) or exc.__class__.__name__
+                logger.error("下载任务异常! traceback:\r\n%s" %
+                             ''.join(traceback.format_exc()))
+                raise
+            finally:
+                self._finalize_task(task, status, error)
 
         asyncio_task = asyncio.create_task(_run_with_semaphore())
         task.asyncio_task = asyncio_task

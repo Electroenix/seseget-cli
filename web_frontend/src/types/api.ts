@@ -30,12 +30,33 @@ export interface MediaInfo {
 
 // --- Download Task ---
 export interface DownloadTask {
+  id: string;
   name: string;
   progress: number;
   speed: number;
   status: string;
   file_count: number;
   file_finish_count: number;
+}
+
+// --- Download History ---
+export interface DownloadHistoryItem {
+  id: string;
+  name: string;
+  status: "success" | "failed" | "cancelled" | string;
+  started_at: string;
+  finished_at: string;
+  duration: number;
+  file_count: number;
+  file_finish_count: number;
+  progress: number;
+  error: string;
+}
+
+export interface DownloadHistoryData {
+  items: DownloadHistoryItem[];
+  total: number;
+  max_items: number;
 }
 
 // --- Config (recursive, any shape) ---
