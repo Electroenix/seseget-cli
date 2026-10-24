@@ -25,6 +25,8 @@ import SearchBar from "./components/SearchBar";
 import InfoPanel from "./components/InfoPanel";
 import ConfigPanel from "./components/ConfigPanel";
 
+const VIDEO_STATIONS = new Set(["hanime", "bilibili", "youtube", "twitter"]);
+
 export default function App() {
   const { isAuthenticated } = useAuth();
   const [version, setVersion] = useState<string>("");
@@ -129,14 +131,14 @@ function MainApp({ version }: { version: string }) {
     let chapters: (string | number)[];
 
     try {
-      if (station === "hanime") {
-        // Hanime: 每个视频 URL 不同，传入chapters列表中
+      if (VIDEO_STATIONS.has(station)) {
+        // 视频站点：每集/每个视频的 URL 不同，传 URL 列表
         url = "";
         chapters = mediaInfo.chapter
           .filter((ch) => selectedChapters.has(ch.order))
           .map((ch) => ch.url);
       } else {
-        // 其他站点: 同一 URL，传章节 ID 列表
+        // 漫画站点：同一作品 URL，传章节 ID 列表
         url = mediaInfo.url;
         chapters = Array.from(selectedChapters);
       }

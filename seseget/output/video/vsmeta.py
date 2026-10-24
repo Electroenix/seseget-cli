@@ -25,101 +25,114 @@ def get_check_code(len: int):
         return code_h
 
 
+def _encode_year(year) -> bytes | None:
+    """把年份编码为 vsmeta 的单字节偏移；无法解析或超出范围时返回 None。"""
+    try:
+        year_value = int(str(year).strip())
+    except (TypeError, ValueError):
+        return None
+
+    offset = year_value - 0x700
+    if not 0 <= offset <= 0xFF:
+        return None
+    return offset.to_bytes(1, "big")
+
+
 # 生成适用于video station的vsmeta文件
 def write_vsmeta(save_dir: str, video_name: str, metadata: VideoMetaData):
     """生成群晖 VideoStation 的 vsmeta 元数据文件。"""
     filename = save_dir + '/' + make_filename_valid(f"{video_name}.mp4.vsmeta")
-    f_vsmeta = open(filename, 'wb')
 
-    # 标题
-    f_vsmeta.write(bytes.fromhex('080112'))
-    f_vsmeta.write(get_check_code(len(metadata.title.encode())))
-    f_vsmeta.write(metadata.title.encode())
+    with open(filename, 'wb') as f_vsmeta:
+        # 标题
+        f_vsmeta.write(bytes.fromhex('080112'))
+        f_vsmeta.write(get_check_code(len(metadata.title.encode())))
+        f_vsmeta.write(metadata.title.encode())
 
-    # 标题2
-    f_vsmeta.write(bytes.fromhex('1a'))
-    f_vsmeta.write(get_check_code(len(metadata.title.encode())))
-    f_vsmeta.write(metadata.title.encode())
+        # 标题2
+        f_vsmeta.write(bytes.fromhex('1a'))
+        f_vsmeta.write(get_check_code(len(metadata.title.encode())))
+        f_vsmeta.write(metadata.title.encode())
 
-    # 副标题
-    f_vsmeta.write(bytes.fromhex('22'))
-    f_vsmeta.write(get_check_code(len(metadata.sub_title.encode())))
-    f_vsmeta.write(metadata.sub_title.encode())
+        # 副标题
+        f_vsmeta.write(bytes.fromhex('22'))
+        f_vsmeta.write(get_check_code(len(metadata.sub_title.encode())))
+        f_vsmeta.write(metadata.sub_title.encode())
 
-    # 年份
-    f_vsmeta.write(bytes.fromhex('28'))
-    f_vsmeta.write((int(metadata.year) - 0x700).to_bytes())
-    f_vsmeta.write(bytes.fromhex('0f'))
+        # 年份
+        year_data = _encode_year(metadata.year)
+        if year_data is not None:
+            f_vsmeta.write(bytes.fromhex('28'))
+            f_vsmeta.write(year_data)
+            f_vsmeta.write(bytes.fromhex('0f'))
 
-    # 发布日期
-    f_vsmeta.write(bytes.fromhex('32'))
-    f_vsmeta.write(get_check_code(len(metadata.public_time.encode())))
-    f_vsmeta.write(metadata.public_time.encode())
+        # 发布日期
+        f_vsmeta.write(bytes.fromhex('32'))
+        f_vsmeta.write(get_check_code(len(metadata.public_time.encode())))
+        f_vsmeta.write(metadata.public_time.encode())
 
-    # 锁定状态
-    f_vsmeta.write(bytes.fromhex('3801'))
+        # 锁定状态
+        f_vsmeta.write(bytes.fromhex('3801'))
 
-    # 简介
-    f_vsmeta.write(bytes.fromhex('42'))
-    f_vsmeta.write(get_check_code(len(metadata.describe.encode())))
-    f_vsmeta.write(metadata.describe.encode())
+        # 简介
+        f_vsmeta.write(bytes.fromhex('42'))
+        f_vsmeta.write(get_check_code(len(metadata.describe.encode())))
+        f_vsmeta.write(metadata.describe.encode())
 
-    f_vsmeta.write(bytes.fromhex('4a'))
-    f_vsmeta.write(get_check_code(len('null'.encode())))
-    f_vsmeta.write('null'.encode())
+        f_vsmeta.write(bytes.fromhex('4a'))
+        f_vsmeta.write(get_check_code(len('null'.encode())))
+        f_vsmeta.write('null'.encode())
 
-    # 组1数据
-    # 导演
-    group1 = bytes.fromhex('12')
-    group1 = group1 + get_check_code(len(metadata.author.encode()))
-    group1 = group1 + metadata.author.encode()
+        # 组1数据
+        # 导演
+        group1 = bytes.fromhex('12')
+        group1 = group1 + get_check_code(len(metadata.author.encode()))
+        group1 = group1 + metadata.author.encode()
 
-    # 标签
-    for t in metadata.tag_list:
-        group1 = group1 + bytes.fromhex('1a')
-        group1 = group1 + get_check_code(len(t.encode()))
-        group1 = group1 + t.encode()
+        # 标签
+        for t in metadata.tag_list:
+            group1 = group1 + bytes.fromhex('1a')
+            group1 = group1 + get_check_code(len(t.encode()))
+            group1 = group1 + t.encode()
 
-    # 作者
-    group1 = group1 + bytes.fromhex('22')
-    group1 = group1 + get_check_code(len(metadata.author.encode()))
-    group1 = group1 + metadata.author.encode()
+        # 作者
+        group1 = group1 + bytes.fromhex('22')
+        group1 = group1 + get_check_code(len(metadata.author.encode()))
+        group1 = group1 + metadata.author.encode()
 
-    # 写入组1数据
-    f_vsmeta.write(bytes.fromhex('52'))
-    f_vsmeta.write(get_check_code(len(group1)))
-    f_vsmeta.write(group1)
+        # 写入组1数据
+        f_vsmeta.write(bytes.fromhex('52'))
+        f_vsmeta.write(get_check_code(len(group1)))
+        f_vsmeta.write(group1)
 
-    f_vsmeta.write(bytes.fromhex('5a00'))
+        f_vsmeta.write(bytes.fromhex('5a00'))
 
-    # 评分
-    f_vsmeta.write(bytes.fromhex('60ffffffffffffffffff01'))
+        # 评分
+        f_vsmeta.write(bytes.fromhex('60ffffffffffffffffff01'))
 
-    # 组3数据
-    if metadata.back_ground_path:
-        with open(metadata.back_ground_path, 'rb') as f_bg_image:
-            image_data = f_bg_image.read()
-            bg_image_base64 = base64.b64encode(image_data)
-            # 计算图片md5
-            image_md5 = hashlib.md5(image_data).hexdigest()
+        # 组3数据
+        if metadata.back_ground_path:
+            with open(metadata.back_ground_path, 'rb') as f_bg_image:
+                image_data = f_bg_image.read()
+                bg_image_base64 = base64.b64encode(image_data)
+                # 计算图片md5
+                image_md5 = hashlib.md5(image_data).hexdigest()
 
-            # 背景图base64
-            group3 = bytes.fromhex('0a')
-            group3 = group3 + get_check_code(len(bg_image_base64))
-            group3 = group3 + bg_image_base64
+                # 背景图base64
+                group3 = bytes.fromhex('0a')
+                group3 = group3 + get_check_code(len(bg_image_base64))
+                group3 = group3 + bg_image_base64
 
-            # md5
-            group3 = group3 + bytes.fromhex('12')
-            group3 = group3 + get_check_code(len(image_md5.encode()))
-            group3 = group3 + image_md5.encode()
+                # md5
+                group3 = group3 + bytes.fromhex('12')
+                group3 = group3 + get_check_code(len(image_md5.encode()))
+                group3 = group3 + image_md5.encode()
 
-            # 时间戳
-            group3 = group3 + bytes.fromhex('18')
-            group3 = group3 + get_check_code(int(time.time()))
+                # 时间戳
+                group3 = group3 + bytes.fromhex('18')
+                group3 = group3 + get_check_code(int(time.time()))
 
-            # 写入组3数据
-            f_vsmeta.write(bytes.fromhex('aa01'))
-            f_vsmeta.write(get_check_code(len(group3)))
-            f_vsmeta.write(group3)
-
-            f_vsmeta.close()
+                # 写入组3数据
+                f_vsmeta.write(bytes.fromhex('aa01'))
+                f_vsmeta.write(get_check_code(len(group3)))
+                f_vsmeta.write(group3)

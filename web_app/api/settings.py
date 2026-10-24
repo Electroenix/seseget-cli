@@ -29,10 +29,7 @@ def format_options():
 @router.post("/save")
 async def save(request: Request):
     data = await request.json()
-    print("data: ", data)
-
-    print("old config: ", config.dict)
+    # 不打印配置内容，避免账号/Cookie 等敏感信息进入日志
     config.update(data)
-    print("new config: ", config.dict)
 
     return ApiResponse(code=ResponseCode.SUCCESS, message="Success")

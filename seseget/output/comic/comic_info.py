@@ -1,11 +1,17 @@
 """ComicInfo.xml 元数据序列化。
 """
 
+from xml.sax.saxutils import escape
+
 from ...metadata.comic import ComicMetaData
 
 
 # 翻页方向: YesAndRightToLeft - 右至左    No - 左至右
 MANGA_DIRECTION = "No"
+
+
+def _escape(value) -> str:
+    return escape(str(value))
 
 
 def write_comic_info_xml(output_dir: str, metadata: ComicMetaData):
@@ -19,52 +25,52 @@ def write_comic_info_xml(output_dir: str, metadata: ComicMetaData):
         # 系列
         if metadata.series:
             f.write(f"""
-  <Series>{metadata.series}</Series>""")
+  <Series>{_escape(metadata.series)}</Series>""")
 
         # 标题
         if metadata.title:
             f.write(f"""
-  <Title>{metadata.title}</Title>""")
+  <Title>{_escape(metadata.title)}</Title>""")
 
         # 编号
         if metadata.number:
             f.write(f"""
-  <Number>{metadata.number}</Number>""")
+  <Number>{_escape(metadata.number)}</Number>""")
 
         # 作者
         if metadata.creator:
             f.write(f"""
-  <Writer>{metadata.creator}</Writer>""")
+  <Writer>{_escape(metadata.creator)}</Writer>""")
 
         # 简介
         if metadata.description:
             f.write(f"""
-  <Summary>{metadata.description}</Summary>""")
+  <Summary>{_escape(metadata.description)}</Summary>""")
 
         # 发布时间: 年
         if metadata.year:
             f.write(f"""
-  <Year>{metadata.year}</Year>""")
+  <Year>{_escape(metadata.year)}</Year>""")
 
         # 发布时间: 月
         if metadata.month:
             f.write(f"""
-  <Month>{metadata.month}</Month>""")
+  <Month>{_escape(metadata.month)}</Month>""")
 
         # 发布时间: 日
         if metadata.day:
             f.write(f"""
-  <Day>{metadata.day}</Day>""")
+  <Day>{_escape(metadata.day)}</Day>""")
 
         # 语言
         if metadata.language:
             f.write(f"""
-  <LanguageISO>{metadata.language}</LanguageISO>""")
+  <LanguageISO>{_escape(metadata.language)}</LanguageISO>""")
 
         # 标签
         if metadata.subjects:
             f.write(f"""
-  <Tags>{",".join(metadata.subjects)}</Tags>""")
+  <Tags>{",".join(_escape(s) for s in metadata.subjects)}</Tags>""")
 
         # 翻页方向
         f.write(f"""
