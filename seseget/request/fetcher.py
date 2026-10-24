@@ -240,12 +240,8 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
             await downloader.download_mp4(video_path, video_info.download_url, progress)
 
     async def _download_process_with_semaphore(self, video_info: T_VideoInfo, progress: TaskDLProgress = None):
-        try:
+        async with self.task_semaphore:
             await self._download_process(video_info, progress)
-        except Exception:
-            raise
-        finally:
-            self.task_semaphore.release()
 
     async def _start_download_task(self, video_info: T_VideoInfo):
         await download_manager.create_task(video_info.name, self._download_process_with_semaphore, video_info)
@@ -260,13 +256,13 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
             "no_download": False,
         }
         params = {**default_params, **kwargs}
-        await self.task_semaphore.acquire()
 
-        video_info = await self._fetch_info(url)
+        # fetch 与下载任务共享信号量，避免解析请求同时爆发
+        async with self.task_semaphore:
+            video_info = await self._fetch_info(url)
         video_info.print_info()
 
         if params["no_download"]:
-            self.task_semaphore.release()
             return
 
         self._make_save_dir(video_info)
@@ -339,13 +335,9 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
         return res
 
     async def _download_process_with_semaphore(self, comic_title: str, chapter: T_ChapterInfo, progress: TaskDLProgress = None):
-        try:
+        async with self.task_semaphore:
             async with self.capter_lock:
                 await self._download_process(comic_title, chapter, progress)
-        except Exception:
-            raise
-        finally:
-            self.task_semaphore.release()
 
     async def _start_download_task(self, chapter: T_ChapterInfo):
         comic_info = chapter.comic_info
@@ -378,13 +370,13 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
             "chapter_id_list": None
         }
         params = {**default_params, **kwargs}
-        await self.task_semaphore.acquire()
 
-        comic_info = await self._fetch_info(url, chapter_id_list=params["chapter_id_list"])
+        # fetch 与下载任务共享信号量，避免解析请求同时爆发
+        async with self.task_semaphore:
+            comic_info = await self._fetch_info(url, chapter_id_list=params["chapter_id_list"])
         comic_info.print_info()
 
         if params["no_download"]:
-            self.task_semaphore.release()
             return
 
         self._make_save_dir(comic_info)

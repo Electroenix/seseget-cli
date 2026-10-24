@@ -121,10 +121,11 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
             "no_download": False,
         }
         params = {**default_params, **kwargs}
-        await self.task_semaphore.acquire()
 
         logger.info(f"开始请求资源信息")
-        video_info_list = await self._get_video_info_list_by_yt_dlp(url)
+        # fetch 与下载任务共享信号量，避免解析请求同时爆发
+        async with self.task_semaphore:
+            video_info_list = await self._get_video_info_list_by_yt_dlp(url)
 
         if video_info_list:
             logger.info(f"获取到{len(video_info_list)}个视频")
@@ -133,7 +134,6 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
                 video_info.print_info()
 
             if params["no_download"]:
-                self.task_semaphore.release()
                 return
 
             # 遍历所有视频信息，创建目录和元数据文件
