@@ -81,18 +81,18 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
         series = []
 
         play_list = soup.find('div', {'id': 'playlist-scroll'})
-        video_element_list = play_list.find_all("div", attrs={"class", "related-watch-wrap"}, recursive=False)
+        video_element_list = play_list.find_all("div", attrs={"class", "playlist-hover-wrap"}, recursive=False)
 
         for video_element in video_element_list:
             if isinstance(video_element, element.Tag):
-                video_url_element = video_element.find("a", {"class": "overlay"})
-                video_thumb_url_element = video_element.find_all("img")[1]
-                video_title_element = video_element.find("div", {"class": "card-mobile-title"})
+                video_url_element = video_element.find("a")
+                video_thumb_url_element = video_element.find("img")
+                video_title_element = video_element.find("h4", {"class": "video-title"})
                 if video_url_element and video_thumb_url_element and video_title_element:
                     video_url = video_url_element.attrs["href"]
                     vid = parse_qs(urlparse(video_url).query)["v"][0]
                     video_thumb_url = video_thumb_url_element.attrs["src"]
-                    video_title = video_title_element.string
+                    video_title = video_title_element.text
                     series.append({"vid": vid, "title": video_title, "url": video_url, "thumbnail": video_thumb_url})
 
         return series
