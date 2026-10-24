@@ -58,7 +58,8 @@ async def emit_download_status():
     """后台任务：每秒通过 WebSocket 推送下载任务状态"""
     while True:
         tasks_info = []
-        for task in download_manager.tasks:
+        # 新任务排在列表最前面
+        for task in reversed(download_manager.tasks):
             progress = task.task_progress
             tasks_info.append(
                 {
