@@ -171,9 +171,18 @@ export default function ConfigFieldBuilder({
 
         return (
           <div className="config-field" key={fieldId}>
-            <label htmlFor={fieldId} className="d-block">
-              {key}
-            </label>
+            {fieldType === "boolean" ? (
+              <div
+                id={`${fieldId}-label`}
+                className="config-field-title"
+              >
+                {key}
+              </div>
+            ) : (
+              <label htmlFor={fieldId} className="d-block">
+                {key}
+              </label>
+            )}
 
             {fieldType === "boolean" ? (
               <div className="d-flex align-items-center gap-2">
@@ -182,6 +191,7 @@ export default function ConfigFieldBuilder({
                     type="checkbox"
                     id={fieldId}
                     checked={Boolean(values[fieldId])}
+                    aria-labelledby={`${fieldId}-label`}
                     onChange={(e) => onChange(fieldId, e.target.checked)}
                   />
                   <span className="toggle-slider" />
