@@ -1,6 +1,7 @@
 import pytest
 
 from seseget.request.downloadtask import download_manager
+from web_app.api import settings as settings_api
 
 
 AUTH = {"Authorization": "Bearer test-token"}
@@ -84,3 +85,91 @@ async def test_format_options_are_exposed(api_client):
     assert "vsmeta" in data["download.video.metadata_file"]
     assert "cbz" in data["download.comic.format"]
     assert "epub" in data["download.comic.format"]
+
+
+@pytest.mark.asyncio
+async def test_settings_get_redacts_secrets_and_sessions(api_client):
+    response = await api_client.get("/api/settings", headers=AUTH)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["code"] == 200
+    data = payload["data"]
+    assert "config" in data
+    assert data["config"]["bika"]["password"] == ""
+    assert data["config"]["bilibili"]["cookie"] == ""
+    assert "token" not in data["config"].get("bika", {})
+    assert "cookie" not in data["config"].get("jmcomic", {}).get("login", {})
+    assert "bika.password" in data["secret_fields"]
+    assert "bilibili.cookie" in data["secret_fields"]
+
+
+@pytest.mark.asyncio
+async def test_settings_patch_applies_changes_and_keeps_secrets(api_client):
+    response = await api_client.patch(
+        "/api/settings",
+        headers=AUTH,
+        json={
+            "changes": {
+                "download.max_history": 123,
+                "bika.password": "new-secret",
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["code"] == 200
+    data = payload["data"]
+    assert data["config"]["download"]["max_history"] == 123
+    assert data["config"]["bika"]["password"] == ""
+    assert "bika.password" in data["secret_configured"]
+
+    response = await api_client.get("/api/settings", headers=AUTH)
+    data = response.json()["data"]
+    assert data["config"]["download"]["max_history"] == 123
+    assert data["config"]["bika"]["password"] == ""
+    assert "bika.password" in data["secret_configured"]
+
+    # 未提交的敏感字段必须保持原值
+    response = await api_client.patch(
+        "/api/settings",
+        headers=AUTH,
+        json={"changes": {"download.max_history": 124}},
+    )
+    assert response.status_code == 200
+    assert settings_api.config["bika"]["password"] == "new-secret"
+
+    # 空字符串表示显式清空
+    response = await api_client.patch(
+        "/api/settings",
+        headers=AUTH,
+        json={"changes": {"bika.password": ""}},
+    )
+    assert response.status_code == 200
+    assert settings_api.config["bika"]["password"] == ""
+    assert "bika.password" not in response.json()["data"]["secret_configured"]
+
+
+@pytest.mark.asyncio
+async def test_settings_patch_rejects_invalid_changes(api_client):
+    response = await api_client.patch(
+        "/api/settings",
+        headers=AUTH,
+        json={"changes": {"unknown.field": "x"}},
+    )
+    assert response.status_code == 400
+
+    response = await api_client.patch(
+        "/api/settings",
+        headers=AUTH,
+        json={"changes": {"bika.token": "x"}},
+    )
+    assert response.status_code == 400
+
+    response = await api_client.patch(
+        "/api/settings",
+        headers=AUTH,
+        json={"changes": {"download.max_history": "123"}},
+    )
+    assert response.status_code == 400

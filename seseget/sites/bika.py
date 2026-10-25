@@ -6,6 +6,7 @@ from urllib.parse import urlparse, urljoin
 
 from ..config.path import DATA_DIR
 from ..config.config_manager import config
+from ..config.session_store import session_store
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..utils.trace import logger
 from ..request.requests import async_request
@@ -63,6 +64,7 @@ host = "go2778.com"
 base_url = "https://api." + host + "/"
 applekillflag = "C69BAF41DA5ABD1FFEDC6D2FEA56B"
 appleversion = r"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUBL5n|0/*Cn"
+BIKA_NONCE = ""
 
 
 class BikaClient:
@@ -70,10 +72,10 @@ class BikaClient:
         self.context = BikaComicInfo()
 
     def get_token(self):
-        return config["bika"]["token"]
+        return session_store.get("bika", "token", "")
 
     def get_nonce(self):
-        return config["bika"]["nonce"]
+        return BIKA_NONCE
 
     def get_signature(self, url, ts, method):
         raw = url.replace(base_url, "") + ts + self.get_nonce() + method + applekillflag
@@ -98,7 +100,7 @@ class BikaClient:
 
         resp_json = response.json()
         if "token" in response.text:
-            config["bika"]["token"] = resp_json["data"]["token"]
+            session_store.set("bika", "token", resp_json["data"]["token"])
             return True
         else:
             return False

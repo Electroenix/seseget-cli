@@ -1,14 +1,17 @@
 import httpx
 import pytest
 import pytest_asyncio
+from copy import deepcopy
 from PIL import Image
 
+from seseget.config.config_manager import ObservableDict
 from seseget.metadata.comic import ComicMetaData
 from seseget.metadata.video import VideoMetaData
 from seseget.request.download_history import DownloadHistoryStore
 from seseget.request.downloadtask import download_manager
 import web_app
 from web_app.api import auth as auth_api
+from web_app.api import settings as settings_api
 
 
 @pytest.fixture
@@ -61,6 +64,13 @@ async def api_client(monkeypatch, tmp_path):
     monkeypatch.setattr(web_app, "check_token", lambda token: token == "test-token")
     monkeypatch.setattr(auth_api, "get_stored_token", lambda: "test-token")
     monkeypatch.setattr(auth_api, "check_token", lambda token: token == "test-token")
+
+    # 配置测试使用内存副本，避免修改真实 conf.yaml
+    test_config = ObservableDict(
+        lambda: None,
+        deepcopy(settings_api.config.dict),
+    )
+    monkeypatch.setattr(settings_api, "config", test_config)
 
     transport = httpx.ASGITransport(app=web_app.app)
     async with httpx.AsyncClient(

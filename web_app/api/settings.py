@@ -3,14 +3,55 @@ from fastapi import APIRouter, Request
 from seseget.config.config_manager import config
 from seseget.output.comic import COMIC_PACKAGERS
 from seseget.output.video import VIDEO_METADATA_WRITERS
+from .config_schema import build_patch, redact_config, validate_changes
 from .response import ResponseCode, ApiResponse
 
 router = APIRouter()
 
 
+def _settings_payload():
+    visible, secret_fields, secret_configured = redact_config(config)
+    return {
+        "config": visible,
+        "secret_fields": secret_fields,
+        "secret_configured": secret_configured,
+    }
+
+
 @router.get("")
 def settings():
-    return ApiResponse(code=ResponseCode.SUCCESS, message="Success", data=config.dict)
+    return ApiResponse(
+        code=ResponseCode.SUCCESS,
+        message="Success",
+        data=_settings_payload(),
+    )
+
+
+@router.patch("")
+async def update_settings(request: Request):
+    data = await request.json()
+    changes = data.get("changes") if isinstance(data, dict) else None
+    error = validate_changes(config, changes)
+    if error:
+        return ApiResponse(
+            code=ResponseCode.BAD_REQUEST,
+            message=error,
+        )
+
+    if changes:
+        try:
+            config.update(build_patch(changes))
+        except Exception as e:
+            return ApiResponse(
+                code=ResponseCode.SERVER_ERROR,
+                message=f"保存配置失败: {e}",
+            )
+
+    return ApiResponse(
+        code=ResponseCode.SUCCESS,
+        message="Success",
+        data=_settings_payload(),
+    )
 
 
 @router.get("/formats")
@@ -24,12 +65,3 @@ def format_options():
             "download.comic.format": sorted(COMIC_PACKAGERS),
         },
     )
-
-
-@router.post("/save")
-async def save(request: Request):
-    data = await request.json()
-    # 不打印配置内容，避免账号/Cookie 等敏感信息进入日志
-    config.update(data)
-
-    return ApiResponse(code=ResponseCode.SUCCESS, message="Success")

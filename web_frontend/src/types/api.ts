@@ -65,5 +65,13 @@ export interface ConfigObject {
   [key: string]: ConfigValue;
 }
 
+export interface ConfigSettingsData {
+  config: ConfigObject;
+  secret_fields: string[];
+  secret_configured: string[];
+}
+
+export type ConfigChanges = Record<string, unknown>;
+
 // --- Config field options (field path -> available formats) ---
 export type FormatOptions = Record<string, string[]>;

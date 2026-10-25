@@ -1,6 +1,10 @@
 import { useState } from "react";
 import Modal from "react-bootstrap/Modal";
-import type { ConfigObject, FormatOptions } from "../types/api";
+import type {
+  ConfigChanges,
+  ConfigObject,
+  FormatOptions,
+} from "../types/api";
 import ConfigFieldBuilder from "./ConfigFieldBuilder";
 
 /** 侧边栏中 Web 标签页的标识键 */
@@ -11,7 +15,9 @@ interface ConfigPanelProps {
   config: ConfigObject | null;
   webConfig: ConfigObject | null;
   formatOptions: FormatOptions | null;
-  onSave: (config: ConfigObject) => void;
+  secretFields: string[];
+  secretConfigured: string[];
+  onSave: (changes: ConfigChanges) => void;
   onSaveWeb: (config: ConfigObject) => void;
   onClose: () => void;
 }
@@ -56,6 +62,8 @@ export default function ConfigPanel({
   config,
   webConfig,
   formatOptions,
+  secretFields,
+  secretConfigured,
   onSave,
   onSaveWeb,
   onClose,
@@ -66,6 +74,10 @@ export default function ConfigPanel({
   const initKeys = Object.keys(initConfig);
   const [localConfig, setLocalConfig] = useState<ConfigObject>(initConfig);
   const [localValues, setLocalValues] = useState<Record<string, unknown>>(initValues);
+  const [dirtyPaths, setDirtyPaths] = useState<Set<string>>(new Set());
+  const [configuredSecrets, setConfiguredSecrets] = useState<Set<string>>(
+    new Set(secretConfigured)
+  );
 
   // Web 配置本地状态
   const initWebConfig = webConfig ? deepClone(webConfig) : {};
@@ -79,8 +91,25 @@ export default function ConfigPanel({
 
   // 主配置字段变更
   const handleFieldChange = (path: string, value: unknown) => {
+    setDirtyPaths((prev) => new Set(prev).add(path));
     setLocalValues((prev) => ({ ...prev, [path]: value }));
     setLocalConfig((prev) => setNestedValue(prev, path, value));
+
+    if (secretFields.includes(path)) {
+      setConfiguredSecrets((prev) => {
+        const next = new Set(prev);
+        if (value === "") {
+          next.delete(path);
+        } else {
+          next.add(path);
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleSecretClear = (path: string) => {
+    handleFieldChange(path, "");
   };
 
   // Web 配置字段变更
@@ -93,7 +122,11 @@ export default function ConfigPanel({
     if (activeSection === WEB_TAB_KEY) {
       onSaveWeb(localWebConfig);
     } else {
-      onSave(localConfig);
+      const changes: ConfigChanges = {};
+      for (const path of dirtyPaths) {
+        changes[path] = localValues[path];
+      }
+      onSave(changes);
     }
   };
 
@@ -164,6 +197,9 @@ export default function ConfigPanel({
                       values={isWebTab ? localWebValues : localValues}
                       onChange={isWebTab ? handleWebFieldChange : handleFieldChange}
                       formatOptions={formatOptions}
+                      secretFields={secretFields}
+                      secretConfigured={Array.from(configuredSecrets)}
+                      onSecretClear={handleSecretClear}
                     />
                   ) : (
                     <ConfigFieldBuilder
@@ -175,6 +211,9 @@ export default function ConfigPanel({
                       values={isWebTab ? localWebValues : localValues}
                       onChange={isWebTab ? handleWebFieldChange : handleFieldChange}
                       formatOptions={formatOptions}
+                      secretFields={secretFields}
+                      secretConfigured={Array.from(configuredSecrets)}
+                      onSecretClear={handleSecretClear}
                     />
                   )}
                 </>

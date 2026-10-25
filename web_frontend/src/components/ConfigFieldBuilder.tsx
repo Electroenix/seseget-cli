@@ -1,4 +1,5 @@
 import type { ConfigObject, FormatOptions } from "../types/api";
+import SecretField from "./SecretField";
 
 interface ConfigFieldBuilderProps {
   config: ConfigObject;
@@ -6,6 +7,9 @@ interface ConfigFieldBuilderProps {
   values: Record<string, unknown>;
   onChange: (path: string, value: unknown) => void;
   formatOptions?: FormatOptions | null;
+  secretFields?: string[];
+  secretConfigured?: string[];
+  onSecretClear?: (path: string) => void;
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -31,6 +35,9 @@ export default function ConfigFieldBuilder({
   values,
   onChange,
   formatOptions,
+  secretFields = [],
+  secretConfigured = [],
+  onSecretClear,
 }: ConfigFieldBuilderProps) {
   return (
     <>
@@ -54,6 +61,9 @@ export default function ConfigFieldBuilder({
                 values={values}
                 onChange={onChange}
                 formatOptions={formatOptions}
+                secretFields={secretFields}
+                secretConfigured={secretConfigured}
+                onSecretClear={onSecretClear}
               />
             </div>
           );
@@ -136,12 +146,43 @@ export default function ConfigFieldBuilder({
         }
 
         const fieldType = typeof value;
+        const isSecret = secretFields.includes(fieldId);
+        const isConfigured = secretConfigured.includes(fieldId);
+
+        if (isSecret) {
+          return (
+            <SecretField
+              key={fieldId}
+              id={fieldId}
+              label={key}
+              value={String(values[fieldId] ?? "")}
+              configured={isConfigured}
+              onChange={(nextValue) => onChange(fieldId, nextValue)}
+              onClear={() => {
+                if (onSecretClear) {
+                  onSecretClear(fieldId);
+                } else {
+                  onChange(fieldId, "");
+                }
+              }}
+            />
+          );
+        }
 
         return (
           <div className="config-field" key={fieldId}>
-            <label htmlFor={fieldId} className="d-block">
-              {key}
-            </label>
+            {fieldType === "boolean" ? (
+              <div
+                id={`${fieldId}-label`}
+                className="config-field-title"
+              >
+                {key}
+              </div>
+            ) : (
+              <label htmlFor={fieldId} className="d-block">
+                {key}
+              </label>
+            )}
 
             {fieldType === "boolean" ? (
               <div className="d-flex align-items-center gap-2">
@@ -150,6 +191,7 @@ export default function ConfigFieldBuilder({
                     type="checkbox"
                     id={fieldId}
                     checked={Boolean(values[fieldId])}
+                    aria-labelledby={`${fieldId}-label`}
                     onChange={(e) => onChange(fieldId, e.target.checked)}
                   />
                   <span className="toggle-slider" />

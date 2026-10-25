@@ -3,6 +3,9 @@ import asyncio
 import signal
 
 from . import __version__
+from .config.config_manager import config
+from .config.path import CONFIG_PATH
+from .config.session_store import migrate_legacy_sessions
 from .request.downloadtask import download_manager
 from .request.fetcher import FetcherRegistry
 from .request.requests import session_manager
@@ -48,6 +51,7 @@ async def process_worker_async():
 
 
 def main():
+    migrate_legacy_sessions(config, config_path=CONFIG_PATH)
     try:
         asyncio.run(process_worker_async())
     except KeyboardInterrupt:
