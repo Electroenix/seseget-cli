@@ -39,16 +39,18 @@ export default function SecretField({
         />
         <button
           type="button"
-          className="btn btn-outline-secondary btn-sm text-nowrap"
+          className="btn btn-link btn-sm px-1 text-decoration-none"
           onClick={() => setVisible((prev) => !prev)}
           disabled={!hasInput}
           aria-label={`${visible ? "隐藏" : "查看"}${label}`}
+          aria-pressed={visible}
+          title={visible ? "隐藏内容" : "查看内容"}
         >
-          {visible ? "隐藏" : "查看"}
+          <i className={`bi ${visible ? "bi-eye-slash" : "bi-eye"}`} />
         </button>
         <button
           type="button"
-          className="btn btn-outline-secondary btn-sm text-nowrap"
+          className="btn btn-outline-danger btn-sm text-nowrap"
           onClick={() => {
             setVisible(false);
             onClear();
@@ -57,6 +59,7 @@ export default function SecretField({
           aria-label={`删除${label}`}
           title="删除该字段的值"
         >
+          <i className="bi bi-trash me-1" />
           删除
         </button>
       </div>
