@@ -22,7 +22,7 @@ export default function SecretField({
   const canClear = configured || hasInput;
 
   return (
-    <div className="config-field">
+    <div className="config-field secret-field">
       <label htmlFor={id} className="d-block">
         {label}
       </label>
@@ -32,7 +32,7 @@ export default function SecretField({
           id={id}
           className="form-control form-control-sm"
           value={value}
-          placeholder={configured ? "***" : "未设置"}
+          placeholder={configured ? "********" : "未设置"}
           autoComplete="new-password"
           onChange={(e) => onChange(e.target.value)}
           style={{ maxWidth: "100%" }}
@@ -42,6 +42,7 @@ export default function SecretField({
           className="btn btn-outline-secondary btn-sm text-nowrap"
           onClick={() => setVisible((prev) => !prev)}
           disabled={!hasInput}
+          aria-label={`${visible ? "隐藏" : "查看"}${label}`}
         >
           {visible ? "隐藏" : "查看"}
         </button>
@@ -53,8 +54,10 @@ export default function SecretField({
             onClear();
           }}
           disabled={!canClear}
+          aria-label={`删除${label}`}
+          title="删除该字段的值"
         >
-          清空
+          删除
         </button>
       </div>
     </div>
