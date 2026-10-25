@@ -91,30 +91,39 @@ export default function DownloadPage({
 }: DownloadPageProps) {
   const [tab, setTab] = useState<DownloadTab>("active");
   const [history, setHistory] = useState<DownloadHistoryData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [clearing, setClearing] = useState(false);
 
-  const loadHistory = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetchDownloadHistory();
-      if (response.code !== 200 || !response.data) {
-        throw new Error(response.message || "加载下载历史失败");
-      }
-      setHistory(response.data);
-    } catch (err) {
-      console.error("Failed to load download history:", err);
-      setError("加载下载历史失败");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      try {
+        const response = await fetchDownloadHistory();
+        if (cancelled) return;
+        if (response.code !== 200 || !response.data) {
+          throw new Error(response.message || "加载下载历史失败");
+        }
+        setError("");
+        setHistory(response.data);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to load download history:", err);
+          setError("加载下载历史失败");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
     void loadHistory();
-  }, [loadHistory, historyVersion]);
+    return () => {
+      cancelled = true;
+    };
+  }, [historyVersion]);
 
   const handleClearHistory = useCallback(async () => {
     if (clearing) return;
