@@ -6,6 +6,7 @@ from ruamel.yaml import YAML
 
 from seseget.config.config_manager import ObservableDict
 from seseget.config.path import DEFAULT_CONFIG_PATH
+import seseget.config.session_store as session_store_module
 from seseget.config.session_store import SessionStore, migrate_legacy_sessions
 
 
@@ -124,3 +125,51 @@ def test_default_config_has_no_session_fields():
     assert "nonce" not in data["bika"]
     assert "token" not in data["bika"]
     assert "cookie" not in data["jmcomic"]["login"]
+
+
+def test_migration_backs_up_config_before_changing(tmp_path):
+    config_path = tmp_path / "conf.yaml"
+    original = "bika:\n  token: old-token\n  nonce: ''\n"
+    config_path.write_text(original, encoding="utf-8")
+    store = SessionStore(str(tmp_path / "sessions.json"))
+    config = {"bika": {"token": "old-token", "nonce": ""}}
+
+    migrate_legacy_sessions(config, store, config_path=config_path)
+
+    backups = list((tmp_path / "backups").glob("conf-*.yaml"))
+    assert len(backups) == 1
+    assert backups[0].read_text(encoding="utf-8") == original
+    if os.name != "nt":
+        assert stat.S_IMODE(backups[0].stat().st_mode) == 0o600
+    assert store.get("bika", "token") == "old-token"
+    assert config == {"bika": {}}
+
+
+def test_migration_aborts_when_backup_fails(tmp_path, monkeypatch):
+    config_path = tmp_path / "conf.yaml"
+    config_path.write_text("bika:\n  token: old-token\n", encoding="utf-8")
+    store = SessionStore(str(tmp_path / "sessions.json"))
+    config = {"bika": {"token": "old-token"}}
+
+    def fail_backup(path):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(session_store_module, "backup_config", fail_backup)
+
+    migrate_legacy_sessions(config, store, config_path=config_path)
+
+    assert config == {"bika": {"token": "old-token"}}
+    assert store.get("bika", "token") is None
+    assert not (tmp_path / "backups").exists()
+
+
+def test_migration_skips_backup_without_legacy_fields(tmp_path):
+    config_path = tmp_path / "conf.yaml"
+    config_path.write_text("bika:\n  username: user\n", encoding="utf-8")
+    store = SessionStore(str(tmp_path / "sessions.json"))
+    config = {"bika": {"username": "user"}}
+
+    migrate_legacy_sessions(config, store, config_path=config_path)
+
+    assert not (tmp_path / "backups").exists()
+    assert store.get("bika", "token") is None

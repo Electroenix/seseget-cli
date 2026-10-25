@@ -5,6 +5,8 @@
 
 import json
 import os
+import shutil
+from datetime import datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any
@@ -114,12 +116,65 @@ def _pop_config_path(config, path: tuple[str, ...]) -> bool:
         return False
 
 
-def migrate_legacy_sessions(config, store: SessionStore | None = None) -> None:
+def _has_config_path(config, path: tuple[str, ...]) -> bool:
+    current = config
+    for key in path:
+        try:
+            if key not in current:
+                return False
+            current = current[key]
+        except (KeyError, TypeError):
+            return False
+    return True
+
+
+def backup_config(config_path: str | Path) -> Path:
+    """迁移前备份配置文件，返回备份路径。"""
+    source = Path(config_path)
+    if not source.is_file():
+        raise FileNotFoundError(f"配置文件不存在: {source}")
+
+    backup_dir = source.parent / "backups"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(backup_dir, 0o700)
+    except OSError:
+        pass
+
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    target = backup_dir / f"{source.stem}-{timestamp}{source.suffix}"
+
+    try:
+        shutil.copy2(source, target)
+        os.chmod(target, 0o600)
+    except OSError:
+        target.unlink(missing_ok=True)
+        raise
+    return target
+
+
+def migrate_legacy_sessions(
+    config,
+    store: SessionStore | None = None,
+    config_path: str | Path | None = None,
+) -> None:
     """把旧配置中的会话字段迁移到 sessions.json。
 
+    迁移前先备份配置文件；备份失败时不修改配置。
     只有成功写入会话文件后，才删除旧配置字段，避免迁移失败丢失登录态。
     """
     store = store or session_store
+    migration_paths = LEGACY_SESSION_PATHS + (("bika", "nonce"),)
+    if not any(_has_config_path(config, path) for path in migration_paths):
+        return
+
+    if config_path is not None:
+        try:
+            backup_path = backup_config(config_path)
+            logger.info(f"配置迁移前已备份: {backup_path}")
+        except OSError as e:
+            logger.error(f"配置备份失败，取消迁移: {e}")
+            return
 
     for path in LEGACY_SESSION_PATHS:
         site = path[0]
