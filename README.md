@@ -117,7 +117,7 @@ docker compose up -d
 ```
 
 ## 配置
-初次运行脚本会生成```conf/conf.yaml```文件，或者手动复制项目目录下的```seseget/config/default_conf.yaml```到```conf/conf.yaml```，修改文件中配置并保存，下次运行将会应用新的配置，更多配置说明见 [配置文件](seseget/config/default_conf.yaml)
+初次运行脚本会生成```conf/conf.yaml```文件，或者手动复制项目目录下的```seseget/config/template_conf.yaml```到```conf/conf.yaml```，修改文件中配置并保存，下次运行将会应用新的配置，更多配置说明见 [配置文件](seseget/config/template_conf.yaml)
 
 
 ## 依赖项说明

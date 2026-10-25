@@ -1,16 +1,21 @@
 from fastapi import APIRouter, Request
 
-from seseget.config.config_manager import config
+from seseget.config.config_manager import config_manager
+from seseget.config.schema import (
+    build_patch,
+    get_ui_schema,
+    redact_config,
+    validate_changes,
+)
 from seseget.output.comic import COMIC_PACKAGERS
 from seseget.output.video import VIDEO_METADATA_WRITERS
-from .config_schema import build_patch, redact_config, validate_changes
 from .response import ResponseCode, ApiResponse
 
 router = APIRouter()
 
 
 def _settings_payload():
-    visible, secret_fields, secret_configured = redact_config(config)
+    visible, secret_fields, secret_configured = redact_config(config_manager.data)
     return {
         "config": visible,
         "secret_fields": secret_fields,
@@ -27,11 +32,20 @@ def settings():
     )
 
 
+@router.get("/schema")
+def config_schema():
+    return ApiResponse(
+        code=ResponseCode.SUCCESS,
+        message="Success",
+        data=get_ui_schema(),
+    )
+
+
 @router.patch("")
 async def update_settings(request: Request):
     data = await request.json()
     changes = data.get("changes") if isinstance(data, dict) else None
-    error = validate_changes(config, changes)
+    error = validate_changes(config_manager.data, changes)
     if error:
         return ApiResponse(
             code=ResponseCode.BAD_REQUEST,
@@ -40,7 +54,7 @@ async def update_settings(request: Request):
 
     if changes:
         try:
-            config.update(build_patch(changes))
+            config_manager.update(build_patch(changes))
         except Exception as e:
             return ApiResponse(
                 code=ResponseCode.SERVER_ERROR,

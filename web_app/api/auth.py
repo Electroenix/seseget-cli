@@ -3,7 +3,7 @@ import secrets
 
 from fastapi import APIRouter, Request
 
-from web_app.config.web_config import web_config
+from web_app.config.web_config import web_config, web_config_manager
 from .response import ResponseCode, ApiResponse
 
 router = APIRouter()
@@ -20,7 +20,7 @@ def init_auth_token():
     env_token = os.environ.get("SESEGET_AUTH_TOKEN", "").strip()
 
     if env_token:
-        web_config["auth_token"] = env_token
+        web_config_manager.update({"auth_token": env_token})
         return env_token
 
     config_token = web_config.get("auth_token", "")
@@ -28,7 +28,7 @@ def init_auth_token():
         return config_token
 
     token = secrets.token_urlsafe(16)
-    web_config["auth_token"] = token
+    web_config_manager.update({"auth_token": token})
     return token
 
 

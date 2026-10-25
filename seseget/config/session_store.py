@@ -153,16 +153,17 @@ def migrate_legacy_sessions(
     config,
     store: SessionStore | None = None,
     config_path: str | Path | None = None,
-) -> None:
+) -> bool:
     """把旧配置中的会话字段迁移到 sessions.json。
 
+    返回是否修改了 config；调用方负责在成功后原子保存配置。
     迁移前先备份配置文件；备份失败时不修改配置。
     只有成功写入会话文件后，才删除旧配置字段，避免迁移失败丢失登录态。
     """
     store = store or session_store
     migration_paths = LEGACY_SESSION_PATHS + (("bika", "nonce"),)
     if not any(_has_config_path(config, path) for path in migration_paths):
-        return
+        return False
 
     if config_path is not None:
         try:
@@ -170,8 +171,9 @@ def migrate_legacy_sessions(
             logger.info(f"配置迁移前已备份: {backup_path}")
         except OSError as e:
             logger.error(f"配置备份失败，取消迁移: {e}")
-            return
+            return False
 
+    changed = False
     for path in LEGACY_SESSION_PATHS:
         site = path[0]
         key = path[-1]
@@ -185,8 +187,12 @@ def migrate_legacy_sessions(
                     continue
 
         if _pop_config_path(config, path):
+            changed = True
             logger.info(f"已从配置迁移会话字段 {'.'.join(path)}")
 
     # nonce 已确认恒为空，不再作为用户配置项
     if _pop_config_path(config, ("bika", "nonce")):
+        changed = True
         logger.info("已移除废弃配置字段 bika.nonce")
+
+    return changed

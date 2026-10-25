@@ -138,7 +138,7 @@ async def test_settings_patch_applies_changes_and_keeps_secrets(api_client):
         json={"changes": {"download.max_history": 124}},
     )
     assert response.status_code == 200
-    assert settings_api.config["bika"]["password"] == "new-secret"
+    assert settings_api.config_manager.data["bika"]["password"] == "new-secret"
 
     # 空字符串表示显式清空
     response = await api_client.patch(
@@ -147,8 +147,19 @@ async def test_settings_patch_applies_changes_and_keeps_secrets(api_client):
         json={"changes": {"bika.password": ""}},
     )
     assert response.status_code == 200
-    assert settings_api.config["bika"]["password"] == ""
+    assert settings_api.config_manager.data["bika"]["password"] == ""
     assert "bika.password" not in response.json()["data"]["secret_configured"]
+
+
+@pytest.mark.asyncio
+async def test_settings_schema_exposes_labels(api_client):
+    response = await api_client.get("/api/settings/schema", headers=AUTH)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["code"] == 200
+    assert payload["data"]["sections"]["bika"]["label"] == "哔咔"
+    assert payload["data"]["fields"]["bika.password"]["secret"] is True
 
 
 @pytest.mark.asyncio

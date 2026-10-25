@@ -1,8 +1,56 @@
-from web_app.api.config_schema import (
+from ruamel.yaml import YAML
+
+from seseget.config.path import TEMPLATE_CONFIG_PATH
+from seseget.config.schema import (
+    CONFIG_FIELDS,
+    DEFAULTS,
     build_patch,
+    get_ui_schema,
     redact_config,
     validate_changes,
+    validate_config,
 )
+
+
+def _flatten(obj, prefix=""):
+    result = {}
+    for key, value in obj.items():
+        path = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            result.update(_flatten(value, path))
+        else:
+            result[path] = value
+    return result
+
+
+def test_schema_has_labels_descriptions_and_secret_metadata():
+    schema = get_ui_schema()
+
+    assert schema["sections"]["bika"]["label"] == "哔咔"
+    assert schema["fields"]["bika.password"]["label"] == "密码"
+    assert schema["fields"]["bika.password"]["secret"] is True
+    assert schema["fields"]["download.max_history"]["description"]
+
+
+def test_template_matches_schema_paths_and_defaults():
+    with open(TEMPLATE_CONFIG_PATH, encoding="utf-8") as f:
+        template = YAML(typ="safe").load(f)
+
+    assert set(_flatten(template)) == set(CONFIG_FIELDS)
+    assert _flatten(template) == _flatten(DEFAULTS)
+
+
+def test_validate_config_preserves_legacy_extras_for_migration():
+    validated = validate_config(
+        {
+            "bika": {"token": "legacy-token", "nonce": ""},
+            "jmcomic": {"login": {"cookie": "legacy-cookie"}},
+        }
+    )
+
+    assert validated["bika"]["token"] == "legacy-token"
+    assert validated["bika"]["nonce"] == ""
+    assert validated["jmcomic"]["login"]["cookie"] == "legacy-cookie"
 
 
 def test_redact_config_hides_secrets_and_session_fields():
