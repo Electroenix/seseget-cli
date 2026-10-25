@@ -7,7 +7,11 @@ from ruamel.yaml import YAML
 from seseget.config.config_manager import ObservableDict
 from seseget.config.path import DEFAULT_CONFIG_PATH
 import seseget.config.session_store as session_store_module
-from seseget.config.session_store import SessionStore, migrate_legacy_sessions
+from seseget.config.session_store import (
+    SessionStore,
+    backup_config,
+    migrate_legacy_sessions,
+)
 
 
 def test_session_store_roundtrip_and_clear(tmp_path):
@@ -136,13 +140,26 @@ def test_migration_backs_up_config_before_changing(tmp_path):
 
     migrate_legacy_sessions(config, store, config_path=config_path)
 
-    backups = list((tmp_path / "backups").glob("conf-*.yaml"))
-    assert len(backups) == 1
-    assert backups[0].read_text(encoding="utf-8") == original
+    backup_path = tmp_path / "conf.backup.yaml"
+    assert backup_path.is_file()
+    assert backup_path.read_text(encoding="utf-8") == original
     if os.name != "nt":
-        assert stat.S_IMODE(backups[0].stat().st_mode) == 0o600
+        assert stat.S_IMODE(backup_path.stat().st_mode) == 0o600
     assert store.get("bika", "token") == "old-token"
     assert config == {"bika": {}}
+
+
+def test_backup_uses_fixed_name_and_overwrites(tmp_path):
+    config_path = tmp_path / "conf.yaml"
+    config_path.write_text("version: 1\n", encoding="utf-8")
+
+    first = backup_config(config_path)
+    config_path.write_text("version: 2\n", encoding="utf-8")
+    second = backup_config(config_path)
+
+    assert first == second == tmp_path / "conf.backup.yaml"
+    assert list(tmp_path.glob("conf.backup*.yaml")) == [second]
+    assert second.read_text(encoding="utf-8") == "version: 2\n"
 
 
 def test_migration_aborts_when_backup_fails(tmp_path, monkeypatch):
@@ -160,7 +177,7 @@ def test_migration_aborts_when_backup_fails(tmp_path, monkeypatch):
 
     assert config == {"bika": {"token": "old-token"}}
     assert store.get("bika", "token") is None
-    assert not (tmp_path / "backups").exists()
+    assert not (tmp_path / "conf.backup.yaml").exists()
 
 
 def test_migration_skips_backup_without_legacy_fields(tmp_path):
@@ -171,5 +188,5 @@ def test_migration_skips_backup_without_legacy_fields(tmp_path):
 
     migrate_legacy_sessions(config, store, config_path=config_path)
 
-    assert not (tmp_path / "backups").exists()
+    assert not (tmp_path / "conf.backup.yaml").exists()
     assert store.get("bika", "token") is None

@@ -6,7 +6,6 @@
 import json
 import os
 import shutil
-from datetime import datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any
@@ -129,26 +128,23 @@ def _has_config_path(config, path: tuple[str, ...]) -> bool:
 
 
 def backup_config(config_path: str | Path) -> Path:
-    """迁移前备份配置文件，返回备份路径。"""
+    """迁移前备份配置文件，返回备份路径。
+
+    固定使用同目录下的 <name>.backup<ext>，只保留最近一次迁移前副本。
+    """
     source = Path(config_path)
     if not source.is_file():
         raise FileNotFoundError(f"配置文件不存在: {source}")
 
-    backup_dir = source.parent / "backups"
-    backup_dir.mkdir(parents=True, exist_ok=True)
-    try:
-        os.chmod(backup_dir, 0o700)
-    except OSError:
-        pass
-
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-    target = backup_dir / f"{source.stem}-{timestamp}{source.suffix}"
+    target = source.with_name(f"{source.stem}.backup{source.suffix}")
+    temp_path = target.with_name(target.name + ".tmp")
 
     try:
-        shutil.copy2(source, target)
-        os.chmod(target, 0o600)
+        shutil.copy2(source, temp_path)
+        os.chmod(temp_path, 0o600)
+        os.replace(temp_path, target)
     except OSError:
-        target.unlink(missing_ok=True)
+        temp_path.unlink(missing_ok=True)
         raise
     return target
 
