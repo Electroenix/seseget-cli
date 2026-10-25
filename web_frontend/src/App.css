@@ -156,6 +156,12 @@ body {
   margin-bottom: 0.25rem;
 }
 
+/* 使用应用自己的“查看/隐藏”按钮，避免浏览器原生密码按钮在 blur 后复位 */
+.config-field input[type="password"]::-ms-reveal,
+.config-field input[type="password"]::-ms-clear {
+  display: none;
+}
+
 /* Toggle switch */
 .toggle-switch {
   position: relative;

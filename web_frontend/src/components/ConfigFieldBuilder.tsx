@@ -1,4 +1,5 @@
 import type { ConfigObject, FormatOptions } from "../types/api";
+import SecretField from "./SecretField";
 
 interface ConfigFieldBuilderProps {
   config: ConfigObject;
@@ -150,38 +151,21 @@ export default function ConfigFieldBuilder({
 
         if (isSecret) {
           return (
-            <div className="config-field" key={fieldId}>
-              <label htmlFor={fieldId} className="d-block">
-                {key}
-              </label>
-              <div className="d-flex align-items-center gap-2">
-                <input
-                  type="password"
-                  id={fieldId}
-                  className="form-control form-control-sm"
-                  value={String(values[fieldId] ?? "")}
-                  placeholder={isConfigured ? "***" : "未设置"}
-                  autoComplete="new-password"
-                  onChange={(e) => onChange(fieldId, e.target.value)}
-                  style={{ maxWidth: "100%" }}
-                />
-                {isConfigured && (
-                  <button
-                    type="button"
-                    className="btn btn-outline-secondary btn-sm text-nowrap"
-                    onClick={() => {
-                      if (onSecretClear) {
-                        onSecretClear(fieldId);
-                      } else {
-                        onChange(fieldId, "");
-                      }
-                    }}
-                  >
-                    清空
-                  </button>
-                )}
-              </div>
-            </div>
+            <SecretField
+              key={fieldId}
+              id={fieldId}
+              label={key}
+              value={String(values[fieldId] ?? "")}
+              configured={isConfigured}
+              onChange={(nextValue) => onChange(fieldId, nextValue)}
+              onClear={() => {
+                if (onSecretClear) {
+                  onSecretClear(fieldId);
+                } else {
+                  onChange(fieldId, "");
+                }
+              }}
+            />
           );
         }
 
