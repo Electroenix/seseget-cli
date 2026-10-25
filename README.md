@@ -117,7 +117,29 @@ docker compose up -d
 ```
 
 ## 配置
-初次运行脚本会生成```conf/conf.yaml```文件，或者手动复制项目目录下的```seseget/config/default_conf.yaml```到```conf/conf.yaml```，修改文件中配置并保存，下次运行将会应用新的配置，更多配置说明见 [配置文件](seseget/config/default_conf.yaml)
+
+初次运行会自动生成 `conf/conf.yaml`，其中包含 schema 定义的默认值。修改并保存后，下次运行会应用新配置。Web 用户也可以直接在配置页中修改。
+
+配置文件只保存值；字段说明以下表和配置页为准。`conf/sessions.json` 保存 bika/JM 自动维护的会话数据，不需要手动编辑。
+
+### 配置项说明
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `common.proxy` | string | `""` | 代理地址，留空使用系统代理 |
+| `hanime.cookie` | string | `""` | 请求被拦截时使用的 Cookie |
+| `hanime.organize_by_genre` | boolean | `false` | 是否按影片类型整理下载目录 |
+| `bika.username` | string | `""` | 哔咔账号 |
+| `bika.password` | string | `""` | 哔咔密码 |
+| `jmcomic.login.username` | string | `""` | 禁漫账号 |
+| `jmcomic.login.password` | string | `""` | 禁漫密码 |
+| `bilibili.cookie` | string | `""` | B 站 Cookie，部分视频需要 |
+| `twitter.cookie_file` | string | `""` | Netscape 格式 Cookie 文件路径 |
+| `download.max_history` | integer | `200` | 下载历史最多保留条数 |
+| `download.save_source_info` | boolean | `false` | 是否在下载目录生成 source.txt |
+| `download.comic.leave_images` | boolean | `false` | 打包后是否保留原始图片 |
+| `download.comic.format` | string[] | `["cbz"]` | 漫画成品格式 |
+| `download.video.metadata_file` | string[] | `["nfo"]` | 视频元数据文件格式 |
 
 
 ## 依赖项说明

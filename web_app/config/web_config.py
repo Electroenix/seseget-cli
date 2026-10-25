@@ -1,7 +1,8 @@
 import os
+from copy import deepcopy
+
 from ruamel.yaml import YAML
 
-from seseget.config.config_manager import ObservableDict
 from .path import WEB_CONFIG_PATH
 
 _yaml = YAML()
@@ -12,21 +13,23 @@ _DEFAULT_CONFIG = {"auth_token": ""}
 
 
 def _init_web_config():
-    """初始化 web 配置文件"""
+    """初始化 web 配置文件。"""
     os.makedirs(os.path.dirname(WEB_CONFIG_PATH), exist_ok=True)
     if not os.path.exists(WEB_CONFIG_PATH):
         with open(WEB_CONFIG_PATH, "w", encoding="utf-8") as f:
             _yaml.dump(_DEFAULT_CONFIG, f)
 
     with open(WEB_CONFIG_PATH, "r", encoding="utf-8") as f:
-        raw_config = _yaml.load(f)
+        raw_config = _yaml.load(f) or _DEFAULT_CONFIG
 
-    return raw_config or _DEFAULT_CONFIG
+    if not isinstance(raw_config, dict):
+        raw_config = deepcopy(_DEFAULT_CONFIG)
+    return raw_config
 
 
 class WebConfigManager:
     _instance = None
-    _config: ObservableDict = None
+    _config: dict = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -35,26 +38,31 @@ class WebConfigManager:
         return cls._instance
 
     def _init(self):
-        raw_config = _init_web_config()
+        self._config = _init_web_config()
 
-        def save_callback():
-            self._save()
+    def update(self, data: dict) -> None:
+        merged = deepcopy(self._config)
+        merged.update(data)
+        self._save_data(merged)
+        self._config = merged
 
-        self._config = ObservableDict(save_callback, raw_config)
+    def save(self) -> None:
+        self._save_data(self._config)
 
-    def _save(self):
+    def _save_data(self, data: dict) -> None:
         try:
             temp_path = f"{WEB_CONFIG_PATH}.tmp"
             with open(temp_path, "w", encoding="utf-8") as f:
-                _yaml.dump(self._config.origin_data, f)
+                _yaml.dump(data, f)
             os.replace(temp_path, WEB_CONFIG_PATH)
         except Exception as e:
             print(f"[WebConfig] Save failed: {e}")
             raise
 
     @property
-    def data(self) -> ObservableDict:
+    def data(self) -> dict:
         return self._config
 
 
-web_config = WebConfigManager().data
+web_config_manager = WebConfigManager()
+web_config = web_config_manager.data

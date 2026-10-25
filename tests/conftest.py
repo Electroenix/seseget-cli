@@ -4,7 +4,8 @@ import pytest_asyncio
 from copy import deepcopy
 from PIL import Image
 
-from seseget.config.config_manager import ObservableDict
+from seseget.config.config_manager import _update_nested_dict
+from seseget.config.schema import validate_config
 from seseget.metadata.comic import ComicMetaData
 from seseget.metadata.video import VideoMetaData
 from seseget.request.download_history import DownloadHistoryStore
@@ -66,11 +67,20 @@ async def api_client(monkeypatch, tmp_path):
     monkeypatch.setattr(auth_api, "check_token", lambda token: token == "test-token")
 
     # 配置测试使用内存副本，避免修改真实 conf.yaml
-    test_config = ObservableDict(
-        lambda: None,
-        deepcopy(settings_api.config.dict),
+    class FakeConfigManager:
+        def __init__(self, data):
+            self.data = deepcopy(data)
+
+        def update(self, patch):
+            merged = deepcopy(self.data)
+            _update_nested_dict(merged, patch)
+            self.data = validate_config(merged)
+
+    monkeypatch.setattr(
+        settings_api,
+        "config_manager",
+        FakeConfigManager(settings_api.config_manager.data),
     )
-    monkeypatch.setattr(settings_api, "config", test_config)
 
     transport = httpx.ASGITransport(app=web_app.app)
     async with httpx.AsyncClient(

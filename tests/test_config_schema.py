@@ -1,8 +1,44 @@
-from web_app.api.config_schema import (
+from pathlib import Path
+
+from seseget.config.schema import (
+    CONFIG_FIELDS,
     build_patch,
+    get_ui_schema,
     redact_config,
     validate_changes,
+    validate_config,
 )
+
+
+def test_readme_lists_all_config_fields():
+    readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(
+        encoding="utf-8"
+    )
+
+    for path in CONFIG_FIELDS:
+        assert f"`{path}`" in readme
+
+
+def test_schema_has_labels_descriptions_and_secret_metadata():
+    schema = get_ui_schema()
+
+    assert schema["sections"]["bika"]["label"] == "哔咔"
+    assert schema["fields"]["bika.password"]["label"] == "密码"
+    assert schema["fields"]["bika.password"]["secret"] is True
+    assert schema["fields"]["download.max_history"]["description"]
+
+
+def test_validate_config_preserves_legacy_extras_for_migration():
+    validated = validate_config(
+        {
+            "bika": {"token": "legacy-token", "nonce": ""},
+            "jmcomic": {"login": {"cookie": "legacy-cookie"}},
+        }
+    )
+
+    assert validated["bika"]["token"] == "legacy-token"
+    assert validated["bika"]["nonce"] == ""
+    assert validated["jmcomic"]["login"]["cookie"] == "legacy-cookie"
 
 
 def test_redact_config_hides_secrets_and_session_fields():

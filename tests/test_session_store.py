@@ -2,10 +2,7 @@ import os
 import stat
 
 import pytest
-from ruamel.yaml import YAML
-
-from seseget.config.config_manager import ObservableDict
-from seseget.config.path import DEFAULT_CONFIG_PATH
+from seseget.config.schema import get_default_config
 import seseget.config.session_store as session_store_module
 from seseget.config.session_store import (
     SessionStore,
@@ -102,29 +99,8 @@ def test_migration_does_not_write_invalid_legacy_data(tmp_path):
     assert "token" not in config["bika"]
 
 
-def test_migration_persists_observable_config(tmp_path):
-    saved = []
-    config = ObservableDict(
-        lambda: saved.append(True),
-        {
-            "bika": {"nonce": "", "token": "legacy-token"},
-            "jmcomic": {"login": {"cookie": "legacy-cookie"}},
-        },
-    )
-    store = SessionStore(str(tmp_path / "sessions.json"))
-
-    migrate_legacy_sessions(config, store)
-
-    assert config.origin_data["bika"] == {}
-    assert config.origin_data["jmcomic"]["login"] == {}
-    assert store.get("bika", "token") == "legacy-token"
-    assert store.get("jmcomic", "cookie") == "legacy-cookie"
-    assert saved
-
-
 def test_default_config_has_no_session_fields():
-    with open(DEFAULT_CONFIG_PATH, encoding="utf-8") as f:
-        data = YAML(typ="safe").load(f)
+    data = get_default_config()
 
     assert "nonce" not in data["bika"]
     assert "token" not in data["bika"]
