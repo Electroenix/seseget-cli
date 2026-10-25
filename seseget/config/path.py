@@ -6,8 +6,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # 配置文件路径
 CONFIG_DIR = BASE_DIR / "conf"
 CONFIG_PATH = str(CONFIG_DIR) + "/conf.yaml"
-# 用户配置模板
-TEMPLATE_CONFIG_PATH = BASE_DIR / "seseget/config/template_conf.yaml"
 
 # 下载资源路径
 DATA_DIR = str(BASE_DIR / "data")

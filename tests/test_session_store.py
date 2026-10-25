@@ -2,9 +2,7 @@ import os
 import stat
 
 import pytest
-from ruamel.yaml import YAML
-
-from seseget.config.path import TEMPLATE_CONFIG_PATH
+from seseget.config.schema import get_default_config
 import seseget.config.session_store as session_store_module
 from seseget.config.session_store import (
     SessionStore,
@@ -101,9 +99,8 @@ def test_migration_does_not_write_invalid_legacy_data(tmp_path):
     assert "token" not in config["bika"]
 
 
-def test_template_config_has_no_session_fields():
-    with open(TEMPLATE_CONFIG_PATH, encoding="utf-8") as f:
-        data = YAML(typ="safe").load(f)
+def test_default_config_has_no_session_fields():
+    data = get_default_config()
 
     assert "nonce" not in data["bika"]
     assert "token" not in data["bika"]

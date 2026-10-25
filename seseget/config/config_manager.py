@@ -1,13 +1,12 @@
 # config_manager.py
 import os
-import shutil
 from copy import deepcopy
 from typing import Dict
 
 from ruamel.yaml import YAML
 
 from ..utils.trace import logger
-from .path import CONFIG_PATH, TEMPLATE_CONFIG_PATH
+from .path import CONFIG_PATH
 from .schema import get_default_config, validate_config
 
 
@@ -34,10 +33,6 @@ class ConfigManager:
     _instance = None
     _config: dict = None
     _config_path: str = CONFIG_PATH
-    _template_config_path: str = TEMPLATE_CONFIG_PATH
-    _yaml = YAML()
-    _yaml.preserve_quotes = True
-    _yaml.width = 2147483647
 
     def __new__(cls):
         if cls._instance is None:
@@ -49,19 +44,14 @@ class ConfigManager:
         try:
             if not os.path.exists(self._config_path):
                 os.makedirs(os.path.dirname(self._config_path), exist_ok=True)
-                if os.path.exists(self._template_config_path):
-                    shutil.copy2(self._template_config_path, self._config_path)
-                else:
-                    with open(self._config_path, "w", encoding="utf-8") as f:
-                        self._yaml.dump(get_default_config(), f)
+                self._dump_data(get_default_config())
 
             with open(self._config_path, "r", encoding="utf-8") as f:
-                raw_config = self._yaml.load(f) or {}
+                raw_config = YAML().load(f) or {}
 
             if not isinstance(raw_config, dict):
                 raise ValueError("配置文件根节点必须是对象")
 
-            # schema 默认值作为唯一默认来源；已有配置中缺失的字段自动补齐
             merged = deepcopy(raw_config)
             _merge_missing_defaults(merged, get_default_config())
             self._config = validate_config(merged)
@@ -75,20 +65,23 @@ class ConfigManager:
         merged = deepcopy(self._config)
         _update_nested_dict(merged, patch)
         validated = validate_config(merged)
-        self._save_data(validated)
+        self._dump_data(validated)
         self._config = validated
 
     def save(self) -> None:
         """校验当前配置并写回。迁移后使用。"""
         validated = validate_config(self._config)
-        self._save_data(validated)
+        self._dump_data(validated)
         self._config = validated
 
-    def _save_data(self, data: dict) -> None:
+    def _dump_data(self, data: dict) -> None:
         try:
+            yaml = YAML()
+            yaml.preserve_quotes = True
+            yaml.width = 2147483647
             temp_path = f"{self._config_path}.tmp"
             with open(temp_path, "w", encoding="utf-8") as f:
-                self._yaml.dump(data, f)
+                yaml.dump(data, f)
             os.replace(temp_path, self._config_path)
             logger.info("Config saved.")
         except Exception as e:
