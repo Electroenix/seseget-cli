@@ -1,6 +1,6 @@
 name: CI
 
-# PR 轻量检查：不构建 Docker 镜像，只做 Python 编译/导入和前端构建。
+# PR 轻量检查：不构建 Docker 镜像，做 Python 编译/导入/单测和前端 lint/构建。
 
 on:
   pull_request:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   python:
-    name: Python compile & import
+    name: Python compile, import & tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -31,21 +31,25 @@ jobs:
           cache: pip
           cache-dependency-path: |
             requirements.txt
+            requirements-dev.txt
             web_app/requirements.txt
 
       - name: Compile check
         run: python -m compileall -q seseget web_app scripts
 
       - name: Install Python dependencies
-        run: pip install -r requirements.txt -r web_app/requirements.txt
+        run: pip install -r requirements.txt -r web_app/requirements.txt -r requirements-dev.txt
 
       - name: Import check
         run: |
           python -c "import seseget; from seseget.request.fetcher import FetcherRegistry; print('sites:', FetcherRegistry.list_sites())"
           python -c "import web_app; print('web_app import OK')"
 
+      - name: Run Python tests
+        run: python -m pytest -q
+
   frontend:
-    name: Frontend build
+    name: Frontend lint & build
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -63,6 +67,10 @@ jobs:
       - name: Install dependencies
         working-directory: web_frontend
         run: npm ci
+
+      - name: Lint frontend
+        working-directory: web_frontend
+        run: npm run lint
 
       - name: Build frontend
         working-directory: web_frontend

@@ -35,6 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Context 与 Hook 需要从同一模块导出。
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
   if (!ctx) {
