@@ -3,6 +3,7 @@ import type {
   MediaInfo,
   DownloadTask,
   ConfigObject,
+  ConfigChanges,
   FormatOptions,
 } from "./types/api";
 import {
@@ -70,6 +71,8 @@ function MainApp({ version }: { version: string }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [configData, setConfigData] = useState<ConfigObject | null>(null);
   const [webConfigData, setWebConfigData] = useState<ConfigObject | null>(null);
+  const [secretFields, setSecretFields] = useState<string[]>([]);
+  const [secretConfigured, setSecretConfigured] = useState<string[]>([]);
   const [formatOptions, setFormatOptions] = useState<FormatOptions | null>(null);
   const [configKey, setConfigKey] = useState(0);
 
@@ -207,7 +210,9 @@ function MainApp({ version }: { version: string }) {
         fetchWebSettings(),
         formatsPromise,
       ]);
-      setConfigData(mainRes.data as ConfigObject);
+      setConfigData(mainRes.data.config);
+      setSecretFields(mainRes.data.secret_fields);
+      setSecretConfigured(mainRes.data.secret_configured);
       setWebConfigData(webRes.data as ConfigObject);
       setFormatOptions(formatsRes?.data ?? null);
       setConfigKey((k) => k + 1);
@@ -221,9 +226,13 @@ function MainApp({ version }: { version: string }) {
     setConfigOpen(false);
   }, []);
 
-  const handleSaveConfig = useCallback(async (config: ConfigObject) => {
+  const handleSaveConfig = useCallback(async (changes: ConfigChanges) => {
     try {
-      await saveSettings(config);
+      const response = await saveSettings(changes);
+      if (response.code !== 200) {
+        window.alert(response.message || "保存配置失败");
+        return;
+      }
       setConfigOpen(false);
     } catch (err) {
       console.error("Failed to save config:", err);
@@ -232,7 +241,11 @@ function MainApp({ version }: { version: string }) {
 
   const handleSaveWebConfig = useCallback(async (config: ConfigObject) => {
     try {
-      await saveWebSettings(config);
+      const response = await saveWebSettings(config);
+      if (response.code !== 200) {
+        window.alert(response.message || "保存 Web 配置失败");
+        return;
+      }
       setConfigOpen(false);
     } catch (err) {
       console.error("Failed to save web config:", err);
@@ -286,6 +299,8 @@ function MainApp({ version }: { version: string }) {
           config={configData}
           webConfig={webConfigData}
           formatOptions={formatOptions}
+          secretFields={secretFields}
+          secretConfigured={secretConfigured}
           onSave={handleSaveConfig}
           onSaveWeb={handleSaveWebConfig}
           onClose={handleCloseConfig}

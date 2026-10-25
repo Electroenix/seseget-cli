@@ -6,6 +6,9 @@ interface ConfigFieldBuilderProps {
   values: Record<string, unknown>;
   onChange: (path: string, value: unknown) => void;
   formatOptions?: FormatOptions | null;
+  secretFields?: string[];
+  secretConfigured?: string[];
+  onSecretClear?: (path: string) => void;
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -31,6 +34,9 @@ export default function ConfigFieldBuilder({
   values,
   onChange,
   formatOptions,
+  secretFields = [],
+  secretConfigured = [],
+  onSecretClear,
 }: ConfigFieldBuilderProps) {
   return (
     <>
@@ -54,6 +60,9 @@ export default function ConfigFieldBuilder({
                 values={values}
                 onChange={onChange}
                 formatOptions={formatOptions}
+                secretFields={secretFields}
+                secretConfigured={secretConfigured}
+                onSecretClear={onSecretClear}
               />
             </div>
           );
@@ -136,6 +145,45 @@ export default function ConfigFieldBuilder({
         }
 
         const fieldType = typeof value;
+        const isSecret = secretFields.includes(fieldId);
+        const isConfigured = secretConfigured.includes(fieldId);
+
+        if (isSecret) {
+          return (
+            <div className="config-field" key={fieldId}>
+              <label htmlFor={fieldId} className="d-block">
+                {key}
+              </label>
+              <div className="d-flex align-items-center gap-2">
+                <input
+                  type="password"
+                  id={fieldId}
+                  className="form-control form-control-sm"
+                  value={String(values[fieldId] ?? "")}
+                  placeholder={isConfigured ? "***" : "未设置"}
+                  autoComplete="new-password"
+                  onChange={(e) => onChange(fieldId, e.target.value)}
+                  style={{ maxWidth: "100%" }}
+                />
+                {isConfigured && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm text-nowrap"
+                    onClick={() => {
+                      if (onSecretClear) {
+                        onSecretClear(fieldId);
+                      } else {
+                        onChange(fieldId, "");
+                      }
+                    }}
+                  >
+                    清空
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        }
 
         return (
           <div className="config-field" key={fieldId}>

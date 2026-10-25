@@ -15,6 +15,7 @@ from ..config.path import DATA_DIR
 from ..utils.file_utils import *
 from ..utils.trace import logger, SSGLogger
 from ..config.config_manager import config
+from ..config.session_store import session_store
 from ..request.downloadtask import TaskDLProgress, FileDLProgress
 
 
@@ -221,11 +222,12 @@ class SSGJmOption(JmOption):
     @classmethod
     def default(cls) -> 'JmOption':
         option = cls.construct({})
+        cookie_data = session_store.get("jmcomic", "cookie", "")
         try:
-            option.update_cookies(json.loads(config["jmcomic"]["login"]["cookie"]))
+            if cookie_data:
+                option.update_cookies(json.loads(cookie_data))
         except json.JSONDecodeError:
             logger.debug("load jmcomic cookie failed!")
-            pass
         option.plugins['login'] = [{'plugin': 'login', 'kwargs': {'username': config["jmcomic"]["login"]["username"],
                                                                   'password': config["jmcomic"]["login"]["password"]}}]
         return option
@@ -259,7 +261,7 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
                 self.jm_option.call_all_plugin("login")
                 cookie = self.jm_option.client.src_dict["postman"]["meta_data"]["cookies"]
                 if cookie:
-                    config["jmcomic"]["login"]["cookie"] = json.dumps(cookie)
+                    session_store.set("jmcomic", "cookie", json.dumps(cookie))
         except Exception as result:
             logger.warning(f"JM登录失败, info: {result}")
 

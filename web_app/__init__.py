@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from .api.download import emit_download_status
+    from seseget.config.config_manager import config
+    from seseget.config.session_store import migrate_legacy_sessions
+
+    migrate_legacy_sessions(config)
 
     status_task = asyncio.create_task(emit_download_status())
     logger.info("Download status emitter started")

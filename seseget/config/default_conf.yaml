@@ -16,17 +16,12 @@ hanime:
 bika:
   username: ""  # 用户名
   password: ""  # 密码
-  # 以下为保存的cookie数据，无需修改
-  nonce: ""
-  token: ""
 
 # 禁漫配置
 jmcomic:
   login:
     username: ""  # 用户名
     password: ""  # 密码
-    # 以下为保存的cookie数据，无需修改
-    cookie: ""
 
 # bilibili配置
 bilibili:
