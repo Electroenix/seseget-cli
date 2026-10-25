@@ -192,7 +192,7 @@ class BikaFetcher(ComicFetcher):
     def _get_image_urls(self, bika_context: BikaComicInfo, chapter: ChapterInfo) -> List[str]:
         image_urls = []
         for page in bika_context.chapter[chapter.id]["pages"]:
-            url = page["media"]["fileServer"] + "/static/" + page["media"]["path"].split("/")[-1]
+            url = page["media"]["fileServer"] + "/static/" + page["media"]["path"]
             image_urls.append(url)
 
         return image_urls
