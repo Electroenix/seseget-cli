@@ -88,8 +88,8 @@ class BikaClient:
         url = base_url + path_name
 
         data = {
-            "email": config["bika"]["username"],
-            "password": config["bika"]["password"]
+            "email": config["sites"]["bika"]["username"],
+            "password": config["sites"]["bika"]["password"]
         }
 
         headers_api = HEADERS_API.copy()

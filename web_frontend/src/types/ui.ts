@@ -1,1 +1,1 @@
-export type MainPage = "search" | "download";
+export type MainPage = "search" | "download" | "settings";

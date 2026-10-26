@@ -135,7 +135,7 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
         if not os.path.exists(self.__class__.site_dir):
             os.mkdir(self.__class__.site_dir)
 
-        if config["hanime"]["organize_by_genre"]:
+        if config["sites"]["hanime"]["organize_by_genre"]:
             genre_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.video_genre))
             series_dir = os.path.join(genre_dir, make_filename_valid(info.metadata.series))
             if not os.path.exists(genre_dir):
@@ -161,9 +161,9 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
             return copy.deepcopy(video_info)
 
         req_kwargs = {}
-        if config["hanime"]["cookie"]:
+        if config["sites"]["hanime"]["cookie"]:
             req_kwargs["headers"] = HANIME_HEADERS.copy()
-            req_kwargs["headers"]["cookie"] = config["hanime"]["cookie"]
+            req_kwargs["headers"]["cookie"] = config["sites"]["hanime"]["cookie"]
         response = await async_request("GET", url, **req_kwargs)
         video_soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -190,9 +190,9 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
                 video_genre = dict(zip(GENRES_SIMP, GENRES_TRAD)).get(video_genre)
             search_url = f'https://hanime1.me/search?type=&genre={video_genre}&sort=&date=&duration='
             req_kwargs = {}
-            if config["hanime"]["cookie"]:
+            if config["sites"]["hanime"]["cookie"]:
                 req_kwargs["headers"] = HANIME_HEADERS.copy()
-                req_kwargs["headers"]["cookie"] = config["hanime"]["cookie"]
+                req_kwargs["headers"]["cookie"] = config["sites"]["hanime"]["cookie"]
             response = await async_request("GET", search_url, params={'query': metadata.title}, **req_kwargs)
 
             search_soup = BeautifulSoup(response.text, 'html.parser')

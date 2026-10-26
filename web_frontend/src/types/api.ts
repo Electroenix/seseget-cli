@@ -71,6 +71,26 @@ export interface ConfigSettingsData {
   secret_configured: string[];
 }
 
+export type ConfigFieldKind = "str" | "bool" | "int" | "str_list" | string;
+
+export interface ConfigFieldSchema {
+  label: string;
+  description: string;
+  kind: ConfigFieldKind;
+  secret: boolean;
+  editable: boolean;
+}
+
+export interface ConfigSectionSchema {
+  label: string;
+  description: string;
+}
+
+export interface ConfigSchema {
+  sections: Record<string, ConfigSectionSchema>;
+  fields: Record<string, ConfigFieldSchema>;
+}
+
 export type ConfigChanges = Record<string, unknown>;
 
 // --- Config field options (field path -> available formats) ---

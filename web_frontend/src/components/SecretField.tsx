@@ -1,8 +1,11 @@
 import { useState } from "react";
+import ConfigFieldLabel from "./ConfigFieldLabel";
 
 interface SecretFieldProps {
   id: string;
   label: string;
+  description?: string;
+  showLabel?: boolean;
   value: string;
   configured: boolean;
   onChange: (value: string) => void;
@@ -12,6 +15,8 @@ interface SecretFieldProps {
 export default function SecretField({
   id,
   label,
+  description,
+  showLabel = true,
   value,
   configured,
   onChange,
@@ -23,9 +28,13 @@ export default function SecretField({
 
   return (
     <div className="config-field secret-field">
-      <label htmlFor={id} className="d-block">
-        {label}
-      </label>
+      {showLabel && (
+        <ConfigFieldLabel
+          htmlFor={id}
+          label={label}
+          description={description}
+        />
+      )}
       <div className="d-flex align-items-center gap-2">
         <input
           type={visible ? "text" : "password"}

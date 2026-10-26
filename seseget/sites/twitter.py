@@ -25,7 +25,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         如果传入的是单个视频的url，列表中只包含该视频的信息
         """
         extend_opts = {
-            'cookiefile': config["twitter"]["cookie_file"]
+            'cookiefile': config["sites"]["twitter"]["cookie_file"]
         }
         # yt-dlp 是同步的，放到线程池执行
         twitter_info = await asyncio.to_thread(ytdlp.get_info, video_url, extend_opts)
@@ -96,7 +96,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
 
         extend_opts = {
             'outtmpl': artist_dir + '/%(uploader_id)s_%(upload_date)s_%(id)s/%(uploader_id)s_%(upload_date)s_%(id)s.%(ext)s',
-            'cookiefile': config["twitter"]["cookie_file"],
+            'cookiefile': config["sites"]["twitter"]["cookie_file"],
         }
 
         # yt-dlp 是同步的，放到线程池执行

@@ -22,51 +22,52 @@ def test_readme_lists_all_config_fields():
 def test_schema_has_labels_descriptions_and_secret_metadata():
     schema = get_ui_schema()
 
-    assert schema["sections"]["bika"]["label"] == "哔咔"
-    assert schema["fields"]["bika.password"]["label"] == "密码"
-    assert schema["fields"]["bika.password"]["secret"] is True
+    assert schema["sections"]["sites.bika"]["label"] == "哔咔"
+    assert schema["fields"]["sites.bika.password"]["label"] == "密码"
+    assert schema["fields"]["sites.bika.password"]["secret"] is True
     assert schema["fields"]["download.max_history"]["description"]
 
 
 def test_validate_config_preserves_legacy_extras_for_migration():
     validated = validate_config(
         {
-            "bika": {"token": "legacy-token", "nonce": ""},
-            "jmcomic": {"login": {"cookie": "legacy-cookie"}},
+            "network": {"proxy": "http://127.0.0.1:7890"},
+            "sites": {"bika": {"token": "legacy-token"}},
         }
     )
 
-    assert validated["bika"]["token"] == "legacy-token"
-    assert validated["bika"]["nonce"] == ""
-    assert validated["jmcomic"]["login"]["cookie"] == "legacy-cookie"
+    assert validated["network"]["proxy"] == "http://127.0.0.1:7890"
+    assert validated["sites"]["bika"]["token"] == "legacy-token"
 
 
 def test_redact_config_hides_secrets_and_session_fields():
     config = {
-        "bika": {
-            "username": "user",
-            "password": "secret-password",
-            "token": "session-token",
+        "sites": {
+            "bika": {
+                "username": "user",
+                "password": "secret-password",
+                "token": "session-token",
+            },
+            "bilibili": {"cookie": "secret-cookie"},
         },
-        "bilibili": {"cookie": "secret-cookie"},
         "download": {"max_history": 200},
     }
 
     visible, secret_fields, configured = redact_config(config)
 
-    assert visible["bika"]["username"] == "user"
-    assert visible["bika"]["password"] == ""
-    assert "token" not in visible["bika"]
-    assert visible["bilibili"]["cookie"] == ""
+    assert visible["sites"]["bika"]["username"] == "user"
+    assert visible["sites"]["bika"]["password"] == ""
+    assert "token" not in visible["sites"]["bika"]
+    assert visible["sites"]["bilibili"]["cookie"] == ""
     assert visible["download"]["max_history"] == 200
     assert set(secret_fields) == {
-        "bika.password",
-        "jmcomic.login.password",
-        "bilibili.cookie",
-        "hanime.cookie",
+        "sites.bika.password",
+        "sites.jmcomic.password",
+        "sites.bilibili.cookie",
+        "sites.hanime.cookie",
     }
-    assert "bika.password" in configured
-    assert "bilibili.cookie" in configured
+    assert "sites.bika.password" in configured
+    assert "sites.bilibili.cookie" in configured
 
 
 def test_redact_config_omits_session_fields_even_if_present():
@@ -102,7 +103,7 @@ def test_validate_changes_accepts_known_types():
 
 def test_validate_changes_rejects_unknown_session_and_invalid_types():
     config = {
-        "bika": {"password": "p", "token": "t"},
+        "sites": {"bika": {"password": "p", "token": "t"}},
         "download": {"max_history": 200},
     }
 
@@ -117,9 +118,9 @@ def test_build_patch_builds_nested_structure():
     assert build_patch(
         {
             "download.max_history": 10,
-            "bika.password": "new",
+            "sites.bika.password": "new",
         }
     ) == {
         "download": {"max_history": 10},
-        "bika": {"password": "new"},
+        "sites": {"bika": {"password": "new"}},
     }

@@ -102,9 +102,9 @@ def test_migration_does_not_write_invalid_legacy_data(tmp_path):
 def test_default_config_has_no_session_fields():
     data = get_default_config()
 
-    assert "nonce" not in data["bika"]
-    assert "token" not in data["bika"]
-    assert "cookie" not in data["jmcomic"]["login"]
+    assert "nonce" not in data["sites"]["bika"]
+    assert "token" not in data["sites"]["bika"]
+    assert "cookie" not in data["sites"]["jmcomic"]
 
 
 def test_migration_backs_up_config_before_changing(tmp_path):

@@ -4,6 +4,7 @@ import type {
   DownloadTask,
   ConfigObject,
   ConfigChanges,
+  ConfigSchema,
   FormatOptions,
 } from "./types/api";
 import {
@@ -12,6 +13,7 @@ import {
   fetchSeriesInfo,
   downloadMedia,
   fetchSettings,
+  fetchConfigSchema,
   fetchFormatOptions,
   saveSettings,
   fetchWebSettings,
@@ -25,7 +27,7 @@ import LoginPage from "./components/LoginPage";
 import NavBar from "./components/NavBar";
 import SearchBar from "./components/SearchBar";
 import InfoPanel from "./components/InfoPanel";
-import ConfigPanel from "./components/ConfigPanel";
+import ConfigPage from "./components/ConfigPage";
 import DownloadPage from "./components/DownloadPage";
 
 const VIDEO_STATIONS = new Set(["hanime", "bilibili", "youtube", "twitter"]);
@@ -67,14 +69,13 @@ function MainApp({ version }: { version: string }) {
   }, []);
   useDownloadSocket(setDownloadTasks, handleDownloadFinished);
 
-  // Config modal state
-  const [configOpen, setConfigOpen] = useState(false);
+  // Config page state
   const [configData, setConfigData] = useState<ConfigObject | null>(null);
   const [webConfigData, setWebConfigData] = useState<ConfigObject | null>(null);
   const [secretFields, setSecretFields] = useState<string[]>([]);
   const [secretConfigured, setSecretConfigured] = useState<string[]>([]);
+  const [configSchema, setConfigSchema] = useState<ConfigSchema | null>(null);
   const [formatOptions, setFormatOptions] = useState<FormatOptions | null>(null);
-  const [configKey, setConfigKey] = useState(0);
 
   // Load site list on mount
   useEffect(() => {
@@ -199,31 +200,31 @@ function MainApp({ version }: { version: string }) {
   }, []);
 
   // --- Config handlers ---
-  const handleOpenConfig = useCallback(async () => {
+  const loadConfig = useCallback(async () => {
     try {
       const formatsPromise = fetchFormatOptions().catch((err) => {
         console.error("Failed to load format options:", err);
         return null;
       });
-      const [mainRes, webRes, formatsRes] = await Promise.all([
+      const schemaPromise = fetchConfigSchema().catch((err) => {
+        console.error("Failed to load config schema:", err);
+        return null;
+      });
+      const [mainRes, webRes, formatsRes, schemaRes] = await Promise.all([
         fetchSettings(),
         fetchWebSettings(),
         formatsPromise,
+        schemaPromise,
       ]);
       setConfigData(mainRes.data.config);
       setSecretFields(mainRes.data.secret_fields);
       setSecretConfigured(mainRes.data.secret_configured);
+      setConfigSchema(schemaRes?.data ?? null);
       setWebConfigData(webRes.data as ConfigObject);
       setFormatOptions(formatsRes?.data ?? null);
-      setConfigKey((k) => k + 1);
-      setConfigOpen(true);
     } catch (err) {
       console.error("Failed to load config:", err);
     }
-  }, []);
-
-  const handleCloseConfig = useCallback(() => {
-    setConfigOpen(false);
   }, []);
 
   const handleSaveConfig = useCallback(async (changes: ConfigChanges) => {
@@ -231,11 +232,12 @@ function MainApp({ version }: { version: string }) {
       const response = await saveSettings(changes);
       if (response.code !== 200) {
         window.alert(response.message || "保存配置失败");
-        return;
+        return false;
       }
-      setConfigOpen(false);
+      return true;
     } catch (err) {
       console.error("Failed to save config:", err);
+      return false;
     }
   }, []);
 
@@ -244,25 +246,47 @@ function MainApp({ version }: { version: string }) {
       const response = await saveWebSettings(config);
       if (response.code !== 200) {
         window.alert(response.message || "保存 Web 配置失败");
-        return;
+        return false;
       }
-      setConfigOpen(false);
+      return true;
     } catch (err) {
       console.error("Failed to save web config:", err);
+      return false;
     }
   }, []);
+
+  const handleNavigate = useCallback(
+    (page: MainPage) => {
+      if (page !== "settings") {
+        setActivePage(page);
+        return;
+      }
+      void loadConfig().then(() => setActivePage("settings"));
+    },
+    [loadConfig]
+  );
 
   return (
     <>
       <NavBar
         activePage={activePage}
-        onNavigate={setActivePage}
+        onNavigate={handleNavigate}
         downloadTasks={downloadTasks}
-        onOpenConfig={handleOpenConfig}
         version={version}
       />
 
-      {activePage === "download" ? (
+      {activePage === "settings" ? (
+        <ConfigPage
+          config={configData}
+          webConfig={webConfigData}
+          schema={configSchema}
+          formatOptions={formatOptions}
+          secretFields={secretFields}
+          secretConfigured={secretConfigured}
+          onSave={handleSaveConfig}
+          onSaveWeb={handleSaveWebConfig}
+        />
+      ) : activePage === "download" ? (
         <DownloadPage
           tasks={downloadTasks}
           historyVersion={historyVersion}
@@ -292,20 +316,6 @@ function MainApp({ version }: { version: string }) {
         </div>
       )}
 
-      {configOpen && (
-        <ConfigPanel
-          key={configKey}
-          open={configOpen}
-          config={configData}
-          webConfig={webConfigData}
-          formatOptions={formatOptions}
-          secretFields={secretFields}
-          secretConfigured={secretConfigured}
-          onSave={handleSaveConfig}
-          onSaveWeb={handleSaveWebConfig}
-          onClose={handleCloseConfig}
-        />
-      )}
     </>
   );
 }

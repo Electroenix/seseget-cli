@@ -126,15 +126,15 @@ docker compose up -d
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `common.proxy` | string | `""` | 代理地址，留空使用系统代理 |
-| `hanime.cookie` | string | `""` | 请求被拦截时使用的 Cookie |
-| `hanime.organize_by_genre` | boolean | `false` | 是否按影片类型整理下载目录 |
-| `bika.username` | string | `""` | 哔咔账号 |
-| `bika.password` | string | `""` | 哔咔密码 |
-| `jmcomic.login.username` | string | `""` | 禁漫账号 |
-| `jmcomic.login.password` | string | `""` | 禁漫密码 |
-| `bilibili.cookie` | string | `""` | B 站 Cookie，部分视频需要 |
-| `twitter.cookie_file` | string | `""` | Netscape 格式 Cookie 文件路径 |
+| `network.proxy` | string | `""` | 代理地址，留空使用系统代理 |
+| `sites.hanime.cookie` | string | `""` | 请求被拦截时使用的 Cookie |
+| `sites.hanime.organize_by_genre` | boolean | `false` | 是否按影片类型整理下载目录 |
+| `sites.bika.username` | string | `""` | 哔咔账号 |
+| `sites.bika.password` | string | `""` | 哔咔密码 |
+| `sites.jmcomic.username` | string | `""` | 禁漫账号 |
+| `sites.jmcomic.password` | string | `""` | 禁漫密码 |
+| `sites.bilibili.cookie` | string | `""` | B 站 Cookie，部分视频需要 |
+| `sites.twitter.cookie_file` | string | `""` | Netscape 格式 Cookie 文件路径 |
 | `download.max_history` | integer | `200` | 下载历史最多保留条数 |
 | `download.save_source_info` | boolean | `false` | 是否在下载目录生成 source.txt |
 | `download.comic.leave_images` | boolean | `false` | 打包后是否保留原始图片 |

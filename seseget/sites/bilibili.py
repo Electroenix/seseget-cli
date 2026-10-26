@@ -55,8 +55,8 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
             vid = match.group(1)
 
         headers = self.BILI_HEADERS.copy()
-        if config['bilibili']['cookie']:
-            headers["Cookie"] = config['bilibili']['cookie']
+        if config['sites']['bilibili']['cookie']:
+            headers["Cookie"] = config['sites']['bilibili']['cookie']
         response = await async_request("GET", url, headers=headers)
         video_soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -129,8 +129,8 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
 
         headers = self.BILI_HEADERS.copy()
         headers["Referer"] = video_info.view_url
-        if config['bilibili']['cookie']:
-            headers["Cookie"] = config['bilibili']['cookie']
+        if config['sites']['bilibili']['cookie']:
+            headers["Cookie"] = config['sites']['bilibili']['cookie']
 
         await downloader.download_mp4_by_merge_video_audio(
             video_path,

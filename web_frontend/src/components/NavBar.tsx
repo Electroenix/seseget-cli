@@ -6,7 +6,6 @@ interface NavBarProps {
   activePage: MainPage;
   onNavigate: (page: MainPage) => void;
   downloadTasks: DownloadTask[];
-  onOpenConfig: () => void;
   version: string;
 }
 
@@ -14,7 +13,6 @@ export default function NavBar({
   activePage,
   onNavigate,
   downloadTasks,
-  onOpenConfig,
   version,
 }: NavBarProps) {
   const { logout } = useAuth();
@@ -74,7 +72,16 @@ export default function NavBar({
             </a>
           </li>
           <li className="nav-item me-2">
-            <a className="nav-link" href="#" role="button" onClick={(e) => { e.preventDefault(); onOpenConfig(); }}>
+            <a
+              className={`nav-link ${activePage === "settings" ? "active" : ""}`}
+              href="#"
+              role="button"
+              aria-current={activePage === "settings" ? "page" : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("settings");
+              }}
+            >
               <i className="bi bi-gear me-1" />
               配置
             </a>

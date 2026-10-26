@@ -67,11 +67,11 @@ def test_validate_config_applies_schema_types_and_defaults():
     validated = validate_config(
         {
             "download": {"max_history": 50},
-            "bika": {"username": "user"},
+            "sites": {"bika": {"username": "user"}},
         }
     )
 
     assert validated["download"]["max_history"] == 50
     assert validated["download"]["comic"]["format"] == ["cbz"]
-    assert validated["bika"]["username"] == "user"
-    assert validated["bika"]["password"] == ""
+    assert validated["sites"]["bika"]["username"] == "user"
+    assert validated["sites"]["bika"]["password"] == ""
