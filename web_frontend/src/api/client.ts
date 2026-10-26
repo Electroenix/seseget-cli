@@ -4,6 +4,7 @@ import type {
   ConfigObject,
   ConfigChanges,
   ConfigSettingsData,
+  ConfigSchema,
   FormatOptions,
   DownloadHistoryData,
 } from "../types/api";
@@ -111,6 +112,15 @@ export async function fetchSettings(): Promise<ApiResponse<ConfigSettingsData>> 
     headers: authHeaders(),
   });
   return handleResponse<ConfigSettingsData>(response);
+}
+
+// GET /api/settings/schema
+export async function fetchConfigSchema(): Promise<ApiResponse<ConfigSchema>> {
+  const response = await fetch("/api/settings/schema", {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  return handleResponse<ConfigSchema>(response);
 }
 
 // GET /api/settings/formats

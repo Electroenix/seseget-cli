@@ -12,6 +12,9 @@ body {
 .btn-primary {
   --bs-btn-bg: #d87093;
   --bs-btn-border-color: #d87093;
+  --bs-btn-disabled-bg: #3a3a3a;
+  --bs-btn-disabled-border-color: #3a3a3a;
+  --bs-btn-disabled-color: #8a8a8a;
   --bs-btn-hover-bg: #c45d7e;
   --bs-btn-hover-border-color: #b85374;
   --bs-btn-active-bg: #a84869;
@@ -162,6 +165,38 @@ body {
   margin-bottom: 0.25rem;
 }
 
+.config-field-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.config-field-label-row .config-field-label,
+.config-field-label-row .config-field-title {
+  margin-bottom: 0;
+}
+
+.config-help-button {
+  border: 0;
+  background: transparent;
+  color: #888;
+  padding: 0 0.1rem;
+  line-height: 1;
+  font-size: 0.78rem;
+}
+
+.config-help-button:hover,
+.config-help-button:focus-visible {
+  color: #d87093;
+  outline: none;
+}
+
+.tooltip-inner {
+  max-width: 280px;
+  text-align: left;
+}
+
 .secret-field input::placeholder {
   font-size: 0.8em;
   font-style: italic;
@@ -256,4 +291,204 @@ body {
   justify-content: space-between;
   padding: 8px 0;
   margin-bottom: 12px;
+}
+
+/* ===== Config page ===== */
+.config-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 32px 88px;
+}
+
+.config-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.config-page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.config-layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.config-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: sticky;
+  top: 92px;
+}
+
+.config-nav-item {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #aaa;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.config-nav-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #eee;
+}
+
+.config-nav-item.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-weight: 600;
+}
+
+.config-content {
+  min-width: 0;
+}
+
+.config-card {
+  padding: 4px 24px;
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  background: #25282b;
+}
+
+.config-section-title {
+  margin: 0;
+  padding: 18px 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #eee;
+}
+
+.config-group {
+  margin: 0;
+}
+
+.config-group-title {
+  margin: 0;
+  padding: 16px 0 4px;
+  border-top: 1px solid #343a40;
+  color: #999;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid #343a40;
+}
+
+.config-group:last-child > .settings-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-label {
+  min-width: 0;
+}
+
+.settings-label .config-field-label-row {
+  margin-bottom: 0;
+}
+
+.settings-label .config-field-label-row label,
+.settings-label .config-field-title {
+  color: #ddd;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.settings-control {
+  min-width: 0;
+}
+
+.settings-control > .form-control,
+.settings-control .secret-field,
+.settings-control .secret-field > .d-flex {
+  max-width: 440px;
+}
+
+.settings-control .secret-field {
+  margin-bottom: 0;
+}
+
+.settings-control .toggle-switch {
+  margin: 0;
+}
+
+.config-loading {
+  padding: 48px 0;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .config-page {
+    padding: 18px 14px 72px;
+  }
+
+  .config-layout {
+    display: block;
+  }
+
+  .config-nav {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    margin-bottom: 14px;
+    padding-bottom: 4px;
+  }
+
+  .config-nav-item {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .config-card {
+    padding: 0 16px;
+  }
+
+  .settings-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px 0;
+  }
+
+  .settings-control > .form-control,
+  .settings-control .secret-field,
+  .settings-control .secret-field > .d-flex {
+    max-width: 100%;
+  }
+}
+
+.config-save-button {
+  min-width: 88px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Config page multi-select checkboxes: match toggle accent */
+.settings-control .form-check-input:checked {
+  background-color: #d87093;
+  border-color: #d87093;
+}
+
+.settings-control .form-check-input:focus {
+  border-color: #e890a8;
+  box-shadow: 0 0 0 0.2rem rgba(216, 112, 147, 0.22);
 }
