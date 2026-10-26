@@ -6,8 +6,10 @@ from typing import Dict
 from ruamel.yaml import YAML
 
 from ..utils.trace import logger
+from .migrations import CURRENT_CONFIG_VERSION, get_config_version, migrate_config
 from .path import CONFIG_PATH
 from .schema import get_default_config, validate_config
+from .session_store import backup_config
 
 
 def _update_nested_dict(target: dict, source: dict) -> None:
@@ -44,7 +46,9 @@ class ConfigManager:
         try:
             if not os.path.exists(self._config_path):
                 os.makedirs(os.path.dirname(self._config_path), exist_ok=True)
-                self._dump_data(get_default_config())
+                default_config = get_default_config()
+                default_config["config_version"] = CURRENT_CONFIG_VERSION
+                self._dump_data(default_config)
 
             with open(self._config_path, "r", encoding="utf-8") as f:
                 raw_config = YAML().load(f) or {}
@@ -52,9 +56,35 @@ class ConfigManager:
             if not isinstance(raw_config, dict):
                 raise ValueError("配置文件根节点必须是对象")
 
+            version = get_config_version(raw_config)
+            if version > CURRENT_CONFIG_VERSION:
+                raise ValueError(
+                    f"配置版本 {version} 高于当前支持版本 "
+                    f"{CURRENT_CONFIG_VERSION}，请升级程序"
+                )
+
+            migrated = version < CURRENT_CONFIG_VERSION
+            if migrated:
+                try:
+                    backup_path = backup_config(self._config_path)
+                    logger.info(f"配置迁移前已备份: {backup_path}")
+                except OSError as e:
+                    raise RuntimeError(f"配置备份失败，取消迁移: {e}") from e
+
+                try:
+                    raw_config = migrate_config(raw_config, version)
+                except Exception as e:
+                    raise RuntimeError(f"配置迁移失败: {e}") from e
+
             merged = deepcopy(raw_config)
             _merge_missing_defaults(merged, get_default_config())
-            self._config = validate_config(merged)
+            merged["config_version"] = CURRENT_CONFIG_VERSION
+            validated = validate_config(merged)
+
+            if migrated:
+                self._dump_data(validated)
+
+            self._config = validated
             logger.debug("Config loaded.")
         except Exception as e:
             logger.error(f"Config init failed: {str(e)}")
@@ -69,7 +99,7 @@ class ConfigManager:
         self._config = validated
 
     def save(self) -> None:
-        """校验当前配置并写回。迁移后使用。"""
+        """校验当前配置并写回。"""
         validated = validate_config(self._config)
         self._dump_data(validated)
         self._config = validated

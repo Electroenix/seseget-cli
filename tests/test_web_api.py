@@ -122,6 +122,7 @@ async def test_settings_patch_applies_changes_and_keeps_secrets(api_client):
     assert payload["code"] == 200
     data = payload["data"]
     assert data["config"]["download"]["max_history"] == 123
+    assert "config_version" not in data["config"]
     assert data["config"]["bika"]["password"] == ""
     assert "bika.password" in data["secret_configured"]
 
