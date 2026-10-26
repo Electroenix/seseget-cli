@@ -183,8 +183,7 @@ def migrate_legacy_sessions(
                 try:
                     store.set(site, key, value)
                 except OSError as e:
-                    logger.error(f"迁移 {site}.{key} 会话失败: {e}")
-                    continue
+                    raise RuntimeError(f"迁移 {site}.{key} 会话失败: {e}") from e
 
         if _pop_config_path(config, path):
             changed = True
