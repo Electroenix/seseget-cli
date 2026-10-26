@@ -44,7 +44,7 @@ class SessionManager:
         logger.debug(f'headers: {kwargs["headers"]}')
 
         if "proxies" not in kwargs:
-            proxy_config = config["common"]["proxy"]
+            proxy_config = config["network"]["proxy"]
             if proxy_config:
                 proxies = {
                     "http": proxy_config,
@@ -115,7 +115,7 @@ class AsyncSessionManager:
         logger.debug(f'headers: {kwargs["headers"]}')
 
         if "proxies" not in kwargs:
-            proxy_config = config["common"]["proxy"]
+            proxy_config = config["network"]["proxy"]
             if proxy_config:
                 proxies = {
                     "http": proxy_config,

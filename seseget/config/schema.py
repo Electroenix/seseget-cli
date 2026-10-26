@@ -13,7 +13,7 @@ class ConfigModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-class CommonConfig(ConfigModel):
+class NetworkConfig(ConfigModel):
     proxy: str = Field(
         "",
         description="代理地址，留空使用系统代理",
@@ -47,7 +47,7 @@ class BikaConfig(ConfigModel):
     )
 
 
-class JMComicLoginConfig(ConfigModel):
+class JMComicConfig(ConfigModel):
     username: str = Field(
         "",
         description="禁漫账号",
@@ -58,10 +58,6 @@ class JMComicLoginConfig(ConfigModel):
         description="禁漫密码",
         json_schema_extra={"label": "密码", "secret": True},
     )
-
-
-class JMComicConfig(ConfigModel):
-    login: JMComicLoginConfig = Field(default_factory=JMComicLoginConfig)
 
 
 class BilibiliConfig(ConfigModel):
@@ -78,6 +74,14 @@ class TwitterConfig(ConfigModel):
         description="Netscape 格式 Cookie 文件路径",
         json_schema_extra={"label": "Cookie 文件"},
     )
+
+
+class SitesConfig(ConfigModel):
+    bika: BikaConfig = Field(default_factory=BikaConfig)
+    jmcomic: JMComicConfig = Field(default_factory=JMComicConfig)
+    hanime: HanimeConfig = Field(default_factory=HanimeConfig)
+    bilibili: BilibiliConfig = Field(default_factory=BilibiliConfig)
+    twitter: TwitterConfig = Field(default_factory=TwitterConfig)
 
 
 class DownloadComicConfig(ConfigModel):
@@ -118,23 +122,22 @@ class DownloadConfig(ConfigModel):
 
 
 class AppConfig(ConfigModel):
-    common: CommonConfig = Field(default_factory=CommonConfig)
-    hanime: HanimeConfig = Field(default_factory=HanimeConfig)
-    bika: BikaConfig = Field(default_factory=BikaConfig)
-    jmcomic: JMComicConfig = Field(default_factory=JMComicConfig)
-    bilibili: BilibiliConfig = Field(default_factory=BilibiliConfig)
-    twitter: TwitterConfig = Field(default_factory=TwitterConfig)
+    network: NetworkConfig = Field(default_factory=NetworkConfig)
+    sites: SitesConfig = Field(default_factory=SitesConfig)
     download: DownloadConfig = Field(default_factory=DownloadConfig)
 
 
 SECTION_META = {
-    "common": {"label": "通用", "description": "代理等基础设置"},
-    "hanime": {"label": "Hanime", "description": "Hanime 站点设置"},
-    "bika": {"label": "哔咔", "description": "哔咔账号设置"},
-    "jmcomic": {"label": "禁漫", "description": "禁漫账号设置"},
-    "bilibili": {"label": "哔哩哔哩", "description": "B 站 Cookie"},
-    "twitter": {"label": "Twitter", "description": "Twitter Cookie 文件"},
+    "network": {"label": "网络", "description": "网络代理等基础设置"},
+    "sites": {"label": "站点设置", "description": "站点账号与 Cookie"},
+    "sites.bika": {"label": "哔咔", "description": "哔咔账号设置"},
+    "sites.jmcomic": {"label": "禁漫", "description": "禁漫账号设置"},
+    "sites.hanime": {"label": "Hanime", "description": "Hanime 站点设置"},
+    "sites.bilibili": {"label": "哔哩哔哩", "description": "B 站 Cookie"},
+    "sites.twitter": {"label": "Twitter", "description": "Twitter Cookie 文件"},
     "download": {"label": "下载", "description": "下载、历史与输出格式"},
+    "download.comic": {"label": "漫画", "description": "漫画输出格式"},
+    "download.video": {"label": "视频", "description": "视频元数据格式"},
 }
 
 SESSION_FIELDS = {

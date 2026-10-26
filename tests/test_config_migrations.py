@@ -24,32 +24,68 @@ def test_future_version_is_rejected():
         migrate_config({"config_version": CURRENT_CONFIG_VERSION + 1}, 99)
 
 
-def test_migrate_v0_to_v1_moves_sessions_and_sets_version(tmp_path):
+def test_migrate_v0_to_current_moves_sessions_and_reorganizes(tmp_path):
     store = SessionStore(str(tmp_path / "sessions.json"))
     raw = {
-        "bika": {"token": "legacy-bika-token", "nonce": ""},
-        "jmcomic": {"login": {"cookie": "legacy-jm-cookie"}},
+        "bika": {"token": "legacy-bika-token", "nonce": "", "username": "user"},
+        "jmcomic": {"login": {"cookie": "legacy-jm-cookie", "password": "pw"}},
+        "common": {"proxy": "http://proxy"},
+        "download": {"max_history": 10},
     }
 
     migrated = migrate_config(raw, 0, store=store)
 
     assert migrated["config_version"] == CURRENT_CONFIG_VERSION
-    assert "token" not in migrated["bika"]
-    assert "nonce" not in migrated["bika"]
-    assert "cookie" not in migrated["jmcomic"]["login"]
+    assert migrated["network"] == {"proxy": "http://proxy"}
+    assert migrated["sites"]["bika"] == {"username": "user"}
+    assert migrated["sites"]["jmcomic"] == {"password": "pw"}
+    assert migrated["download"] == {"max_history": 10}
     assert store.get("bika", "token") == "legacy-bika-token"
     assert store.get("jmcomic", "cookie") == "legacy-jm-cookie"
 
 
-def test_migrate_v0_without_legacy_fields_only_sets_version(tmp_path):
+def test_migrate_v1_to_v2_reorganizes_sites(tmp_path):
     store = SessionStore(str(tmp_path / "sessions.json"))
-    raw = {"bika": {"username": "user"}}
+    raw = {
+        "config_version": 1,
+        "common": {"proxy": "http://proxy"},
+        "bika": {"username": "bika-user", "password": "bika-pass"},
+        "jmcomic": {"login": {"username": "jm-user", "password": "jm-pass"}},
+        "hanime": {"cookie": "hanime-cookie", "organize_by_genre": True},
+        "bilibili": {"cookie": "bili-cookie"},
+        "twitter": {"cookie_file": "cookies.txt"},
+        "download": {"max_history": 20},
+    }
 
-    migrated = migrate_config(raw, 0, store=store)
+    migrated = migrate_config(raw, 1, store=store)
+
+    assert migrated["config_version"] == CURRENT_CONFIG_VERSION
+    assert migrated["network"] == {"proxy": "http://proxy"}
+    assert migrated["sites"]["bika"] == {
+        "username": "bika-user",
+        "password": "bika-pass",
+    }
+    assert migrated["sites"]["jmcomic"] == {
+        "username": "jm-user",
+        "password": "jm-pass",
+    }
+    assert migrated["sites"]["hanime"]["organize_by_genre"] is True
+    assert migrated["sites"]["bilibili"]["cookie"] == "bili-cookie"
+    assert migrated["sites"]["twitter"]["cookie_file"] == "cookies.txt"
+    assert migrated["download"] == {"max_history": 20}
+    assert "common" not in migrated
+    assert "bika" not in migrated
+
+
+def test_migrate_v1_without_legacy_fields_only_reorganizes(tmp_path):
+    store = SessionStore(str(tmp_path / "sessions.json"))
+    raw = {"config_version": 1, "bika": {"username": "user"}}
+
+    migrated = migrate_config(raw, 1, store=store)
 
     assert migrated == {
-        "bika": {"username": "user"},
         "config_version": CURRENT_CONFIG_VERSION,
+        "sites": {"bika": {"username": "user"}},
     }
 
 
@@ -77,6 +113,7 @@ def test_config_manager_migrates_and_backs_up(tmp_path, monkeypatch):
     manager = ConfigManager()
 
     assert manager.data["config_version"] == CURRENT_CONFIG_VERSION
+    assert manager.data["sites"]["bika"]["username"] == "user"
     assert (tmp_path / "conf.backup.yaml").is_file()
     with open(config_path, encoding="utf-8") as f:
         saved = YAML().load(f)

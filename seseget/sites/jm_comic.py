@@ -228,8 +228,8 @@ class SSGJmOption(JmOption):
                 option.update_cookies(json.loads(cookie_data))
         except json.JSONDecodeError:
             logger.debug("load jmcomic cookie failed!")
-        option.plugins['login'] = [{'plugin': 'login', 'kwargs': {'username': config["jmcomic"]["login"]["username"],
-                                                                  'password': config["jmcomic"]["login"]["password"]}}]
+        option.plugins['login'] = [{'plugin': 'login', 'kwargs': {'username': config["sites"]["jmcomic"]["username"],
+                                                                  'password': config["sites"]["jmcomic"]["password"]}}]
         return option
 
 
@@ -257,7 +257,7 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
 
     def jm_login(self):
         try:
-            if config["jmcomic"]["login"]["username"] and config["jmcomic"]["login"]["password"]:
+            if config["sites"]["jmcomic"]["username"] and config["sites"]["jmcomic"]["password"]:
                 self.jm_option.call_all_plugin("login")
                 cookie = self.jm_option.client.src_dict["postman"]["meta_data"]["cookies"]
                 if cookie:
