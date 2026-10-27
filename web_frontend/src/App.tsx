@@ -16,8 +16,6 @@ import {
   fetchConfigSchema,
   fetchFormatOptions,
   saveSettings,
-  fetchWebSettings,
-  saveWebSettings,
   fetchVersion,
 } from "./api/client";
 import { useDownloadSocket } from "./hooks/useSocket";
@@ -71,8 +69,6 @@ function MainApp({ version }: { version: string }) {
 
   // Config page state
   const [configData, setConfigData] = useState<ConfigObject | null>(null);
-  const [webConfigData, setWebConfigData] = useState<ConfigObject | null>(null);
-  const [webSecretConfigured, setWebSecretConfigured] = useState<string[]>([]);
   const [secretFields, setSecretFields] = useState<string[]>([]);
   const [secretConfigured, setSecretConfigured] = useState<string[]>([]);
   const [configSchema, setConfigSchema] = useState<ConfigSchema | null>(null);
@@ -211,9 +207,8 @@ function MainApp({ version }: { version: string }) {
         console.error("Failed to load config schema:", err);
         return null;
       });
-      const [mainRes, webRes, formatsRes, schemaRes] = await Promise.all([
+      const [mainRes, formatsRes, schemaRes] = await Promise.all([
         fetchSettings(),
-        fetchWebSettings(),
         formatsPromise,
         schemaPromise,
       ]);
@@ -221,8 +216,6 @@ function MainApp({ version }: { version: string }) {
       setSecretFields(mainRes.data.secret_fields);
       setSecretConfigured(mainRes.data.secret_configured);
       setConfigSchema(schemaRes?.data ?? null);
-      setWebConfigData(webRes.data.config);
-      setWebSecretConfigured(webRes.data.secret_configured);
       setFormatOptions(formatsRes?.data ?? null);
     } catch (err) {
       console.error("Failed to load config:", err);
@@ -239,20 +232,6 @@ function MainApp({ version }: { version: string }) {
       return true;
     } catch (err) {
       console.error("Failed to save config:", err);
-      return false;
-    }
-  }, []);
-
-  const handleSaveWebConfig = useCallback(async (changes: ConfigChanges) => {
-    try {
-      const response = await saveWebSettings(changes);
-      if (response.code !== 200) {
-        window.alert(response.message || "保存 Web 配置失败");
-        return false;
-      }
-      return true;
-    } catch (err) {
-      console.error("Failed to save web config:", err);
       return false;
     }
   }, []);
@@ -280,14 +259,11 @@ function MainApp({ version }: { version: string }) {
       {activePage === "settings" ? (
         <ConfigPage
           config={configData}
-          webConfig={webConfigData}
           schema={configSchema}
           formatOptions={formatOptions}
           secretFields={secretFields}
           secretConfigured={secretConfigured}
-          webConfigured={webSecretConfigured.includes("auth_token")}
           onSave={handleSaveConfig}
-          onSaveWeb={handleSaveWebConfig}
         />
       ) : activePage === "download" ? (
         <DownloadPage

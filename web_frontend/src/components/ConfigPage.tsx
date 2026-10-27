@@ -7,21 +7,14 @@ import type {
   FormatOptions,
 } from "../types/api";
 import ConfigFieldBuilder from "./ConfigFieldBuilder";
-import ConfigFieldLabel from "./ConfigFieldLabel";
-import SecretField from "./SecretField";
-
-const WEB_TAB_KEY = "__web__";
 
 interface ConfigPageProps {
   config: ConfigObject | null;
-  webConfig: ConfigObject | null;
   schema: ConfigSchema | null;
   formatOptions: FormatOptions | null;
   secretFields: string[];
   secretConfigured: string[];
-  webConfigured: boolean;
   onSave: (changes: ConfigChanges) => Promise<boolean>;
-  onSaveWeb: (changes: ConfigChanges) => Promise<boolean>;
 }
 
 function deepClone<T>(obj: T): T {
@@ -61,17 +54,13 @@ function setNestedValue(
 
 export default function ConfigPage({
   config,
-  webConfig,
   schema,
   formatOptions,
   secretFields,
   secretConfigured,
-  webConfigured,
   onSave,
-  onSaveWeb,
 }: ConfigPageProps) {
   const initialConfig = config ? deepClone(config) : {};
-  const initialWebConfig = webConfig ? deepClone(webConfig) : {};
 
   const [localConfig, setLocalConfig] = useState<ConfigObject>(initialConfig);
   const [localValues, setLocalValues] = useState<Record<string, unknown>>(
@@ -81,23 +70,16 @@ export default function ConfigPage({
   const [configuredSecrets, setConfiguredSecrets] = useState<Set<string>>(
     new Set(secretConfigured)
   );
-  const [localWebConfig, setLocalWebConfig] =
-    useState<ConfigObject>(initialWebConfig);
-  const [webDirty, setWebDirty] = useState(false);
-  const [webSecretConfigured, setWebSecretConfigured] =
-    useState(webConfigured);
   const [activeSection, setActiveSection] = useState(
     Object.keys(initialConfig)[0] ?? ""
   );
   const [saving, setSaving] = useState(false);
 
   const sectionKeys = Object.keys(localConfig);
-  const isWebTab = activeSection === WEB_TAB_KEY;
-  const activeData = isWebTab ? localWebConfig : localConfig[activeSection];
-  const activeSectionLabel = isWebTab
-    ? "Web"
-    : schema?.sections[activeSection]?.label ?? activeSection;
-  const canSave = dirtyPaths.size > 0 || webDirty;
+  const activeData = localConfig[activeSection];
+  const activeSectionLabel =
+    schema?.sections[activeSection]?.label ?? activeSection;
+  const canSave = dirtyPaths.size > 0;
 
   const handleFieldChange = (path: string, value: unknown) => {
     setDirtyPaths((prev) => new Set(prev).add(path));
@@ -121,14 +103,6 @@ export default function ConfigPage({
     handleFieldChange(path, "");
   };
 
-  const handleWebFieldChange = (path: string, value: unknown) => {
-    setLocalWebConfig((prev) => setNestedValue(prev, path, value));
-    setWebDirty(true);
-    if (path === "auth_token") {
-      setWebSecretConfigured(String(value).length > 0);
-    }
-  };
-
   const handleSave = async () => {
     if (!canSave || saving) return;
 
@@ -144,52 +118,14 @@ export default function ConfigPage({
         if (!ok) return;
         setDirtyPaths(new Set());
       }
-      if (webDirty) {
-        const savedToken = String(localWebConfig.auth_token ?? "");
-        const ok = await onSaveWeb({ auth_token: savedToken });
-        if (!ok) return;
-        setWebDirty(false);
-        if (savedToken) {
-          // 保存后不保留用户刚输入的明文 Token
-          setLocalWebConfig((prev) => ({ ...prev, auth_token: "" }));
-          setWebSecretConfigured(true);
-        } else {
-          setWebSecretConfigured(false);
-        }
-      }
     } finally {
       setSaving(false);
     }
   };
 
-  const webAuthToken = String(localWebConfig.auth_token ?? "");
 
   let content: ReactNode;
-  if (isWebTab) {
-    content = (
-      <div className="settings-row">
-        <div className="settings-label">
-          <ConfigFieldLabel
-            htmlFor="web.auth_token"
-            label="Auth Token"
-            description="Web 访问认证 Token"
-          />
-        </div>
-        <div className="settings-control">
-          <SecretField
-            id="web.auth_token"
-            label="Auth Token"
-            description="Web 访问认证 Token"
-            value={webAuthToken}
-            configured={webSecretConfigured}
-            showLabel={false}
-            onChange={(value) => handleWebFieldChange("auth_token", value)}
-            onClear={() => handleWebFieldChange("auth_token", "")}
-          />
-        </div>
-      </div>
-    );
-  } else if (!activeData || typeof activeData !== "object") {
+  if (!activeData || typeof activeData !== "object") {
     content = <p className="text-muted">暂无配置项</p>;
   } else {
     content = (
@@ -245,13 +181,6 @@ export default function ConfigPage({
               {schema?.sections[key]?.label ?? key}
             </button>
           ))}
-          <button
-            type="button"
-            className={`config-nav-item ${isWebTab ? "active" : ""}`}
-            onClick={() => setActiveSection(WEB_TAB_KEY)}
-          >
-            Web
-          </button>
         </aside>
 
         <main className="config-content">

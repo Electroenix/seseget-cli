@@ -71,11 +71,6 @@ export interface ConfigSettingsData {
   secret_configured: string[];
 }
 
-export interface WebSettingsData {
-  config: ConfigObject;
-  secret_fields: string[];
-  secret_configured: string[];
-}
 
 export type ConfigFieldKind = "str" | "bool" | "int" | "str_list" | string;
 
