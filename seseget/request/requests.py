@@ -2,6 +2,9 @@ import asyncio
 
 from curl_cffi import requests as sync_requests
 from curl_cffi.requests import AsyncSession
+from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
+from curl_cffi.requests.exceptions import RequestException as CurlRequestException
+from curl_cffi.requests.exceptions import Timeout as CurlTimeout
 from urllib.parse import urlparse
 from urllib.request import getproxies
 from typing import Dict
@@ -10,9 +13,11 @@ from requests.structures import CaseInsensitiveDict
 from ..config import settings
 from ..utils.trace import logger
 from ..config.config_manager import config
+from .errors import RequestConnectionError, RequestError, RequestHTTPError, RequestTimeout
 
 
-REQUEST_RETRY_MAX = 3
+REQUEST_MAX_ATTEMPTS = 3
+RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
 DEFAULT_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
 }
@@ -161,33 +166,73 @@ session_manager = AsyncSessionManager()
 
 
 # 请求接口
-async def async_request(method, url, **kwargs):
-    """
-    发送异步请求
-    Args:
-        method: 请求方法
-        url: 请求地址
-        **kwargs: 附加参数
+async def async_request(method: str, url: str, **kwargs):
+    """发送异步请求，成功返回 2xx response，失败抛出 RequestError 子类。
 
-    Returns: 响应对象
+    超时、连接失败和可重试的 HTTP 状态会重试；其余 4xx 立即失败。
     """
-    retry_times = 0
-    response = None
+    last_error = None
 
-    while True:
+    for attempt in range(1, REQUEST_MAX_ATTEMPTS + 1):
+        response = None
         try:
             response = await session_manager.request(method, url, **kwargs)
-            logger.debug(f'request headers: {response.request.headers}')
-            break
-        except Exception as result:
-            if retry_times < REQUEST_RETRY_MAX:
-                logger.error('Error! info: %s' % result)
-                logger.info("GET %s Failed, Retry(%d)..." % (url, retry_times))
-                retry_times = retry_times + 1
-                await asyncio.sleep(1)
-                continue
-            else:
-                logger.error('Error! retry max - %d!' % REQUEST_RETRY_MAX)
-                break
+        except CurlTimeout as exc:
+            last_error = RequestTimeout(
+                f"{method} {url} 请求超时 (尝试 {attempt} 次)",
+                method=method,
+                url=url,
+                attempts=attempt,
+                cause=exc,
+            )
+        except (CurlConnectionError, CurlRequestException) as exc:
+            last_error = RequestConnectionError(
+                f"{method} {url} 网络请求失败 (尝试 {attempt} 次): {exc}",
+                method=method,
+                url=url,
+                attempts=attempt,
+                cause=exc,
+            )
+        except Exception:
+            # 非请求库异常不应被重试逻辑吞掉
+            raise
+        else:
+            status_code = response.status_code
+            if 200 <= status_code < 300:
+                return response
 
-    return response
+            body_preview = ""
+            try:
+                body_preview = response.text[:200].strip()
+            except Exception:
+                pass
+
+            last_error = RequestHTTPError(
+                f"{method} {url} 返回 HTTP {status_code}",
+                method=method,
+                url=url,
+                attempts=attempt,
+                status_code=status_code,
+                body_preview=body_preview,
+                retryable=status_code in RETRYABLE_STATUS,
+            )
+            response.close()
+
+        if isinstance(last_error, RequestHTTPError) and not last_error.retryable:
+            raise last_error
+
+        if attempt >= REQUEST_MAX_ATTEMPTS:
+            raise last_error
+
+        logger.warning(
+            "%s，%s 后重试 (%d/%d)",
+            last_error,
+            "1s",
+            attempt,
+            REQUEST_MAX_ATTEMPTS,
+        )
+        await asyncio.sleep(1)
+
+    # 理论不可达；保证类型检查不会推断返回 None
+    assert last_error is not None
+    raise last_error

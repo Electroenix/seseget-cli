@@ -4,6 +4,7 @@ import signal
 
 from . import __version__
 from .request.downloadtask import download_manager
+from .request.errors import RequestError
 from .request.fetcher import FetcherRegistry
 from .request.requests import session_manager
 from .utils.trace import logger
@@ -35,13 +36,20 @@ async def process_worker_async():
     no_download = args.no_download
 
     for url in urls:
-        fetcher = FetcherRegistry.get_fetcher(site)
-        logger.debug(f"获取到Fetcher[{fetcher}]")
-        if site in ("bika", "jmcomic"):
-            chapter = [int(c) for c in (args.chapter.split(",") if args.chapter else [])]
-            await fetcher.download(url, chapter_id_list=chapter, no_download=no_download)
-        else:
-            await fetcher.download(url, no_download=no_download)
+        try:
+            fetcher = FetcherRegistry.get_fetcher(site)
+            logger.debug(f"获取到Fetcher[{fetcher}]")
+            if site in ("bika", "jmcomic"):
+                chapter = [
+                    int(c) for c in (args.chapter.split(",") if args.chapter else [])
+                ]
+                await fetcher.download(
+                    url, chapter_id_list=chapter, no_download=no_download
+                )
+            else:
+                await fetcher.download(url, no_download=no_download)
+        except RequestError as e:
+            logger.error("请求失败: %s", e)
 
     await download_manager.wait_all()
     await session_manager.close_all()
