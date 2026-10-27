@@ -10,6 +10,9 @@ from ..utils.subprocess_utils import exec_cmd
 from ..utils.trace import logger
 
 
+DOWNLOAD_RETRY_INTERVAL = 2
+
+
 async def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = None, **kwargs):
     """
     下载单个文件
@@ -122,7 +125,7 @@ async def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgre
                     logger.debug('Error! info: %s' % result)
                     logger.debug("GET %s Failed, Retry(%d)..." % (url, retry_times))
                     retry_times = retry_times + 1
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(DOWNLOAD_RETRY_INTERVAL)
                     continue
                 else:
                     raise
