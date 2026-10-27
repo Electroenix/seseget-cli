@@ -101,7 +101,7 @@ docker compose up -d
 > ```
 
 #### 访问
-服务启动后会在终端显示 Auth Token 和服务器地址，浏览器中访问对应地址，输入 Auth Token 即可使用。Auth Token 也可通过 `conf/web_conf.yaml` 查看。
+服务启动后会在终端显示 Auth Token 和服务器地址，浏览器中访问对应地址，输入 Auth Token 即可使用。
 
 ```
 ==================================================
@@ -114,6 +114,13 @@ docker compose up -d
 ==================================================
   [Auth Token]: xxxxxxxxxxxxxxxxxxxxxx
 ==================================================
+```
+
+Auth Token 从`SESEGET_AUTH_TOKEN` 环境变量或 `conf/web_conf.yaml` 中读取，优先级：
+```
+环境变量优先
+→ 否则读取 web_conf.yaml
+→ 否则自动生成并写入`web_conf.yaml`
 ```
 
 ## 配置
