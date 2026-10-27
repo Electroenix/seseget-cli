@@ -1,10 +1,10 @@
 import type {
   ApiResponse,
   MediaInfo,
-  ConfigObject,
   ConfigChanges,
   ConfigSettingsData,
   ConfigSchema,
+  WebSettingsData,
   FormatOptions,
   DownloadHistoryData,
 } from "../types/api";
@@ -145,12 +145,12 @@ export async function saveSettings(changes: ConfigChanges): Promise<ApiResponse>
 }
 
 // GET /api/web-settings
-export async function fetchWebSettings(): Promise<ApiResponse<ConfigObject>> {
+export async function fetchWebSettings(): Promise<ApiResponse<WebSettingsData>> {
   const response = await fetch("/api/web-settings", {
     method: "GET",
     headers: authHeaders(),
   });
-  return handleResponse<ConfigObject>(response);
+  return handleResponse<WebSettingsData>(response);
 }
 
 // GET /api/version
@@ -162,11 +162,13 @@ export async function fetchVersion(): Promise<ApiResponse<{ version: string }>> 
   return handleResponse<{ version: string }>(response);
 }
 
-// POST /api/web-settings/save
-export async function saveWebSettings(config: ConfigObject): Promise<ApiResponse> {
-  const response = await fetch("/api/web-settings/save", {
-    method: "POST",
-    body: JSON.stringify(config),
+// PATCH /api/web-settings  (JSON: changes)
+export async function saveWebSettings(
+  changes: ConfigChanges
+): Promise<ApiResponse> {
+  const response = await fetch("/api/web-settings", {
+    method: "PATCH",
+    body: JSON.stringify({ changes }),
     headers: { "Content-Type": "application/json", ...authHeaders() },
   });
   return handleResponse(response);

@@ -19,8 +19,9 @@ interface ConfigPageProps {
   formatOptions: FormatOptions | null;
   secretFields: string[];
   secretConfigured: string[];
+  webConfigured: boolean;
   onSave: (changes: ConfigChanges) => Promise<boolean>;
-  onSaveWeb: (config: ConfigObject) => Promise<boolean>;
+  onSaveWeb: (changes: ConfigChanges) => Promise<boolean>;
 }
 
 function deepClone<T>(obj: T): T {
@@ -65,6 +66,7 @@ export default function ConfigPage({
   formatOptions,
   secretFields,
   secretConfigured,
+  webConfigured,
   onSave,
   onSaveWeb,
 }: ConfigPageProps) {
@@ -82,6 +84,8 @@ export default function ConfigPage({
   const [localWebConfig, setLocalWebConfig] =
     useState<ConfigObject>(initialWebConfig);
   const [webDirty, setWebDirty] = useState(false);
+  const [webSecretConfigured, setWebSecretConfigured] =
+    useState(webConfigured);
   const [activeSection, setActiveSection] = useState(
     Object.keys(initialConfig)[0] ?? ""
   );
@@ -120,6 +124,9 @@ export default function ConfigPage({
   const handleWebFieldChange = (path: string, value: unknown) => {
     setLocalWebConfig((prev) => setNestedValue(prev, path, value));
     setWebDirty(true);
+    if (path === "auth_token") {
+      setWebSecretConfigured(String(value).length > 0);
+    }
   };
 
   const handleSave = async () => {
@@ -138,9 +145,17 @@ export default function ConfigPage({
         setDirtyPaths(new Set());
       }
       if (webDirty) {
-        const ok = await onSaveWeb(localWebConfig);
+        const savedToken = String(localWebConfig.auth_token ?? "");
+        const ok = await onSaveWeb({ auth_token: savedToken });
         if (!ok) return;
         setWebDirty(false);
+        if (savedToken) {
+          // 保存后不保留用户刚输入的明文 Token
+          setLocalWebConfig((prev) => ({ ...prev, auth_token: "" }));
+          setWebSecretConfigured(true);
+        } else {
+          setWebSecretConfigured(false);
+        }
       }
     } finally {
       setSaving(false);
@@ -148,7 +163,6 @@ export default function ConfigPage({
   };
 
   const webAuthToken = String(localWebConfig.auth_token ?? "");
-  const webConfigured = webAuthToken.length > 0;
 
   let content: ReactNode;
   if (isWebTab) {
@@ -167,7 +181,7 @@ export default function ConfigPage({
             label="Auth Token"
             description="Web 访问认证 Token"
             value={webAuthToken}
-            configured={webConfigured}
+            configured={webSecretConfigured}
             showLabel={false}
             onChange={(value) => handleWebFieldChange("auth_token", value)}
             onClear={() => handleWebFieldChange("auth_token", "")}

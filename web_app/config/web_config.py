@@ -44,7 +44,9 @@ class WebConfigManager:
         merged = deepcopy(self._config)
         merged.update(data)
         self._save_data(merged)
-        self._config = merged
+        # 保持模块级 web_config 引用有效
+        self._config.clear()
+        self._config.update(merged)
 
     def save(self) -> None:
         self._save_data(self._config)

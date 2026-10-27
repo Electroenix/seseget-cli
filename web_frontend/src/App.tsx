@@ -72,6 +72,7 @@ function MainApp({ version }: { version: string }) {
   // Config page state
   const [configData, setConfigData] = useState<ConfigObject | null>(null);
   const [webConfigData, setWebConfigData] = useState<ConfigObject | null>(null);
+  const [webSecretConfigured, setWebSecretConfigured] = useState<string[]>([]);
   const [secretFields, setSecretFields] = useState<string[]>([]);
   const [secretConfigured, setSecretConfigured] = useState<string[]>([]);
   const [configSchema, setConfigSchema] = useState<ConfigSchema | null>(null);
@@ -220,7 +221,8 @@ function MainApp({ version }: { version: string }) {
       setSecretFields(mainRes.data.secret_fields);
       setSecretConfigured(mainRes.data.secret_configured);
       setConfigSchema(schemaRes?.data ?? null);
-      setWebConfigData(webRes.data as ConfigObject);
+      setWebConfigData(webRes.data.config);
+      setWebSecretConfigured(webRes.data.secret_configured);
       setFormatOptions(formatsRes?.data ?? null);
     } catch (err) {
       console.error("Failed to load config:", err);
@@ -241,9 +243,9 @@ function MainApp({ version }: { version: string }) {
     }
   }, []);
 
-  const handleSaveWebConfig = useCallback(async (config: ConfigObject) => {
+  const handleSaveWebConfig = useCallback(async (changes: ConfigChanges) => {
     try {
-      const response = await saveWebSettings(config);
+      const response = await saveWebSettings(changes);
       if (response.code !== 200) {
         window.alert(response.message || "保存 Web 配置失败");
         return false;
@@ -283,6 +285,7 @@ function MainApp({ version }: { version: string }) {
           formatOptions={formatOptions}
           secretFields={secretFields}
           secretConfigured={secretConfigured}
+          webConfigured={webSecretConfigured.includes("auth_token")}
           onSave={handleSaveConfig}
           onSaveWeb={handleSaveWebConfig}
         />
