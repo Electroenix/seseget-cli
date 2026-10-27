@@ -19,6 +19,20 @@ class NetworkConfig(ConfigModel):
         description="代理地址，留空使用系统代理",
         json_schema_extra={"label": "代理地址"},
     )
+    timeout: int = Field(
+        10,
+        ge=1,
+        le=300,
+        description="单次请求的超时时间，单位秒",
+        json_schema_extra={"label": "请求超时（秒）"},
+    )
+    max_attempts: int = Field(
+        3,
+        ge=1,
+        le=10,
+        description="单次请求最多尝试次数，包含第一次请求",
+        json_schema_extra={"label": "最大尝试次数"},
+    )
 
 
 class HanimeConfig(ConfigModel):
@@ -155,6 +169,8 @@ class FieldSpec:
     editable: bool = True
     label: str = ""
     description: str = ""
+    minimum: int | None = None
+    maximum: int | None = None
 
 
 def _kind_for(annotation: Any) -> str:
@@ -178,6 +194,13 @@ def _walk_fields(model: type[BaseModel], prefix: str = ""):
             continue
 
         extra = field.json_schema_extra or {}
+        minimum = None
+        maximum = None
+        for constraint in field.metadata:
+            if hasattr(constraint, "ge"):
+                minimum = constraint.ge
+            if hasattr(constraint, "le"):
+                maximum = constraint.le
         yield FieldSpec(
             path=path,
             kind=_kind_for(annotation),
@@ -185,6 +208,8 @@ def _walk_fields(model: type[BaseModel], prefix: str = ""):
             editable=bool(extra.get("editable", True)),
             label=str(extra.get("label", name)),
             description=field.description or "",
+            minimum=minimum,
+            maximum=maximum,
         )
 
 
@@ -209,6 +234,8 @@ def get_ui_schema() -> dict:
                 "kind": spec.kind,
                 "secret": spec.secret,
                 "editable": spec.editable,
+                "minimum": spec.minimum,
+                "maximum": spec.maximum,
             }
             for path, spec in CONFIG_FIELDS.items()
         },
@@ -294,7 +321,11 @@ def _validate_value(spec: FieldSpec, value: Any) -> str | None:
     elif spec.kind == "int":
         if type(value) is not int:
             return "必须是整数"
-        if value < 1:
+        if spec.minimum is not None and value < spec.minimum:
+            return f"必须大于等于 {spec.minimum}"
+        if spec.maximum is not None and value > spec.maximum:
+            return f"必须小于等于 {spec.maximum}"
+        if spec.minimum is None and value < 1:
             return "必须大于等于 1"
     elif spec.kind == "str_list":
         if not isinstance(value, list) or any(not isinstance(item, str) for item in value):

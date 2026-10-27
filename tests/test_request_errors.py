@@ -24,13 +24,24 @@ class FakeSessionManager:
     def __init__(self, results):
         self.results = list(results)
         self.calls = 0
+        self.last_kwargs = None
 
     async def request(self, method, url, **kwargs):
         self.calls += 1
+        self.last_kwargs = kwargs
         result = self.results.pop(0)
         if isinstance(result, Exception):
             raise result
         return result
+
+
+@pytest.fixture(autouse=True)
+def default_network_config(monkeypatch):
+    monkeypatch.setattr(
+        requests_module,
+        "config",
+        {"network": {"proxy": "", "timeout": 10, "max_attempts": 3}},
+    )
 
 
 def install_fake(monkeypatch, results):
@@ -131,3 +142,35 @@ async def test_connection_error_raises(monkeypatch):
 
     assert manager.calls == requests_module.REQUEST_MAX_ATTEMPTS
     assert exc_info.value.url == "https://example.test"
+
+
+def test_configured_timeout_is_read():
+    requests_module.config["network"]["timeout"] = 7
+
+    assert requests_module._request_timeout() == 7
+
+
+@pytest.mark.asyncio
+async def test_configured_max_attempts_is_used(monkeypatch):
+    manager = install_fake(
+        monkeypatch,
+        [FakeResponse(500), FakeResponse(500), FakeResponse(200)],
+    )
+    requests_module.config["network"]["max_attempts"] = 2
+
+    with pytest.raises(RequestHTTPError) as exc_info:
+        await requests_module.async_request("GET", "https://example.test")
+
+    assert manager.calls == 2
+    assert exc_info.value.attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_max_attempts_one_disables_retry(monkeypatch):
+    manager = install_fake(monkeypatch, [FakeResponse(500)])
+    requests_module.config["network"]["max_attempts"] = 1
+
+    with pytest.raises(RequestHTTPError):
+        await requests_module.async_request("GET", "https://example.test")
+
+    assert manager.calls == 1

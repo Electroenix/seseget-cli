@@ -18,6 +18,23 @@ from .errors import RequestConnectionError, RequestError, RequestHTTPError, Requ
 
 REQUEST_MAX_ATTEMPTS = 3
 RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
+
+
+def _network_value(name: str, default: int, minimum: int, maximum: int) -> int:
+    """读取网络配置，异常或越界时回退默认值。"""
+    try:
+        value = int(config["network"].get(name, default))
+    except (KeyError, TypeError, ValueError):
+        return default
+    return value if minimum <= value <= maximum else default
+
+
+def _request_timeout() -> int:
+    return _network_value("timeout", settings.REQUEST_TIMEOUT, 1, 300)
+
+
+def _request_max_attempts() -> int:
+    return _network_value("max_attempts", REQUEST_MAX_ATTEMPTS, 1, 10)
 DEFAULT_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
 }
@@ -69,7 +86,7 @@ class SessionManager:
             kwargs["impersonate"] = "chrome110"
 
         if "timeout" not in kwargs:
-            kwargs["timeout"] = settings.REQUEST_TIMEOUT
+            kwargs["timeout"] = _request_timeout()
 
         parsed_url = urlparse(url)
         host = parsed_url.netloc
@@ -140,7 +157,7 @@ class AsyncSessionManager:
             kwargs["impersonate"] = "chrome110"
 
         if "timeout" not in kwargs:
-            kwargs["timeout"] = settings.REQUEST_TIMEOUT
+            kwargs["timeout"] = _request_timeout()
 
         parsed_url = urlparse(url)
         host = parsed_url.netloc
@@ -172,8 +189,9 @@ async def async_request(method: str, url: str, **kwargs):
     超时、连接失败和可重试的 HTTP 状态会重试；其余 4xx 立即失败。
     """
     last_error = None
+    max_attempts = _request_max_attempts()
 
-    for attempt in range(1, REQUEST_MAX_ATTEMPTS + 1):
+    for attempt in range(1, max_attempts + 1):
         response = None
         try:
             response = await session_manager.request(method, url, **kwargs)
@@ -221,7 +239,7 @@ async def async_request(method: str, url: str, **kwargs):
         if isinstance(last_error, RequestHTTPError) and not last_error.retryable:
             raise last_error
 
-        if attempt >= REQUEST_MAX_ATTEMPTS:
+        if attempt >= max_attempts:
             raise last_error
 
         logger.warning(
@@ -229,7 +247,7 @@ async def async_request(method: str, url: str, **kwargs):
             last_error,
             "1s",
             attempt,
-            REQUEST_MAX_ATTEMPTS,
+            max_attempts,
         )
         await asyncio.sleep(1)
 

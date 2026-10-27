@@ -80,6 +80,8 @@ export interface ConfigFieldSchema {
   kind: ConfigFieldKind;
   secret: boolean;
   editable: boolean;
+  minimum?: number | null;
+  maximum?: number | null;
 }
 
 export interface ConfigSectionSchema {

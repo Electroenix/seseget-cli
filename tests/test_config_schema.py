@@ -124,3 +124,19 @@ def test_build_patch_builds_nested_structure():
         "download": {"max_history": 10},
         "sites": {"bika": {"password": "new"}},
     }
+
+
+def test_validate_changes_enforces_network_ranges():
+    config = {
+        "network": {"proxy": "", "timeout": 10, "max_attempts": 3},
+    }
+
+    assert "必须小于等于 300" in validate_changes(
+        config, {"network.timeout": 301}
+    )
+    assert "必须小于等于 10" in validate_changes(
+        config, {"network.max_attempts": 11}
+    )
+    assert "必须大于等于 1" in validate_changes(
+        config, {"network.timeout": 0}
+    )
