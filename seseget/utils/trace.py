@@ -52,7 +52,7 @@ class SSGStreamHandler(StreamHandler):
             # 输出到控制台
             ssg_stdout.write(msg)
             self.flush()
-        except Exception as e:
+        except Exception:
             self.handleError(record)
 
 

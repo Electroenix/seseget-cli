@@ -45,6 +45,9 @@ jobs:
           python -c "import seseget; from seseget.request.fetcher import FetcherRegistry; print('sites:', FetcherRegistry.list_sites())"
           python -c "import web_app; print('web_app import OK')"
 
+      - name: Run Ruff
+        run: python -m ruff check seseget web_app tests scripts
+
       - name: Run Python tests
         run: python -m pytest -q
 

@@ -13,7 +13,7 @@ def write_nfo(save_dir: str, video_name: str, metadata: VideoMetaData):
     plot = ET.SubElement(movie, 'plot')
     plot.text = metadata.describe
 
-    outline = ET.SubElement(movie, 'outline')
+    ET.SubElement(movie, 'outline')
 
     lockdata = ET.SubElement(movie, 'lockdata')
     lockdata.text = 'false'

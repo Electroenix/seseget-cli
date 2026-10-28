@@ -18,7 +18,7 @@ def write_comic_info_xml(output_dir: str, metadata: ComicMetaData):
     output_path = output_dir + "/" + "ComicInfo.xml"
 
     with open(output_path, "w", encoding='utf-8') as f:
-        f.write(f"""\
+        f.write("""\
 <?xml version='1.0' encoding='UTF-8'?>
 <ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">""")
 

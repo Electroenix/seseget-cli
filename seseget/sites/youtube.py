@@ -1,6 +1,8 @@
 import asyncio
 import copy
 import json
+import os
+import re
 
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
@@ -9,7 +11,7 @@ from ..request.requests import async_request
 from ..request.downloadtask import TaskDLProgress
 from ..request import ytdlp
 from ..utils.trace import logger
-from ..utils.file_utils import *
+from ..utils.file_utils import make_filename_valid
 
 
 class YtbVideoInfo(VideoInfo):
@@ -21,7 +23,7 @@ class YtbVideoInfo(VideoInfo):
         self.video_like = ""
 
     def print_info(self):
-        logger.info(f"---------------------------------")
+        logger.info("---------------------------------")
         logger.info(f"vid: {self.vid}")
         logger.info(f"标题: {self.metadata.title}")
         logger.info(f"简介: {self.metadata.describe}")
@@ -30,7 +32,7 @@ class YtbVideoInfo(VideoInfo):
         logger.info(f"标签: {self.metadata.tag_list}")
         logger.info(f"播放: {self.video_view}")
         logger.info(f"点赞: {self.video_like}")
-        logger.info(f"---------------------------------")
+        logger.info("---------------------------------")
 
 
 @FetcherRegistry.register("youtube")

@@ -12,7 +12,7 @@ from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, JmApiClient, 
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..output.comic import package_comic
 from ..config.path import DATA_DIR
-from ..utils.file_utils import *
+from ..utils.file_utils import make_filename_valid
 from ..utils.trace import logger, SSGLogger
 from ..config.config_manager import config
 from ..config.session_store import session_store
@@ -115,7 +115,7 @@ class SSGJmClient(JmApiClient):
             self.update_request_with_specify_domain(kwargs, None, True)
 
         if domain_index != 0 or retry_count != 0:
-            jm_log(f'req.retry',
+            jm_log('req.retry',
                    ', '.join([
                        f'次数: [{retry_count}/{self.retry_times}]',
                        f'域名: [{domain_index} of {self.domain_list}]',

@@ -1,15 +1,17 @@
 import copy
 import json
+import os
+import re
 from bs4 import BeautifulSoup
 
 from ..request import downloader
 from ..request.downloadtask import TaskDLProgress
 from ..config.path import DATA_DIR
-from ..metadata.video import *
+from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry, make_source_info_file
 from ..utils.trace import logger
 from ..request.requests import async_request
-from ..utils.file_utils import *
+from ..utils.file_utils import make_filename_valid
 from ..config.config_manager import config
 
 
@@ -25,7 +27,7 @@ class BiliVideoInfo(VideoInfo):
         self.video_share = ""
 
     def print_info(self):
-        logger.info(f"---------------------------------")
+        logger.info("---------------------------------")
         logger.info(f"BV号: {self.vid}")
         logger.info(f"标题: {self.metadata.title}")
         logger.info(f"简介: {self.metadata.describe}")
@@ -37,7 +39,7 @@ class BiliVideoInfo(VideoInfo):
         logger.info(f"投币: {self.video_coin}")
         logger.info(f"收藏: {self.video_fav}")
         logger.info(f"转发: {self.video_share}")
-        logger.info(f"---------------------------------")
+        logger.info("---------------------------------")
 
 
 @FetcherRegistry.register("bilibili")
