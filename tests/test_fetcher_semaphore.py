@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 
+from seseget.request.errors import SiteParseError
 from seseget.request.fetcher import ComicFetcher, ComicInfo, VideoFetcher, VideoInfo
 from seseget.sites.twitter import TwitterFetcher
 
@@ -79,9 +80,10 @@ async def test_fetcher_semaphore_released_on_fetch_error():
         raise RuntimeError("fetch failed")
 
     fetcher._fetch_info = fail
-    with pytest.raises(RuntimeError):
+    with pytest.raises(SiteParseError) as exc_info:
         await fetcher.download("url", no_download=True)
 
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
     assert fetcher.task_semaphore._value == 1
 
 

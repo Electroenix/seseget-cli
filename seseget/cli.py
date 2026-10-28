@@ -4,7 +4,7 @@ import signal
 
 from . import __version__
 from .request.downloadtask import download_manager
-from .request.errors import RequestError
+from .request.errors import RequestError, SiteError
 from .request.fetcher import FetcherRegistry
 from .request.requests import session_manager
 from .utils.trace import logger
@@ -48,7 +48,7 @@ async def process_worker_async():
                 )
             else:
                 await fetcher.download(url, no_download=no_download)
-        except RequestError as e:
+        except (RequestError, SiteError) as e:
             logger.error("请求失败: %s", e)
 
     await download_manager.wait_all()

@@ -48,3 +48,34 @@ class RequestHTTPError(RequestError):
 
 class RequestParseError(RequestError):
     """响应内容无法解析为预期格式。"""
+
+
+class SiteError(Exception):
+    """站点业务错误：请求已成功，但页面内容无法使用。"""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        site: str = "",
+        url: str = "",
+        cause: Optional[BaseException] = None,
+    ) -> None:
+        self.site = site
+        self.url = url
+        self.cause = cause
+        super().__init__(message)
+        if cause is not None:
+            self.__cause__ = cause
+
+
+class SiteAccessError(SiteError):
+    """站点拒绝访问：登录/Cookie 失效、反爬或权限限制。"""
+
+
+class SiteParseError(SiteError):
+    """站点返回了内容，但关键页面结构无法解析。"""
+
+
+class SiteUnsupportedError(SiteError):
+    """站点或内容类型不受支持。"""

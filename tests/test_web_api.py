@@ -216,6 +216,7 @@ async def test_search_maps_request_errors_to_gateway(api_client, monkeypatch):
     assert response.status_code == 502
     assert response.json()["code"] == 502
     assert "upstream failed" in response.json()["message"]
+    assert "反爬" in response.json()["message"]
 
 
 @pytest.mark.asyncio
@@ -239,3 +240,32 @@ async def test_search_maps_unexpected_errors_to_500(api_client, monkeypatch):
     assert response.status_code == 500
     assert response.json()["code"] == 500
     assert response.json()["message"] == "服务器内部错误"
+
+
+@pytest.mark.asyncio
+async def test_search_maps_site_parse_error_to_gateway(api_client, monkeypatch):
+    from seseget.request.errors import SiteParseError
+
+    class ParseFailingFetcher:
+        async def info(self, url):
+            raise SiteParseError(
+                "站点返回内容无法解析：可能是反爬验证页、登录状态失效",
+                site="test",
+                url=url,
+            )
+
+    monkeypatch.setattr(
+        FetcherRegistry,
+        "get_fetcher",
+        classmethod(lambda cls, site: ParseFailingFetcher()),
+    )
+
+    response = await api_client.post(
+        "/api/search",
+        headers=AUTH,
+        data={"station": "bika", "url": "https://example.test"},
+    )
+
+    assert response.status_code == 502
+    assert response.json()["code"] == 502
+    assert "反爬" in response.json()["message"]

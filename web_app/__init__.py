@@ -40,7 +40,13 @@ app = FastAPI(lifespan=lifespan)
 
 from .api.auth import AUTH_WHITELIST, get_stored_token, check_token
 from .api.response import ApiResponse, ResponseCode
-from seseget.request.errors import RequestError, RequestTimeout
+from seseget.request.errors import (
+    RequestError,
+    RequestHTTPError,
+    RequestTimeout,
+    SiteError,
+    SiteUnsupportedError,
+)
 
 
 # --- 未预期异常兜底 ---
@@ -90,6 +96,24 @@ async def request_error_handler(request: Request, exc: RequestError):
     code = (
         ResponseCode.GATEWAY_TIMEOUT
         if isinstance(exc, RequestTimeout)
+        else ResponseCode.BAD_GATEWAY
+    )
+    message = str(exc)
+    if isinstance(exc, RequestHTTPError) and exc.status_code in (401, 403, 429):
+        message = (
+            f"{message}；可能为 Cookie 失效、登录过期或触发反爬验证，"
+            "请检查配置后重试"
+        )
+    return ApiResponse(code=code, message=message)
+
+
+@app.exception_handler(SiteError)
+async def site_error_handler(request: Request, exc: SiteError):
+    """把站点解析/访问错误转换成带可读消息的 JSON 响应。"""
+    logger.warning("Site error: %s", exc)
+    code = (
+        ResponseCode.BAD_REQUEST
+        if isinstance(exc, SiteUnsupportedError)
         else ResponseCode.BAD_GATEWAY
     )
     return ApiResponse(code=code, message=str(exc))
