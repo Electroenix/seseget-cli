@@ -2,6 +2,7 @@ import asyncio
 import os
 import re
 import shutil
+import tempfile
 
 from .downloadtask import TaskDLProgress, FileDLProgress, download_manager
 from .requests import async_request, session_manager
@@ -301,9 +302,13 @@ async def _get_ts_list_from_m3u8(url):
 
 
 async def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
-    """下载m3u8文件，保存为mp4格式"""
+    """下载m3u8文件，保存为mp4格式。"""
     ts_list = await _get_ts_list_from_m3u8(url)
-    ts_index = 0
+
+    if not ts_list:
+        if progress:
+            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+        raise ValueError(f"m3u8 中没有找到 ts 分片: {url}")
 
     if progress is not None:
         progress.init_progress()
@@ -312,49 +317,63 @@ async def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress = None):
 
     semaphore = asyncio.Semaphore(10)
 
-    async def _download_ts(ts_url, idx):
-        f_ts_name = '%08d.ts' % idx
-        if not os.path.exists('ts_temp'):
-            os.mkdir('ts_temp')
+    # 每个 m3u8 任务使用独立临时目录，避免并发任务互相污染
+    with tempfile.TemporaryDirectory(prefix="seseget-m3u8-") as temp_dir:
+        async def _download_ts(ts_url, idx):
+            ts_name = '%08d.ts' % idx
+            async with semaphore:
+                await _download_file(
+                    os.path.join(temp_dir, ts_name), ts_url, True, None
+                )
+            return ts_name
 
-        async with semaphore:
-            await _download_file('ts_temp/%s' % f_ts_name, ts_url, True, None)
+        tasks = [
+            _download_ts(ts_url, idx)
+            for idx, ts_url in enumerate(ts_list, start=1)
+        ]
 
-        with open('ts_temp/ts_files_list.txt', 'a') as f_ts_files_list:
-            f_ts_files_list.write('file \'%s\'\r\n' % f_ts_name)
+        try:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+        except Exception as e:
+            logger.error(f"下载失败！info: {e}")
+            if progress:
+                progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+            raise
 
-    tasks = []
-    for idx, ts_url in enumerate(ts_list, start=1):
-        tasks.append(_download_ts(ts_url, idx))
-
-    try:
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for r in results:
-            if isinstance(r, Exception):
-                logger.error(f"下载失败！info: {r}")
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(f"下载失败！info: {result}")
                 if progress:
                     progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
-                raise r
-    except Exception as e:
-        logger.error(f"下载失败！info: {e}")
+                raise result
+
+        # 按分片顺序写 concat 列表，不能依赖并发下载的完成顺序
+        ts_names = list(results)
+        concat_list_path = os.path.join(temp_dir, "ts_files_list.txt")
+        with open(concat_list_path, "w", encoding="utf-8") as f:
+            for ts_name in ts_names:
+                f.write(f"file '{ts_name}'\n")
+
+        logger.info('下载完成!')
         if progress:
-            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
-        raise
+            progress.set_status(FileDLProgress.Status.PROCESS)
 
-    logger.info('下载完成!')
-    if progress:
-        progress.set_status(FileDLProgress.Status.PROCESS)
+        # ffmpeg拼接ts文件，保存为mp4
+        ok = await asyncio.to_thread(
+            exec_cmd,
+            [
+                "ffmpeg", "-f", "concat", "-safe", "0",
+                "-i", concat_list_path, "-c", "copy", filename,
+            ]
+        )
+        if not ok:
+            if progress:
+                progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+            raise RuntimeError(f"ffmpeg 拼接 m3u8 失败: {url}")
 
-    # ffmpeg拼接ts文件，保存为mp4
-    await asyncio.to_thread(
-        exec_cmd,
-        ["ffmpeg", "-f", "concat", "-safe", "0", "-i", "ts_temp/ts_files_list.txt", "-c", "copy", filename]
-    )
-    shutil.rmtree('ts_temp')
-
-    if progress:
-        progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
-    return 0
+        if progress:
+            progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
+        return 0
 
 
 async def download_comic_capter_images(save_dir: str, image_urls, progress: TaskDLProgress = None):
