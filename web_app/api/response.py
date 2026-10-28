@@ -12,6 +12,8 @@ class ResponseCode(IntEnum):
     FORBIDDEN = 403
     NOT_FOUND = 404
     SERVER_ERROR = 500
+    BAD_GATEWAY = 502
+    GATEWAY_TIMEOUT = 504
 
 
 class ApiResponse(JSONResponse):

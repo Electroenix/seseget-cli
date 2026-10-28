@@ -134,6 +134,8 @@ Auth Token 从`SESEGET_AUTH_TOKEN` 环境变量或 `conf/web_conf.yaml` 中读�
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `network.proxy` | string | `""` | 代理地址，留空使用系统代理 |
+| `network.timeout` | integer | `10` | 单次请求超时时间（秒） |
+| `network.max_attempts` | integer | `3` | 最大尝试次数，包含第一次请求 |
 | `sites.hanime.cookie` | string | `""` | 请求被拦截时使用的 Cookie |
 | `sites.hanime.organize_by_genre` | boolean | `false` | 是否按影片类型整理下载目录 |
 | `sites.bika.username` | string | `""` | 哔咔账号 |

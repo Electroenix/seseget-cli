@@ -82,24 +82,86 @@ class SSGLogger:
             self.logger.handlers.clear()
         self.logger.addHandler(self.stream_handler)
 
-    def log(self, level, msg, end="\n", stacklevel=2, *args, ** kwargs):
-        extra = {"end": end}
-        self.logger.log(level, msg, extra=extra, stacklevel=stacklevel)
+    def log(self, level, msg, *args, end="\n", stacklevel=2, **kwargs):
+        """兼容标准 logging 的 args/kwargs，同时保留自定义 end。"""
+        extra = dict(kwargs.pop("extra", {}) or {})
+        extra["end"] = end
+        self.logger.log(
+            level,
+            msg,
+            *args,
+            extra=extra,
+            stacklevel=stacklevel,
+            **kwargs,
+        )
 
-    def debug(self, msg: str, end="\n", *args, ** kwargs):
-        self.log(logging.DEBUG, msg, end=end, stacklevel=3)
+    def debug(self, msg: str, *args, end="\n", **kwargs):
+        stacklevel = kwargs.pop("stacklevel", 3)
+        self.log(
+            logging.DEBUG,
+            msg,
+            *args,
+            end=end,
+            stacklevel=stacklevel,
+            **kwargs,
+        )
 
-    def info(self, msg: str, end="\n", *args, ** kwargs):
-        self.log(logging.INFO, msg, end=end, stacklevel=3)
+    def info(self, msg: str, *args, end="\n", **kwargs):
+        stacklevel = kwargs.pop("stacklevel", 3)
+        self.log(
+            logging.INFO,
+            msg,
+            *args,
+            end=end,
+            stacklevel=stacklevel,
+            **kwargs,
+        )
 
-    def warning(self, msg: str, end="\n", *args, ** kwargs):
-        self.log(logging.WARNING, msg, end=end, stacklevel=3)
+    def warning(self, msg: str, *args, end="\n", **kwargs):
+        stacklevel = kwargs.pop("stacklevel", 3)
+        self.log(
+            logging.WARNING,
+            msg,
+            *args,
+            end=end,
+            stacklevel=stacklevel,
+            **kwargs,
+        )
 
-    def error(self, msg: str, end="\n", *args, ** kwargs):
-        self.log(logging.ERROR, msg, end=end, stacklevel=3)
+    def error(self, msg: str, *args, end="\n", **kwargs):
+        stacklevel = kwargs.pop("stacklevel", 3)
+        self.log(
+            logging.ERROR,
+            msg,
+            *args,
+            end=end,
+            stacklevel=stacklevel,
+            **kwargs,
+        )
 
-    def critical(self, msg: str, end="\n", *args, ** kwargs):
-        self.log(logging.CRITICAL, msg, end=end, stacklevel=3)
+    def critical(self, msg: str, *args, end="\n", **kwargs):
+        stacklevel = kwargs.pop("stacklevel", 3)
+        self.log(
+            logging.CRITICAL,
+            msg,
+            *args,
+            end=end,
+            stacklevel=stacklevel,
+            **kwargs,
+        )
+
+    def exception(self, msg: str, *args, end="\n", **kwargs):
+        """记录异常堆栈，行为对齐 logging.Logger.exception。"""
+        stacklevel = kwargs.pop("stacklevel", 3)
+        kwargs.setdefault("exc_info", True)
+        self.log(
+            logging.ERROR,
+            msg,
+            *args,
+            end=end,
+            stacklevel=stacklevel,
+            **kwargs,
+        )
 
 
 logger = SSGLogger("seseGet")

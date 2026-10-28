@@ -14,6 +14,7 @@ from ..output.comic import package_comic
 from ..output.video import make_video_metadata_file
 from ..utils.file_utils import make_filename_valid, make_diff_dir_name
 from ..utils.trace import logger
+from .errors import RequestError, SiteError, SiteParseError
 from .downloadtask import FileDLProgress, TaskDLProgress, download_manager
 
 
@@ -164,8 +165,26 @@ class SSGBaseFetcher(AbstractFetcher, Generic[T_Info]):
     async def download(self, url, **kwargs):
         pass
 
+    async def _fetch_info_guarded(self, url, **kwargs):
+        """在统一边界区分请求/站点错误与未预期的解析异常。"""
+        try:
+            return await self._fetch_info(url, **kwargs)
+        except (RequestError, SiteError):
+            raise
+        except Exception as exc:
+            logger.exception(
+                "站点解析失败: %s %s", type(self).__name__, url
+            )
+            raise SiteParseError(
+                "站点返回内容无法解析：可能是反爬验证页、登录状态失效、"
+                "访问受限或页面结构变化，请检查配置并稍后重试",
+                site=type(self).__name__,
+                url=url,
+                cause=exc,
+            ) from exc
+
     async def info(self, url, **kwargs):
-        return await self._fetch_info(url, **kwargs)
+        return await self._fetch_info_guarded(url, **kwargs)
 
 
 # 视频站点的抓取器需要继承VideoFetcher
@@ -259,7 +278,7 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
 
         # fetch 与下载任务共享信号量，避免解析请求同时爆发
         async with self.task_semaphore:
-            video_info = await self._fetch_info(url)
+            video_info = await self._fetch_info_guarded(url)
         video_info.print_info()
 
         if params["no_download"]:
@@ -373,7 +392,7 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
 
         # fetch 与下载任务共享信号量，避免解析请求同时爆发
         async with self.task_semaphore:
-            comic_info = await self._fetch_info(url, chapter_id_list=params["chapter_id_list"])
+            comic_info = await self._fetch_info_guarded(url, chapter_id_list=params["chapter_id_list"])
         comic_info.print_info()
 
         if params["no_download"]:

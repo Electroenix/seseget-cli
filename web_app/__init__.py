@@ -39,7 +39,27 @@ app = FastAPI(lifespan=lifespan)
 
 
 from .api.auth import AUTH_WHITELIST, get_stored_token, check_token
-from .api.response import ApiResponse
+from .api.response import ApiResponse, ResponseCode
+from seseget.request.errors import (
+    RequestError,
+    RequestHTTPError,
+    RequestTimeout,
+    SiteError,
+    SiteUnsupportedError,
+)
+
+
+# --- 未预期异常兜底 ---
+@app.middleware("http")
+async def unhandled_exception_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        logger.exception("Unhandled API error on %s: %s", request.url.path, exc)
+        return ApiResponse(
+            code=ResponseCode.SERVER_ERROR,
+            message="服务器内部错误",
+        )
 
 
 # --- Auth 中间件 ---
@@ -69,6 +89,36 @@ async def auth_middleware(request: Request, call_next):
 
 
 # --- Socket.IO 连接认证 ---
+@app.exception_handler(RequestError)
+async def request_error_handler(request: Request, exc: RequestError):
+    """把请求层异常转换成统一的 JSON 错误响应。"""
+    logger.warning("Request failed: %s", exc)
+    code = (
+        ResponseCode.GATEWAY_TIMEOUT
+        if isinstance(exc, RequestTimeout)
+        else ResponseCode.BAD_GATEWAY
+    )
+    message = str(exc)
+    if isinstance(exc, RequestHTTPError) and exc.status_code in (401, 403, 429):
+        message = (
+            f"{message}；可能为 Cookie 失效、登录过期或触发反爬验证，"
+            "请检查配置后重试"
+        )
+    return ApiResponse(code=code, message=message)
+
+
+@app.exception_handler(SiteError)
+async def site_error_handler(request: Request, exc: SiteError):
+    """把站点解析/访问错误转换成带可读消息的 JSON 响应。"""
+    logger.warning("Site error: %s", exc)
+    code = (
+        ResponseCode.BAD_REQUEST
+        if isinstance(exc, SiteUnsupportedError)
+        else ResponseCode.BAD_GATEWAY
+    )
+    return ApiResponse(code=code, message=str(exc))
+
+
 @sio.event
 async def connect(sid, environ, auth):
     """Socket.IO 连接时校验 token"""

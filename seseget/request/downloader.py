@@ -4,10 +4,13 @@ import re
 import shutil
 
 from .downloadtask import TaskDLProgress, FileDLProgress, download_manager
-from .requests import session_manager
+from .requests import async_request, session_manager
 from ..utils.file_utils import get_file_basename
 from ..utils.subprocess_utils import exec_cmd
 from ..utils.trace import logger
+
+
+DOWNLOAD_RETRY_INTERVAL = 2
 
 
 async def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgress = None, **kwargs):
@@ -122,7 +125,7 @@ async def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgre
                     logger.debug('Error! info: %s' % result)
                     logger.debug("GET %s Failed, Retry(%d)..." % (url, retry_times))
                     retry_times = retry_times + 1
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(DOWNLOAD_RETRY_INTERVAL)
                     continue
                 else:
                     raise
@@ -282,7 +285,7 @@ async def _get_ts_list_from_m3u8(url):
     ts_list = []
 
     # 异步下载m3u8文件
-    response = await session_manager.request("GET", url=url, stream=True)
+    response = await async_request("GET", url, stream=True)
 
     # m3u8文件中的uri
     uri_list = re.findall(r'(?<=\n)\w.*', response.text)

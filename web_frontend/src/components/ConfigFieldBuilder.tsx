@@ -194,6 +194,8 @@ export default function ConfigFieldBuilder({
               id={fieldId}
               className="form-control form-control-sm"
               value={Number(values[fieldId])}
+              min={meta?.minimum ?? undefined}
+              max={meta?.maximum ?? undefined}
               onChange={(e) => onChange(fieldId, Number(e.target.value))}
             />
           );

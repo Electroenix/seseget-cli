@@ -51,6 +51,7 @@ function MainApp({ version }: { version: string }) {
   // Search / site state
   const [siteList, setSiteList] = useState<string[]>([]);
   const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null);
+  const [searchError, setSearchError] = useState("");
 
   // Main page navigation, ready to extend to settings later
   const [activePage, setActivePage] = useState<MainPage>("search");
@@ -83,8 +84,13 @@ function MainApp({ version }: { version: string }) {
 
   // --- Search handlers ---
   const handleSearch = useCallback(async (formData: FormData) => {
+    setSearchError("");
     try {
       const res = await fetchSearch(formData);
+      if (res.code !== 200) {
+        setSearchError(res.message || "搜索失败");
+        return;
+      }
       if (res.data) {
         setMediaInfo(res.data);
         setShowCheckboxes(false);
@@ -92,6 +98,7 @@ function MainApp({ version }: { version: string }) {
       }
     } catch (err) {
       console.error("Search error:", err);
+      setSearchError(err instanceof Error ? err.message : "搜索失败");
     }
   }, []);
 
@@ -109,6 +116,10 @@ function MainApp({ version }: { version: string }) {
     async (station: string, url: string) => {
       try {
         const res = await fetchSeriesInfo(station, url);
+        if (res.code !== 200) {
+          setSearchError(res.message || "系列信息获取失败");
+          return;
+        }
         if (res.data) {
           setMediaInfo(res.data);
           setShowCheckboxes(false);
@@ -116,6 +127,7 @@ function MainApp({ version }: { version: string }) {
         }
       } catch (err) {
         console.error("Series fetch error:", err);
+        setSearchError(err instanceof Error ? err.message : "系列信息获取失败");
       }
     },
     []
@@ -275,6 +287,11 @@ function MainApp({ version }: { version: string }) {
           <div className="row justify-content-center">
             <div className="col-lg-6">
               <SearchBar siteList={siteList} onSubmit={handleSearch} />
+              {searchError && (
+                <div className="alert alert-danger py-2" role="alert">
+                  {searchError}
+                </div>
+              )}
 
               {mediaInfo && (
                 <InfoPanel
