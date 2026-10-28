@@ -41,3 +41,16 @@ def test_logger_keeps_custom_end(monkeypatch):
     text = output.getvalue()
     assert "progress" in text
     assert text.endswith("\r")
+
+
+def test_logger_exception_method(monkeypatch):
+    logger, output = make_logger(monkeypatch, "test-logger-exception")
+
+    try:
+        raise RuntimeError("boom")
+    except RuntimeError:
+        logger.exception("站点解析失败")
+
+    text = output.getvalue()
+    assert "站点解析失败" in text
+    assert "RuntimeError" in text

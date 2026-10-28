@@ -150,5 +150,18 @@ class SSGLogger:
             **kwargs,
         )
 
+    def exception(self, msg: str, *args, end="\n", **kwargs):
+        """记录异常堆栈，行为对齐 logging.Logger.exception。"""
+        stacklevel = kwargs.pop("stacklevel", 3)
+        kwargs.setdefault("exc_info", True)
+        self.log(
+            logging.ERROR,
+            msg,
+            *args,
+            end=end,
+            stacklevel=stacklevel,
+            **kwargs,
+        )
+
 
 logger = SSGLogger("seseGet")
