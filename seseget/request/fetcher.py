@@ -25,7 +25,7 @@ class ChapterInfo:
         self.id = 0
         self.metadata = ComicMetaData()
         self.image_urls: list[str] = []     # 漫画图片url列表
-        self.comic_info: ComicInfo = None   # 所属的ComicInfo对象, 下载时会引用，务必赋值
+        self.comic_info: ComicInfo | None = None   # 所属的ComicInfo对象, 下载时会引用，务必赋值
 
 
 class ComicInfo:
@@ -149,14 +149,6 @@ class SSGBaseFetcher(AbstractFetcher, Generic[T_Info]):
         self.task_semaphore = asyncio.Semaphore(max_tasks)
 
     @abstractmethod
-    def _make_save_dir(self, info: T_Info):
-        pass
-
-    @abstractmethod
-    def _make_source_info_file(self, info: T_Info):
-        pass
-
-    @abstractmethod
     async def _fetch_info(self, url, **kwargs) -> T_Info:
         """抓取资源信息，子类需要实现该功能"""
         pass
@@ -214,7 +206,7 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         super().__init__(max_tasks)
         self.video_info_cache = VideoInfoCache(10)
 
-    def _make_save_dir(self, info: T_Info):
+    def _make_save_dir(self, info: T_VideoInfo):
         if not self.__class__.site_dir:
             raise ValueError("未指定下载目录!")
         if not os.path.exists(self.__class__.site_dir):
@@ -249,7 +241,7 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
     def _make_source_info_file(self, info: T_VideoInfo):
         make_source_info_file(info.video_dir, info)
 
-    async def _download_process(self, video_info: T_VideoInfo, progress: TaskDLProgress = None):
+    async def _download_process(self, video_info: T_VideoInfo, progress: TaskDLProgress | None = None):
         """此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)
 
@@ -258,7 +250,7 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         else:
             await downloader.download_mp4(video_path, video_info.download_url, progress)
 
-    async def _download_process_with_semaphore(self, video_info: T_VideoInfo, progress: TaskDLProgress = None):
+    async def _download_process_with_semaphore(self, video_info: T_VideoInfo, progress: TaskDLProgress | None = None):
         async with self.task_semaphore:
             await self._download_process(video_info, progress)
 
@@ -317,7 +309,7 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
         super().__init__(max_tasks=max_tasks)
         self.capter_lock = asyncio.Lock()
 
-    def _make_save_dir(self, info: T_Info):
+    def _make_save_dir(self, info: T_ComicInfo):
         if not self.__class__.site_dir:
             raise ValueError("未指定下载目录!")
         if not os.path.exists(self.__class__.site_dir):
@@ -328,9 +320,11 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
         if not os.path.exists(info.comic_dir):
             os.mkdir(info.comic_dir)
 
-    async def _download_process(self, comic_title: str, chapter: T_ChapterInfo, progress: TaskDLProgress = None):
+    async def _download_process(self, comic_title: str, chapter: T_ChapterInfo, progress: TaskDLProgress | None = None):
         """此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
         comic_info = chapter.comic_info
+        if comic_info is None:
+            raise ValueError("章节缺少所属漫画信息")
         comic_dir = comic_info.comic_dir
 
         image_temp_dir_path = f"{comic_dir}/img-{chapter.id}"
@@ -353,13 +347,15 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
 
         return res
 
-    async def _download_process_with_semaphore(self, comic_title: str, chapter: T_ChapterInfo, progress: TaskDLProgress = None):
+    async def _download_process_with_semaphore(self, comic_title: str, chapter: T_ChapterInfo, progress: TaskDLProgress | None = None):
         async with self.task_semaphore:
             async with self.capter_lock:
                 await self._download_process(comic_title, chapter, progress)
 
     async def _start_download_task(self, chapter: T_ChapterInfo):
         comic_info = chapter.comic_info
+        if comic_info is None:
+            raise ValueError("章节缺少所属漫画信息")
         comic_title = make_filename_valid(comic_info.title + "_%03d" % chapter.id)
 
         if sys.platform.startswith("win"):

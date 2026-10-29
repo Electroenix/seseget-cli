@@ -33,7 +33,7 @@ def _merge_missing_defaults(target: dict, defaults: dict) -> None:
 
 class ConfigManager:
     _instance = None
-    _config: dict = None
+    _config: dict | None = None
     _config_path: str = CONFIG_PATH
 
     def __new__(cls):
@@ -92,7 +92,7 @@ class ConfigManager:
 
     def update(self, patch: Dict) -> None:
         """校验并一次性保存配置 patch。"""
-        merged = deepcopy(self._config)
+        merged = deepcopy(self.data)
         _update_nested_dict(merged, patch)
         validated = validate_config(merged)
         self._dump_data(validated)
@@ -100,7 +100,7 @@ class ConfigManager:
 
     def save(self) -> None:
         """校验当前配置并写回。"""
-        validated = validate_config(self._config)
+        validated = validate_config(self.data)
         self._dump_data(validated)
         self._config = validated
 
@@ -120,6 +120,8 @@ class ConfigManager:
 
     @property
     def data(self) -> dict:
+        if self._config is None:
+            raise RuntimeError("配置尚未初始化")
         return self._config
 
 

@@ -91,11 +91,11 @@ class TwitterConfig(ConfigModel):
 
 
 class SitesConfig(ConfigModel):
-    bika: BikaConfig = Field(default_factory=BikaConfig)
-    jmcomic: JMComicConfig = Field(default_factory=JMComicConfig)
-    hanime: HanimeConfig = Field(default_factory=HanimeConfig)
-    bilibili: BilibiliConfig = Field(default_factory=BilibiliConfig)
-    twitter: TwitterConfig = Field(default_factory=TwitterConfig)
+    bika: BikaConfig = Field(default_factory=lambda: BikaConfig())
+    jmcomic: JMComicConfig = Field(default_factory=lambda: JMComicConfig())
+    hanime: HanimeConfig = Field(default_factory=lambda: HanimeConfig())
+    bilibili: BilibiliConfig = Field(default_factory=lambda: BilibiliConfig())
+    twitter: TwitterConfig = Field(default_factory=lambda: TwitterConfig())
 
 
 class DownloadComicConfig(ConfigModel):
@@ -131,14 +131,14 @@ class DownloadConfig(ConfigModel):
         description="是否在下载目录生成 source.txt",
         json_schema_extra={"label": "生成来源信息"},
     )
-    comic: DownloadComicConfig = Field(default_factory=DownloadComicConfig)
-    video: DownloadVideoConfig = Field(default_factory=DownloadVideoConfig)
+    comic: DownloadComicConfig = Field(default_factory=lambda: DownloadComicConfig())
+    video: DownloadVideoConfig = Field(default_factory=lambda: DownloadVideoConfig())
 
 
 class AppConfig(ConfigModel):
-    network: NetworkConfig = Field(default_factory=NetworkConfig)
-    sites: SitesConfig = Field(default_factory=SitesConfig)
-    download: DownloadConfig = Field(default_factory=DownloadConfig)
+    network: NetworkConfig = Field(default_factory=lambda: NetworkConfig())
+    sites: SitesConfig = Field(default_factory=lambda: SitesConfig())
+    download: DownloadConfig = Field(default_factory=lambda: DownloadConfig())
 
 
 SECTION_META = {
@@ -193,7 +193,8 @@ def _walk_fields(model: type[BaseModel], prefix: str = ""):
             yield from _walk_fields(annotation, path)
             continue
 
-        extra = field.json_schema_extra or {}
+        raw_extra = field.json_schema_extra
+        extra = raw_extra if isinstance(raw_extra, dict) else {}
         minimum = None
         maximum = None
         for constraint in field.metadata:

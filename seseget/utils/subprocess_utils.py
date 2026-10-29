@@ -1,6 +1,7 @@
 import subprocess
 import logging
-from .trace import logger, SSGLogger
+from typing import cast
+from .trace import logger, SSGLogger, SSGFormatter
 from ..config import settings
 
 
@@ -9,7 +10,8 @@ class CmdLogger(SSGLogger):
         name_str = f"[{name}] " if settings.LOG_SHOW_LOGGER_NAME else ""
         asctime_str = "[%(asctime)s] " if settings.LOG_SHOW_TIMESTAMP else ""
         levelname_str = "[%(levelname)s] " if settings.LOG_SHOW_LEVEL else ""
-        self.stream_handler.formatter._formats = {
+        formatter = cast(SSGFormatter, self.stream_handler.formatter)
+        formatter._formats = {
             logging.DEBUG: f"{name_str}{asctime_str}{levelname_str}[%(filename)s:%(lineno)d] %(message)s",
             logging.INFO: f"{name_str}{asctime_str}{levelname_str}%(message)s",
             logging.WARNING: f"{name_str}{asctime_str}{levelname_str}%(message)s",
@@ -34,8 +36,11 @@ def exec_cmd(command: list):
 
     try:
         cmd_logger.rename(command[0])
+        stdout = process.stdout
+        if stdout is None:
+            raise RuntimeError("命令进程没有 stdout")
         while True:
-            line = process.stdout.readline()
+            line = stdout.readline()
             if line:
                 cmd_logger.info(line, end="")
             if not line and process.poll() is not None:

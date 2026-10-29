@@ -48,6 +48,9 @@ jobs:
       - name: Run Ruff
         run: python -m ruff check seseget web_app tests scripts
 
+      - name: Run mypy
+        run: python -m mypy
+
       - name: Run Python tests
         run: python -m pytest -q
 
