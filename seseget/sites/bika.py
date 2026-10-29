@@ -16,6 +16,21 @@ from ..request.errors import SiteParseError
 
 
 
+def parse_updated_at(updated_at: object, url: str = "") -> tuple[str, str, str]:
+    """从 Bika API 的 updated_at 字段提取年月日。"""
+    date_match = re.search(
+        r"^(\d+)-(\d+)-(\d+)",
+        str(updated_at) if updated_at else "",
+    )
+    if date_match is None:
+        raise SiteParseError(
+            "未匹配到章节更新时间（字段 updated_at，期望 YYYY-MM-DD）",
+            site="bika",
+            url=url,
+        )
+    return date_match.group(1), date_match.group(2), date_match.group(3)
+
+
 class BikaComicInfo:
     def __init__(self):
         self.view_url = ""
@@ -232,20 +247,13 @@ class BikaFetcher(ComicFetcher):
             chapter_info.metadata.creator = bika_context.author
             chapter_info.metadata.subjects = bika_context.genres
 
-            updated_at = bika_chapter.get("updated_at")
-            date_match = re.search(
-                r"^(\d+)-(\d+)-(\d+)",
-                str(updated_at) if updated_at else "",
+            year, month, day = parse_updated_at(
+                bika_chapter.get("updated_at"),
+                url=url,
             )
-            if date_match is None:
-                raise SiteParseError(
-                    "未匹配到章节更新时间（字段 updated_at，期望 YYYY-MM-DD）",
-                    site="bika",
-                    url=url,
-                )
-            chapter_info.metadata.year = date_match.group(1)
-            chapter_info.metadata.month = date_match.group(2)
-            chapter_info.metadata.day = date_match.group(3)
+            chapter_info.metadata.year = year
+            chapter_info.metadata.month = month
+            chapter_info.metadata.day = day
             chapter_info.comic_info = comic_info
 
             if "英語 ENG" in bika_context.genres:

@@ -106,12 +106,10 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
                 "style": "margin-bottom: 18px; font-weight: normal",
             },
         ):
-            if not tag_element.contents:
+            tag_link = tag_element.find("a")
+            if not isinstance(tag_link, Tag):
                 continue
-            first_child = tag_element.contents[0]
-            if not isinstance(first_child, Tag):
-                continue
-            href = first_child.get("href")
+            href = tag_link.get("href")
             if isinstance(href, str):
                 metadata.tag_list.append(href[href.find("=") + 1:])
 
