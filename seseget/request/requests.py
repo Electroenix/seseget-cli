@@ -2,22 +2,21 @@ import asyncio
 import random
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from typing import Dict
+from urllib.parse import urlparse
+from urllib.request import getproxies
 
 from curl_cffi import requests as sync_requests
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
 from curl_cffi.requests.exceptions import RequestException as CurlRequestException
 from curl_cffi.requests.exceptions import Timeout as CurlTimeout
-from urllib.parse import urlparse
-from urllib.request import getproxies
-from typing import Dict
 from requests.structures import CaseInsensitiveDict
 
 from ..config import settings
-from ..utils.trace import logger
 from ..config.config_manager import config
+from ..utils.trace import logger
 from .errors import RequestConnectionError, RequestError, RequestHTTPError, RequestTimeout
-
 
 REQUEST_MAX_ATTEMPTS = 3
 RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}

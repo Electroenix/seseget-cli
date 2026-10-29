@@ -1,7 +1,8 @@
 import logging
 from logging import Formatter, LogRecord, StreamHandler
-from .output import ssg_stdout
+
 from ..config import settings
+from .output import ssg_stdout
 
 
 class SSGFormatter(Formatter):

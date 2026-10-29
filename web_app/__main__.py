@@ -1,10 +1,11 @@
-import sys
-import os
 import argparse
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import uvicorn
+
 from seseget import __version__
 from web_app.config.web_config import web_config
 

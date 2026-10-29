@@ -1,8 +1,7 @@
-import seseget  # noqa: F401  # 触发站点发现和注册
 import pytest
 
+import seseget  # noqa: F401  # 触发站点发现和注册
 from seseget.request.fetcher import FetcherRegistry
-
 
 EXPECTED_SITES = {"hanime", "bilibili", "youtube", "twitter", "bika", "jmcomic", "wnacg"}
 

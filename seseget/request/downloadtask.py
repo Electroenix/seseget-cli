@@ -1,16 +1,16 @@
 import asyncio
-import uuid
 import functools
-from datetime import datetime, timezone
-from typing import Callable
 import inspect
 import traceback
+import uuid
+from datetime import datetime, timezone
+from typing import Callable
 
+from ..config import settings
 from ..config.config_manager import config
-from ..utils.trace import logger
 from ..utils.file_utils import get_file_basename
 from ..utils.output import ProgressBar
-from ..config import settings
+from ..utils.trace import logger
 from .download_history import DownloadHistoryStore
 
 DEFAULT_MAX_HISTORY = 200

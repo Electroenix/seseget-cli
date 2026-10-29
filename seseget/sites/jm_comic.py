@@ -3,20 +3,30 @@ import json
 import os
 import re
 from typing import Dict, List
+
 import jmcomic
 import requests as sync_requests
 from bs4 import BeautifulSoup
 from common import Postman
-from jmcomic import JmOption, JmDownloader, DirRule, JmHtmlClient, JmApiClient, catch_exception, JmImageDetail, jm_log
+from jmcomic import (
+    DirRule,
+    JmApiClient,
+    JmDownloader,
+    JmHtmlClient,
+    JmImageDetail,
+    JmOption,
+    catch_exception,
+    jm_log,
+)
 
-from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
-from ..output.comic import package_comic
-from ..config.path import DATA_DIR
-from ..utils.file_utils import make_filename_valid
-from ..utils.trace import logger, SSGLogger
 from ..config.config_manager import config
+from ..config.path import DATA_DIR
 from ..config.session_store import session_store
-from ..request.downloadtask import TaskDLProgress, FileDLProgress
+from ..output.comic import package_comic
+from ..request.downloadtask import FileDLProgress, TaskDLProgress
+from ..request.fetcher import ChapterInfo, ComicFetcher, ComicInfo, FetcherRegistry
+from ..utils.file_utils import make_filename_valid
+from ..utils.trace import SSGLogger, logger
 
 
 class JMChapterInfo(ChapterInfo):
@@ -70,7 +80,7 @@ class SSGJmStreamResponse:
                     raise sync_requests.exceptions.JSONDecodeError(
                         f"Failed to parse JSON: {e}",
                         doc=self.text
-                    )
+                    ) from e
         return self._json
 
     def __getattr__(self, name):

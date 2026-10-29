@@ -9,7 +9,8 @@ from seseget.config.schema import (
 )
 from seseget.output.comic import COMIC_PACKAGERS
 from seseget.output.video import VIDEO_METADATA_WRITERS
-from .response import ResponseCode, ApiResponse
+
+from .response import ApiResponse, ResponseCode
 
 router: APIRouter = APIRouter()
 

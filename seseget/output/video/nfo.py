@@ -1,5 +1,5 @@
-import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
+import xml.etree.ElementTree as ET
 
 from ...metadata.video import VideoMetaData
 from ...utils.file_utils import make_filename_valid

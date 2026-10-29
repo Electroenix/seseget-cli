@@ -1,14 +1,14 @@
 import asyncio
 import os
 
+from ..config.config_manager import config
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
-from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
-from ..utils.trace import logger
-from ..request.downloadtask import TaskDLProgress
-from ..utils.file_utils import make_filename_valid
 from ..request import ytdlp
-from ..config.config_manager import config
+from ..request.downloadtask import TaskDLProgress
+from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo
+from ..utils.file_utils import make_filename_valid
+from ..utils.trace import logger
 
 
 @FetcherRegistry.register("twitter")

@@ -2,17 +2,18 @@ import copy
 import json
 import os
 import re
+
 from bs4 import BeautifulSoup
 
-from ..request import downloader
-from ..request.downloadtask import TaskDLProgress
+from ..config.config_manager import config
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
-from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry, make_source_info_file
-from ..utils.trace import logger
+from ..request import downloader
+from ..request.downloadtask import TaskDLProgress
+from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo, make_source_info_file
 from ..request.requests import async_request
 from ..utils.file_utils import make_filename_valid
-from ..config.config_manager import config
+from ..utils.trace import logger
 
 
 class BiliVideoInfo(VideoInfo):

@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 
 from seseget import __version__
-from .response import ResponseCode, ApiResponse
+
+from .response import ApiResponse, ResponseCode
 
 router: APIRouter = APIRouter()
 

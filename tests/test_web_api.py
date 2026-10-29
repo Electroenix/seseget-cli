@@ -5,7 +5,6 @@ from seseget.request.errors import RequestHTTPError
 from seseget.request.fetcher import FetcherRegistry
 from web_app.api import settings as settings_api
 
-
 AUTH = {"Authorization": "Bearer test-token"}
 
 

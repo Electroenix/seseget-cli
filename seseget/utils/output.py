@@ -1,5 +1,5 @@
-import sys
 import io
+import sys
 import threading
 
 from tqdm import tqdm

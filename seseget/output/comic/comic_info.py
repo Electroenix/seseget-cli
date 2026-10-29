@@ -5,7 +5,6 @@ from xml.sax.saxutils import escape
 
 from ...metadata.comic import ComicMetaData
 
-
 # 翻页方向: YesAndRightToLeft - 右至左    No - 左至右
 MANGA_DIRECTION = "No"
 

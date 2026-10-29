@@ -103,6 +103,7 @@ def test_session_write_failure_aborts_migration():
 
 def test_config_manager_migrates_and_backs_up(tmp_path, monkeypatch):
     from ruamel.yaml import YAML
+
     from seseget.config.config_manager import ConfigManager
 
     config_path = tmp_path / "conf.yaml"

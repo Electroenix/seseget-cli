@@ -2,8 +2,8 @@ import os
 import zipfile
 
 from ...metadata.comic import ComicMetaData
-from .comic_info import write_comic_info_xml
 from ...utils.trace import logger
+from .comic_info import write_comic_info_xml
 
 
 def write_cbz(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
@@ -20,7 +20,7 @@ def write_cbz(save_dir: str, comic_title: str, image_path: str, metadata: ComicM
 
     write_comic_info_xml(image_path, metadata)
     with zipfile.ZipFile(file_name, "w") as cbz:
-        for root, dirs, files in os.walk(image_path):
+        for root, _dirs, files in os.walk(image_path):
             for file in files:
                 file_path = os.path.join(root, file)
                 arcname = os.path.relpath(file_path, image_path)

@@ -1,7 +1,7 @@
 import yt_dlp
-from .downloadtask import TaskDLProgress, FileDLProgress
-from ..utils.trace import SSGLogger, logger
 
+from ..utils.trace import SSGLogger, logger
+from .downloadtask import FileDLProgress, TaskDLProgress
 
 yt_logger = SSGLogger("yt_dlp")
 

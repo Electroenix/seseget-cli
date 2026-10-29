@@ -5,7 +5,6 @@ import pytest
 from seseget.request.errors import SiteParseError
 from seseget.sites.wnacg import parse_comic_info, parse_image_urls
 
-
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "wnacg"
 
 

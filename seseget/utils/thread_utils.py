@@ -1,5 +1,5 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed, Future
-from typing import Callable, Optional, List
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from typing import Callable, List, Optional
 
 from .trace import logger
 
