@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
+
 import pytest
 from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
 from curl_cffi.requests.exceptions import Timeout as CurlTimeout
@@ -11,9 +14,10 @@ from seseget.request.errors import (
 
 
 class FakeResponse:
-    def __init__(self, status_code=200, text=""):
+    def __init__(self, status_code=200, text="", headers=None):
         self.status_code = status_code
         self.text = text
+        self.headers = headers or {}
         self.closed = False
 
     def close(self):
@@ -48,8 +52,10 @@ def install_fake(monkeypatch, results):
     manager = FakeSessionManager(results)
     monkeypatch.setattr(requests_module, "session_manager", manager)
 
-    async def no_sleep(_seconds):
-        return None
+    manager.sleeps = []
+
+    async def no_sleep(seconds):
+        manager.sleeps.append(seconds)
 
     monkeypatch.setattr(requests_module.asyncio, "sleep", no_sleep)
     return manager
@@ -174,3 +180,64 @@ async def test_max_attempts_one_disables_retry(monkeypatch):
         await requests_module.async_request("GET", "https://example.test")
 
     assert manager.calls == 1
+
+
+def test_retry_delay_is_exponential(monkeypatch):
+    monkeypatch.setattr(requests_module.random, "uniform", lambda _low, _high: 0)
+
+    assert requests_module._retry_delay(1) == 1.0
+    assert requests_module._retry_delay(2) == 2.0
+    assert requests_module._retry_delay(3) == 4.0
+    assert requests_module._retry_delay(10) == requests_module.RETRY_MAX_DELAY
+
+
+def test_retry_after_is_capped():
+    assert requests_module._retry_delay(1, retry_after=120) == requests_module.RETRY_MAX_DELAY
+
+
+@pytest.mark.asyncio
+async def test_backoff_sleeps_between_retries(monkeypatch):
+    manager = install_fake(
+        monkeypatch,
+        [FakeResponse(500), FakeResponse(500), FakeResponse(200)],
+    )
+    monkeypatch.setattr(requests_module.random, "uniform", lambda _low, _high: 0)
+
+    response = await requests_module.async_request("GET", "https://example.test")
+
+    assert response.status_code == 200
+    assert manager.sleeps == [1.0, 2.0]
+
+
+@pytest.mark.asyncio
+async def test_retry_after_seconds_takes_precedence(monkeypatch):
+    manager = install_fake(
+        monkeypatch,
+        [
+            FakeResponse(429, headers={"Retry-After": "7"}),
+            FakeResponse(200),
+        ],
+    )
+
+    response = await requests_module.async_request("GET", "https://example.test")
+
+    assert response.status_code == 200
+    assert manager.sleeps == [7.0]
+
+
+def test_retry_after_http_date_is_parsed():
+    retry_at = datetime.now(timezone.utc) + timedelta(seconds=10)
+    response = FakeResponse(
+        headers={"Retry-After": format_datetime(retry_at, usegmt=True)}
+    )
+
+    delay = requests_module._retry_after_seconds(response)
+
+    assert delay is not None
+    assert 8 <= delay <= 10
+
+
+def test_invalid_retry_after_is_ignored():
+    response = FakeResponse(headers={"Retry-After": "not-a-date"})
+
+    assert requests_module._retry_after_seconds(response) is None

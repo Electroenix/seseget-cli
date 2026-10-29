@@ -1,4 +1,7 @@
 import asyncio
+import random
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 from curl_cffi import requests as sync_requests
 from curl_cffi.requests import AsyncSession
@@ -18,6 +21,9 @@ from .errors import RequestConnectionError, RequestError, RequestHTTPError, Requ
 
 REQUEST_MAX_ATTEMPTS = 3
 RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
+RETRY_BASE_DELAY = 1.0
+RETRY_MAX_DELAY = 30.0
+RETRY_JITTER_RATIO = 0.2
 
 
 def _network_value(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -182,6 +188,37 @@ class AsyncSessionManager:
 session_manager = AsyncSessionManager()
 
 
+def _retry_after_seconds(response) -> float | None:
+    """读取 Retry-After，支持秒数和 HTTP 日期。"""
+    headers = getattr(response, "headers", None)
+    if not headers:
+        return None
+    value = headers.get("Retry-After") or headers.get("retry-after")
+    if not value:
+        return None
+
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        try:
+            retry_at = parsedate_to_datetime(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
+    return max(0.0, seconds)
+
+
+def _retry_delay(attempt: int, retry_after: float | None = None) -> float:
+    """计算下一次重试等待时间，优先使用 Retry-After。"""
+    if retry_after is not None:
+        return min(retry_after, RETRY_MAX_DELAY)
+    base = min(RETRY_BASE_DELAY * (2 ** (attempt - 1)), RETRY_MAX_DELAY)
+    jitter = random.uniform(0, base * RETRY_JITTER_RATIO)
+    return min(base + jitter, RETRY_MAX_DELAY)
+
+
 # 请求接口
 async def async_request(method: str, url: str, **kwargs):
     """发送异步请求，成功返回 2xx response，失败抛出 RequestError 子类。
@@ -193,6 +230,7 @@ async def async_request(method: str, url: str, **kwargs):
 
     for attempt in range(1, max_attempts + 1):
         response = None
+        retry_after = None
         try:
             response = await session_manager.request(method, url, **kwargs)
         except CurlTimeout as exc:
@@ -225,6 +263,7 @@ async def async_request(method: str, url: str, **kwargs):
             except Exception:
                 pass
 
+            retry_after = _retry_after_seconds(response)
             last_error = RequestHTTPError(
                 f"{method} {url} 返回 HTTP {status_code}",
                 method=method,
@@ -244,14 +283,15 @@ async def async_request(method: str, url: str, **kwargs):
                 raise RequestError("请求失败但未记录错误", method=method, url=url)
             raise last_error
 
+        delay = _retry_delay(attempt, retry_after)
         logger.warning(
-            "%s，%s 后重试 (%d/%d)",
+            "%s，%.1fs 后重试 (%d/%d)",
             last_error,
-            "1s",
+            delay,
             attempt,
             max_attempts,
         )
-        await asyncio.sleep(1)
+        await asyncio.sleep(delay)
 
     # 理论不可达；保证类型检查不会推断返回 None
     if last_error is None:
