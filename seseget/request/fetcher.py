@@ -42,14 +42,14 @@ class ComicInfo:
         self.comic_dir = ""     # 本地保存目录
 
     def print_info(self):
-        logger.info(f"---------------------------------")
+        logger.info("---------------------------------")
         logger.info(f"cid: {self.cid}")
         logger.info(f"系列: {self.title}")
         logger.info(f"作者: {self.author}")
         logger.info(f"标签: {self.genres}")
         logger.info(f"简介: {self.description}")
         logger.info(f"已获取章节数: {len(self.chapter_list)}")
-        logger.info(f"---------------------------------")
+        logger.info("---------------------------------")
 
 
 class VideoInfo:
@@ -65,13 +65,13 @@ class VideoInfo:
         self.video_dir = ""         # 本地保存目录
 
     def print_info(self):
-        logger.info(f"---------------------------------")
+        logger.info("---------------------------------")
         logger.info(f"标题: {self.name}")
         logger.info(f"作者: {self.metadata.author}")
         logger.info(f"标签: {self.metadata.tag_list}")
         logger.info(f"简介: {self.metadata.describe}")
         logger.info(f"封面: {self.cover_url}")
-        logger.info(f"---------------------------------")
+        logger.info("---------------------------------")
 
 
 class VideoInfoCache:
@@ -451,6 +451,6 @@ class FetcherRegistry:
         for _, module_name, is_pkg in pkgutil.iter_modules(package.__path__):
             try:
                 full_module_name = f"{package_name}.{module_name}"
-                site_module = importlib.import_module(full_module_name)
+                importlib.import_module(full_module_name)
             except ImportError as e:
                 print(f"注册站点异常 {module_name}: {str(e)}")

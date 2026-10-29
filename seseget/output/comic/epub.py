@@ -120,7 +120,7 @@ class EpubGenerator:
 
     def _make_container_xml(self):
         with open(self.path["container_xml"], "w", encoding='utf-8') as f:
-            f.write(f"""\
+            f.write("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
     <rootfiles>
@@ -216,7 +216,7 @@ html, body {
 
     def _make_opf(self):
         with open(self.path["opf"], "w", encoding='utf-8') as f:
-            f.write(f"""\
+            f.write("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uuid_id" prefix="rendition: http://www.idpf.org/vocab/rendition/#">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">""")
@@ -275,13 +275,13 @@ html, body {
     <meta refines="#series" property="group-position">{_escape(self.metadata.number)}</meta>""")
 
             # 版型
-            f.write(f"""
+            f.write("""
     <meta property="rendition:layout">pre-paginated</meta>
     <meta property="rendition:orientation">auto</meta>
     <meta property="rendition:spread">auto</meta>
   </metadata>""")
 
-            f.write(f"""
+            f.write("""
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="css" href="Styles/style.css" media-type="text/css"/>""")
@@ -311,20 +311,20 @@ html, body {
 
             # 阅读顺序
             if MAKE_COVER_PAGE:
-                f.write(f"""
+                f.write("""
     <itemref idref="cover-page"/>""")
 
             for page_file in self.page_files:
                 f.write(f"""
     <itemref idref="{Path(page_file).stem}"/>""")
 
-            f.write(f"""
+            f.write("""
   </spine>
 </package>""")
 
     def _make_nav(self):
         with open(self.path["nav"], "w", encoding='utf-8') as f:
-            f.write(f"""\
+            f.write("""\
 <?xml version='1.0' encoding='utf-8'?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="zh-CN" xml:lang="zh-CN">
   <head>
@@ -344,7 +344,7 @@ html, body {
                 f.write(f"""
         <li><a href="Text/{page_file}">第{index + 1}页</a></li>""")
 
-            f.write(f"""
+            f.write("""
       </ol>
     </nav>
   </body>

@@ -8,7 +8,7 @@ import traceback
 
 from ..config.config_manager import config
 from ..utils.trace import logger
-from ..utils.file_utils import *
+from ..utils.file_utils import get_file_basename
 from ..utils.output import ProgressBar
 from ..config import settings
 from .download_history import DownloadHistoryStore

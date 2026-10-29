@@ -4,7 +4,7 @@ import re
 import shutil
 import tempfile
 
-from .downloadtask import TaskDLProgress, FileDLProgress, download_manager
+from .downloadtask import TaskDLProgress, FileDLProgress
 from .requests import async_request, session_manager
 from ..utils.file_utils import get_file_basename
 from ..utils.subprocess_utils import exec_cmd
@@ -53,7 +53,7 @@ async def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgre
             logger.debug(f"request [{url}]")
             response = await session_manager.request("GET", url=url, stream=True, **kwargs)
             if response:
-                logger.debug(f"[response open]")
+                logger.debug("[response open]")
 
             total_size = 0
             read_size = 0
@@ -84,7 +84,7 @@ async def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgre
                                 progress.add_progress(file_name, total=f_size)
                                 progress.update(file_name, f_size)
                             response.close()
-                            logger.debug(f"[response close]")
+                            logger.debug("[response close]")
                             return 0
                         else:
                             logger.warning(f"文件大小错误，删除文件重新下载，file: {file_name}, "
@@ -93,7 +93,7 @@ async def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgre
                     # 删除损坏/不完整的文件，回到 while 顶部重新下载
                     os.remove(file_name)
                     response.close()
-                    logger.debug(f"[response close]")
+                    logger.debug("[response close]")
                     continue
 
                 # 其他错误状态码
@@ -118,7 +118,7 @@ async def _download_file(file_name, url, auto_retry=True, progress: TaskDLProgre
 
             finally:
                 response.close()
-                logger.debug(f"[response close]")
+                logger.debug("[response close]")
 
         except Exception as result:
             if auto_retry:
@@ -277,7 +277,7 @@ async def download_mp4_by_merge_video_audio(filename, video_url, audio_url, head
     progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
 
     shutil.rmtree(cache_dir)
-    logger.info(f"已删除缓存文件")
+    logger.info("已删除缓存文件")
 
     return 0
 
@@ -384,8 +384,6 @@ async def download_comic_capter_images(save_dir: str, image_urls, progress: Task
         image_urls: 存放漫画图片的url列表
         progress: 控制下载进度的对象
     """
-    image_index = 1
-
     if progress is not None:
         progress.init_progress()
         progress.set_progress_count(len(image_urls))

@@ -1,3 +1,5 @@
+import os
+import re
 import time
 import hmac
 from hashlib import sha256
@@ -10,7 +12,7 @@ from ..config.session_store import session_store
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..utils.trace import logger
 from ..request.requests import async_request
-from ..utils.file_utils import *
+
 
 
 class BikaComicInfo:
@@ -216,7 +218,7 @@ class BikaFetcher(ComicFetcher):
 
         for bika_chapter in bika_context.chapter:
             if "pages" not in bika_chapter:
-                logger.debug(f"无章节图片，跳过")
+                logger.debug("无章节图片，跳过")
                 continue
 
             chapter_info = ChapterInfo()

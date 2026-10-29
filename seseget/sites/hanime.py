@@ -1,4 +1,5 @@
 import copy
+import os
 import re
 from bs4 import BeautifulSoup, element
 from urllib.parse import urlparse, parse_qs
@@ -7,9 +8,9 @@ from ..request import downloader
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
-from ..request.requests import async_request, session_manager
+from ..request.requests import async_request
 from ..utils.trace import logger
-from ..utils.file_utils import *
+from ..utils.file_utils import make_diff_dir_name, make_filename_valid
 from ..config.config_manager import config
 
 
@@ -123,7 +124,7 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
         tasks = [_download_one(v) for v in series]
         try:
             await asyncio.gather(*tasks)
-        except Exception as e:
+        except Exception:
             logger.error('\n下载失败!')
             raise
 

@@ -13,7 +13,7 @@ from requests.structures import CaseInsensitiveDict
 from ..config import settings
 from ..utils.trace import logger
 from ..config.config_manager import config
-from .errors import RequestConnectionError, RequestError, RequestHTTPError, RequestTimeout
+from .errors import RequestConnectionError, RequestHTTPError, RequestTimeout
 
 
 REQUEST_MAX_ATTEMPTS = 3

@@ -1,12 +1,12 @@
 import asyncio
-import copy
+import os
 
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
 from ..utils.trace import logger
 from ..request.downloadtask import TaskDLProgress
-from ..utils.file_utils import *
+from ..utils.file_utils import make_filename_valid
 from ..request import ytdlp
 from ..config.config_manager import config
 
@@ -122,7 +122,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         }
         params = {**default_params, **kwargs}
 
-        logger.info(f"开始请求资源信息")
+        logger.info("开始请求资源信息")
         # fetch 与下载任务共享信号量，避免解析请求同时爆发
         async with self.task_semaphore:
             video_info_list = await self._get_video_info_list_by_yt_dlp(url)

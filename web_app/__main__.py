@@ -6,7 +6,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import uvicorn
 from seseget import __version__
-from web_app import socket_app
 from web_app.config.web_config import web_config
 
 if __name__ == "__main__":
