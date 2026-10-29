@@ -38,6 +38,9 @@ async def process_worker_async():
     for url in urls:
         try:
             fetcher = FetcherRegistry.get_fetcher(site)
+            if fetcher is None:
+                logger.error("未注册的站点: %s", site)
+                continue
             logger.debug(f"获取到Fetcher[{fetcher}]")
             if site in ("bika", "jmcomic"):
                 chapter = [

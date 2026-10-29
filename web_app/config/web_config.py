@@ -29,7 +29,7 @@ def _init_web_config():
 
 class WebConfigManager:
     _instance = None
-    _config: dict = None
+    _config: dict | None = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -41,15 +41,15 @@ class WebConfigManager:
         self._config = _init_web_config()
 
     def update(self, data: dict) -> None:
-        merged = deepcopy(self._config)
+        merged = deepcopy(self.data)
         merged.update(data)
         self._save_data(merged)
         # 保持模块级 web_config 引用有效
-        self._config.clear()
-        self._config.update(merged)
+        self.data.clear()
+        self.data.update(merged)
 
     def save(self) -> None:
-        self._save_data(self._config)
+        self._save_data(self.data)
 
     def _save_data(self, data: dict) -> None:
         try:
@@ -63,6 +63,8 @@ class WebConfigManager:
 
     @property
     def data(self) -> dict:
+        if self._config is None:
+            raise RuntimeError("Web 配置尚未初始化")
         return self._config
 
 
