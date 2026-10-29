@@ -15,3 +15,18 @@ select = ["E4", "E7", "E9", "F"]
 [tool.ruff.lint.per-file-ignores]
 # 该文件在 sys.path 注入后才导入本地模块
 "web_app/__init__.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+files = [
+  "seseget/config/schema.py",
+  "seseget/config/migrations.py",
+  "seseget/config/config_manager.py",
+  "seseget/request/errors.py",
+  "seseget/request/requests.py",
+]
+check_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]

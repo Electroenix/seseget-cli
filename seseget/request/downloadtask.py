@@ -100,10 +100,18 @@ class TaskDLProgress:
                 logger.warning(f"Download file count over preset! Set {self.progress_count} but "
                                f"add {len(self.progress_dict) + 1}")
 
-    def get_progress(self, file_name: str) -> FileDLProgress:
+    def get_progress(self, file_name: str) -> FileDLProgress | None:
         """获取指定文件的进度对象"""
         file_base_name = get_file_basename(file_name)
         return self.progress_dict.get(file_base_name)
+
+    @property
+    def progress_bar(self) -> ProgressBar:
+        if self.bar is None:
+            self.init_progress()
+        if self.bar is None:
+            raise RuntimeError("进度条初始化失败")
+        return self.bar
 
     def _update_progress(self, file_name: str | None = None, downloaded=0):
         """
@@ -132,15 +140,15 @@ class TaskDLProgress:
                 if self.current_progress is not None and \
                         file_base_name == self.current_progress.filename:
                     if not BAR_SHOW_TOTAL_PROGRESS:
-                        self.bar.set_total(self.current_progress.total)
-                        self.bar.set_downloaded(self.current_progress.downloaded)
+                        self.progress_bar.set_total(self.current_progress.total)
+                        self.progress_bar.set_downloaded(self.current_progress.downloaded)
 
                     if self.current_progress.total == self.current_progress.downloaded:
                         self.current_progress = None
 
                 if BAR_SHOW_TOTAL_PROGRESS:
-                    self.bar.set_total(self.total_progress.total)
-                    self.bar.set_downloaded(self.total_progress.downloaded)
+                    self.progress_bar.set_total(self.total_progress.total)
+                    self.progress_bar.set_downloaded(self.total_progress.downloaded)
 
         # 更新标题
         title_max_len = 32
@@ -152,7 +160,7 @@ class TaskDLProgress:
         else:
             title = status + statistics + self.name[:title_max_len - (len(statistics) + len(status)) - 3] + "..."
 
-        self.bar.set_description(title)
+        self.progress_bar.set_description(title)
 
     def set_status(self, status):
         """设置任务状态"""
@@ -160,9 +168,9 @@ class TaskDLProgress:
         self._update_progress()
 
         if status == FileDLProgress.Status.DOWNLOAD_OK:
-            self.bar.close()
+            self.progress_bar.close()
         elif status == FileDLProgress.Status.DOWNLOAD_ERROR:
-            self.bar.close()
+            self.progress_bar.close()
 
     def set_total(self, file_name, total):
         """设置文件总大小"""

@@ -13,7 +13,7 @@ from requests.structures import CaseInsensitiveDict
 from ..config import settings
 from ..utils.trace import logger
 from ..config.config_manager import config
-from .errors import RequestConnectionError, RequestHTTPError, RequestTimeout
+from .errors import RequestConnectionError, RequestError, RequestHTTPError, RequestTimeout
 
 
 REQUEST_MAX_ATTEMPTS = 3
@@ -52,7 +52,7 @@ class SessionManager:
     def _get_session_for_host(self, host: str) -> sync_requests.Session:
         with self._lock:
             if host not in self._sessions:
-                session = sync_requests.Session()
+                session: sync_requests.Session = sync_requests.Session()
                 self._sessions[host] = session
             return self._sessions[host]
 
@@ -122,7 +122,7 @@ class AsyncSessionManager:
     async def _get_session_for_host(self, host: str) -> AsyncSession:
         async with self._lock:
             if host not in self._sessions:
-                session = AsyncSession()
+                session: AsyncSession = AsyncSession()
                 self._sessions[host] = session
             return self._sessions[host]
 
@@ -188,7 +188,7 @@ async def async_request(method: str, url: str, **kwargs):
 
     超时、连接失败和可重试的 HTTP 状态会重试；其余 4xx 立即失败。
     """
-    last_error = None
+    last_error: RequestError | None = None
     max_attempts = _request_max_attempts()
 
     for attempt in range(1, max_attempts + 1):
@@ -240,6 +240,8 @@ async def async_request(method: str, url: str, **kwargs):
             raise last_error
 
         if attempt >= max_attempts:
+            if last_error is None:
+                raise RequestError("请求失败但未记录错误", method=method, url=url)
             raise last_error
 
         logger.warning(
@@ -252,5 +254,6 @@ async def async_request(method: str, url: str, **kwargs):
         await asyncio.sleep(1)
 
     # 理论不可达；保证类型检查不会推断返回 None
-    assert last_error is not None
+    if last_error is None:
+        raise RequestError("请求失败但未记录错误", method=method, url=url)
     raise last_error

@@ -39,12 +39,12 @@ class EpubGenerator:
         self.output_dir = output_dir
         self.image_dir = image_dir
         self.metadata = metadata
-        self.image_files = []
-        self.page_files = []
-        self.cover_image_file = {}
+        self.image_files: list[dict[str, str | int]] = []
+        self.page_files: list[str] = []
+        self.cover_image_file: dict[str, str | int] = {}
         self.cover_page_file = ""
         self.package_dir = ""
-        self.path = {}
+        self.path: dict[str, str] = {}
 
     def _path_config(self):
         self.path = {
@@ -89,7 +89,9 @@ class EpubGenerator:
         self.image_files = []
         for index, src_file in enumerate(image_files):
             img = Image.open(src_file)
-            img_format = img.format.lower()  # 获取图片实际格式
+            img_format = (img.format or "").lower()  # 获取图片实际格式
+            if not img_format:
+                raise ValueError(f"无法识别图片格式: {src_file}")
 
             # 根据实际格式修改后缀名
             img_suffix = f".{img_format}"
@@ -105,8 +107,9 @@ class EpubGenerator:
             })
 
         # 复制第一张图作为封面
-        cover_image = (target_path / self.image_files[0]["filename"]).with_stem("cover")
-        shutil.copy2(target_path / self.image_files[0]["filename"], cover_image)
+        first_image_name = str(self.image_files[0]["filename"])
+        cover_image = (target_path / first_image_name).with_stem("cover")
+        shutil.copy2(target_path / first_image_name, cover_image)
         self.cover_image_file = {
             "filename": cover_image.name,
             "media_type": self.MEDIA_TYPE_MAP[cover_image.suffix],
@@ -303,7 +306,7 @@ html, body {
             # 页面图片
             for image_file in self.image_files:
                 f.write(f"""
-    <item id="{Path(image_file["filename"]).stem}" href="Images/{image_file["filename"]}" media-type="{image_file["media_type"]}"/>""")
+    <item id="{Path(str(image_file["filename"])).stem}" href="Images/{image_file["filename"]}" media-type="{image_file["media_type"]}"/>""")
 
             f.write(f"""
   </manifest>
@@ -350,7 +353,7 @@ html, body {
   </body>
 </html>""")
 
-    def generate(self, filename: str = None):
+    def generate(self, filename: str | Path | None = None):
         try:
             if not self.output_dir:
                 raise ValueError("EPUB输出目录为空!")
