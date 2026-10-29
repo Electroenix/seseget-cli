@@ -11,7 +11,7 @@ from seseget.output.comic import COMIC_PACKAGERS
 from seseget.output.video import VIDEO_METADATA_WRITERS
 from .response import ResponseCode, ApiResponse
 
-router = APIRouter()
+router: APIRouter = APIRouter()
 
 
 def _settings_payload():

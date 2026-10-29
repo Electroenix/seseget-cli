@@ -10,7 +10,7 @@ from .. import sio
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router: APIRouter = APIRouter()
 
 
 async def _safe_download(fetcher, url, **kwargs):

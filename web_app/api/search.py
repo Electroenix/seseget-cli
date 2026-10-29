@@ -14,7 +14,7 @@ from ..config.path import (
     STATIC_THUMBNAIL_URI,
 )
 
-router = APIRouter()
+router: APIRouter = APIRouter()
 
 
 async def download_cover(site: str, filename: str, url: str) -> bool:
@@ -75,6 +75,11 @@ async def search(
 
     if site and url:
         fetcher = FetcherRegistry.get_fetcher(site)
+        if fetcher is None:
+            return ApiResponse(
+                code=ResponseCode.NOT_FOUND,
+                message=f"未注册的站点: {site}",
+            )
         info = await fetcher.info(url)
         info.print_info()
         print("fetch info OK!")
@@ -178,6 +183,11 @@ async def search_series(request: Request):
 
     if site and url:
         fetcher = FetcherRegistry.get_fetcher(site)
+        if fetcher is None:
+            return ApiResponse(
+                code=ResponseCode.NOT_FOUND,
+                message=f"未注册的站点: {site}",
+            )
         info = await fetcher.info(url)
         info.print_info()
         print("fetch info OK!")

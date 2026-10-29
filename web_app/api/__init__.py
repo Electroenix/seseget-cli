@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from . import download, search, settings, auth, version
 
-api_router = APIRouter()
+api_router: APIRouter = APIRouter()
 
 api_router.include_router(download.router, prefix="/download")
 api_router.include_router(search.router, prefix="/search")
