@@ -1,7 +1,7 @@
 import copy
 import os
 import re
-from bs4 import BeautifulSoup, element
+from bs4.element import Tag
 from urllib.parse import urlparse, parse_qs
 
 from ..request import downloader
@@ -9,6 +9,8 @@ from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
 from ..request.requests import async_request
+from ..request.errors import SiteParseError
+from .parser import SiteParser
 from ..utils.trace import logger
 from ..utils.file_utils import make_diff_dir_name, make_filename_valid
 from ..config.config_manager import config
@@ -52,49 +54,116 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
     site_dir = os.path.join(DATA_DIR, "hanime")
 
     @staticmethod
-    def get_metadata(soup):
+    def get_metadata(parser: SiteParser):
         metadata = VideoMetaData()
 
-        metadata.title = soup.find('h3', attrs={'id': 'shareBtn-title'}).string
-        metadata.sub_title = soup.find_all('div', attrs={'style': 'margin-bottom: 5px'})[1].string
-        metadata.describe = soup.find('div', attrs={'class': 'video-caption-text caption-ellipsis',
-                                                    'style': 'color: #b8babc; font-weight: normal;'}).get_text()
-        metadata.author = soup.find('a', attrs={'id': "video-artist-name"}).string
-        metadata.author = metadata.author.replace('\n', '')
-        metadata.author = metadata.author.replace(' ', '')
-        metadata.series = (soup.find('div', attrs={'class': 'video-playlist-top'})).find('h4').find('a').string
+        title_element = parser.find(name="h3",
+            attrs={"id": "shareBtn-title"},
+        )
+        metadata.title = title_element.get_text(strip=True)
 
-        tags_element_list = soup.find_all('div', attrs={'class': "single-video-tag",
-                                                        'style': "margin-bottom: 18px; font-weight: normal"})
+        sub_titles = parser.find_all_optional(
+            name="div",
+            attrs={"style": "margin-bottom: 5px"},
+        )
+        if len(sub_titles) < 2:
+            parser.fail(
+                f"sub_titles 数量不足，期望至少 2 个，实际 {len(sub_titles)} 个"
+            )
+        metadata.sub_title = sub_titles[1].get_text(strip=True)
+
+        describe_element = parser.find(name="div",
+            attrs={
+                "class": "video-caption-text caption-ellipsis",
+                "style": "color: #b8babc; font-weight: normal;",
+            },
+        )
+        metadata.describe = describe_element.get_text()
+
+        author_element = parser.find(name="a",
+            attrs={"id": "video-artist-name"},
+        )
+        metadata.author = (
+            author_element.get_text(strip=True)
+            .replace("\n", "")
+            .replace(" ", "")
+        )
+
+        playlist_top = parser.find(name="div",
+            attrs={"class": "video-playlist-top"},
+        )
+        playlist_h4 = parser.find(node=playlist_top, name="h4")
+        series_element = parser.find(node=playlist_h4,
+            name="a",
+        )
+        metadata.series = series_element.get_text(strip=True)
+
         metadata.tag_list.clear()
-        for t in tags_element_list:
-            metadata.tag_list.append(t.contents[0]["href"][t.contents[0]["href"].find("=") + 1:])
-        metadata.public_time = re.search(
-            r"\d{4}-\d{2}-\d{2}",
-            soup.find('div', attrs={'class': 'hidden-xs', 'style': 'margin-bottom: 5px'}).string).group()
+        for tag_element in parser.find_all_optional(
+            name="div",
+            attrs={
+                "class": "single-video-tag",
+                "style": "margin-bottom: 18px; font-weight: normal",
+            },
+        ):
+            if not tag_element.contents:
+                continue
+            first_child = tag_element.contents[0]
+            if not isinstance(first_child, Tag):
+                continue
+            href = first_child.get("href")
+            if isinstance(href, str):
+                metadata.tag_list.append(href[href.find("=") + 1:])
 
+        date_element = parser.find(name="div",
+            attrs={"class": "hidden-xs", "style": "margin-bottom: 5px"},
+        )
+        date_match = re.search(r"\d{4}-\d{2}-\d{2}", date_element.get_text())
+        if date_match is None:
+            parser.fail("date_match 匹配失败")
+        metadata.public_time = date_match.group()
         metadata.year = metadata.public_time[:4]
 
         return metadata
 
     @staticmethod
-    def get_series_info(soup):
+    def get_series_info(parser: SiteParser):
         series = []
 
-        play_list = soup.find('div', {'id': 'playlist-scroll'})
-        video_element_list = play_list.find_all("div", attrs={"class", "playlist-hover-wrap"}, recursive=False)
+        play_list = parser.find(name="div",
+            attrs={"id": "playlist-scroll"},
+        )
+        video_element_list = parser.find_all(node=play_list,
+            name="div",
+            attrs={"class": "playlist-hover-wrap"},
+            recursive=False,
+        )
 
         for video_element in video_element_list:
-            if isinstance(video_element, element.Tag):
-                video_url_element = video_element.find("a")
-                video_thumb_url_element = video_element.find("img")
-                video_title_element = video_element.find("h4", {"class": "video-title"})
-                if video_url_element and video_thumb_url_element and video_title_element:
-                    video_url = video_url_element.attrs["href"]
-                    vid = parse_qs(urlparse(video_url).query)["v"][0]
-                    video_thumb_url = video_thumb_url_element.attrs["src"]
-                    video_title = video_title_element.text
-                    series.append({"vid": vid, "title": video_title, "url": video_url, "thumbnail": video_thumb_url})
+            video_url_element = video_element.find("a")
+            video_thumb_url_element = video_element.find("img")
+            video_title_element = video_element.find("h4", {"class": "video-title"})
+            if not (
+                isinstance(video_url_element, Tag)
+                and isinstance(video_thumb_url_element, Tag)
+                and isinstance(video_title_element, Tag)
+            ):
+                continue
+            video_url = video_url_element.get("href")
+            video_thumb_url = video_thumb_url_element.get("src")
+            if not isinstance(video_url, str) or not isinstance(video_thumb_url, str):
+                continue
+            vids = parse_qs(urlparse(video_url).query).get("v")
+            if not vids:
+                continue
+            series.append(
+                {
+                    "vid": vids[0],
+                    "title": video_title_element.get_text(strip=True),
+                    "url": video_url,
+                    "thumbnail": video_thumb_url,
+                }
+            )
 
         return series
 
@@ -154,7 +223,14 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
 
     async def _fetch_info(self, url, **kwargs) -> HanimeVideoInfo:
         view_url_parse = urlparse(url)
-        vid = parse_qs(view_url_parse.query)["v"][0]
+        vids = parse_qs(view_url_parse.query).get("v")
+        if not vids:
+            raise SiteParseError(
+                "页面解析失败：未匹配到视频 ID（URL 参数 v）",
+                site="hanime",
+                url=url,
+            )
+        vid = vids[0]
 
         video_info = self.video_info_cache.get_video_info(vid)
         if video_info is not None:
@@ -166,29 +242,38 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
             req_kwargs["headers"] = HANIME_HEADERS.copy()
             req_kwargs["headers"]["cookie"] = config["sites"]["hanime"]["cookie"]
         response = await async_request("GET", url, **req_kwargs)
-        video_soup = BeautifulSoup(response.text, 'html.parser')
+        parser = SiteParser(response.text, site="hanime", url=url)
 
-        video_elem = video_soup.find('video')
-        video_thumbnail_url = video_elem.get("poster")
-        video_source = video_elem.find("source", {"size": "1080"})
-        if video_source is None:
-            video_source = video_elem.find("source", {"size": "720"})
-        if video_source is None:
-            video_source = video_elem.find("source", {"size": "480"})
+        video_elem = parser.find(name="video")
+        poster = video_elem.get("poster")
+        video_thumbnail_url = poster if isinstance(poster, str) else ""
 
+        video_source = None
+        for size in ("1080", "720", "480"):
+            candidate = video_elem.find("source", {"size": size})
+            if isinstance(candidate, Tag):
+                video_source = candidate
+                break
+        if video_source is None:
+            parser.fail("未找到可用的 video source（size=1080/720/480）")
         video_download_url = video_source.get("src")
+        if not isinstance(video_download_url, str):
+            parser.fail("video_source 缺少 src")
 
-        metadata = self.get_metadata(video_soup)
-        series_info = self.get_series_info(video_soup)
+        metadata = self.get_metadata(parser)
+        series_info = self.get_series_info(parser)
 
         cover_url = None
-        video_genre = video_soup.find('a', attrs={'class': "hidden-sm hidden-md hidden-lg hidden-xl"}).string
-        video_genre = video_genre.replace('\n', '')
-        video_genre = video_genre.replace(' ', '')
+        genre_element = parser.find(name="a",
+            attrs={"class": "hidden-sm hidden-md hidden-lg hidden-xl"},
+        )
+        video_genre = genre_element.get_text(strip=True).replace("\n", "").replace(" ", "")
 
         if video_genre in GENRES_SIMP + GENRES_TRAD:
             if video_genre in GENRES_SIMP:
-                video_genre = dict(zip(GENRES_SIMP, GENRES_TRAD)).get(video_genre)
+                mapped_genre = dict(zip(GENRES_SIMP, GENRES_TRAD)).get(video_genre)
+                if mapped_genre:
+                    video_genre = mapped_genre
             search_url = f'https://hanime1.me/search?type=&genre={video_genre}&sort=&date=&duration='
             req_kwargs = {}
             if config["sites"]["hanime"]["cookie"]:
@@ -196,11 +281,15 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
                 req_kwargs["headers"]["cookie"] = config["sites"]["hanime"]["cookie"]
             response = await async_request("GET", search_url, params={'query': metadata.title}, **req_kwargs)
 
-            search_soup = BeautifulSoup(response.text, 'html.parser')
+            search_parser = SiteParser(response.text, site="hanime", url=search_url)
 
-            cover_element = (search_soup.find('a', href=url)).find('img', src=re.compile('cover'))
-            if cover_element:
-                cover_url = cover_element.attrs['src']
+            cover_link = search_parser.soup.find("a", href=url)
+            if isinstance(cover_link, Tag):
+                cover_element = cover_link.find("img", src=re.compile("cover"))
+                if isinstance(cover_element, Tag):
+                    cover_src = cover_element.get("src")
+                    if isinstance(cover_src, str):
+                        cover_url = cover_src
 
         if cover_url is None:
             cover_url = video_thumbnail_url

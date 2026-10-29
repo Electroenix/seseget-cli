@@ -2,32 +2,32 @@ import os
 import re
 from typing import List
 
-from bs4 import BeautifulSoup
-
+from ..config.path import DATA_DIR
 from ..request.errors import SiteParseError
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..request.requests import async_request
-from ..config.path import DATA_DIR
-
-
-def _parse_error(message: str, url: str = "") -> SiteParseError:
-    return SiteParseError(f"页面解析失败：{message}", site="wnacg", url=url)
+from .parser import SiteParser
 
 
 def _require_cid(url: str) -> str:
     match = re.search(r"\d+(?=\.html)", url)
     if not match:
-        raise _parse_error("无法从 URL 中解析作品 ID", url)
+        raise SiteParseError(
+            "未匹配到作品 ID（URL 期望匹配 /<数字>.html）",
+            site="wnacg",
+            url=url,
+        )
     return match.group()
 
 
 def parse_image_urls(html: str, source_url: str = "") -> List[str]:
     """从 wnacg 的 imglist 脚本中提取图片 URL。"""
-    match = re.search(r"(?<=var imglist = )\[[\s\S]+]", html)
-    if not match:
-        raise _parse_error("未找到图片列表 imglist", source_url)
+    parser = SiteParser(html, site="wnacg", url=source_url)
+    image_list_match = re.search(r"(?<=var imglist = )\[[\s\S]+]", html)
+    if image_list_match is None:
+        parser.fail("image_list_match 匹配失败")
 
-    image_list_str = match.group()
+    image_list_str = image_list_match.group()
     image_list_str = image_list_str.replace("\\", "")
     image_list_str = image_list_str.replace("fast_img_host+", "")
     raw_urls = re.findall(r'url"?\s*:\s*"([^"]+)"', image_list_str)
@@ -46,51 +46,63 @@ def parse_comic_info(
     image_urls: List[str],
 ) -> ComicInfo:
     """解析 wnacg 作品详情页。所有缺失的关键元素统一转为 SiteParseError。"""
-    soup = BeautifulSoup(html, "html.parser")
-    bodywraps = soup.find_all("div", attrs={"id": "bodywrap"})
+    parser = SiteParser(html, site="wnacg", url=url)
+
+    bodywraps = parser.find_all(name="div",
+        attrs={"id": "bodywrap"},
+    )
     if len(bodywraps) < 2:
-        raise _parse_error("页面缺少 bodywrap 容器", url)
+        parser.fail(
+            f"bodywraps 数量不足，期望至少 2 个，实际 {len(bodywraps)} 个"
+        )
 
     soup_userwrap = bodywraps[0]
     soup_cc = bodywraps[1]
-    soup_info = soup_userwrap.find("div", attrs={"class": "asTBcell uwconn"})
-    soup_uinfo = soup_userwrap.find("div", attrs={"class": "asTBcell uwuinfo"})
-    if soup_info is None or soup_uinfo is None:
-        raise _parse_error("页面缺少作品信息容器", url)
+    soup_info = parser.find(node=soup_userwrap,
+        name="div",
+        attrs={"class": "asTBcell uwconn"},
+    )
+    soup_uinfo = parser.find(node=soup_userwrap,
+        name="div",
+        attrs={"class": "asTBcell uwuinfo"},
+    )
 
-    title_element = soup_userwrap.find("h2")
-    cover_element = soup_userwrap.find("img")
-    author_element = soup_uinfo.find("p")
-    date_element = soup_cc.find("div", string=re.compile(r"上傳於"))
-    if title_element is None:
-        raise _parse_error("页面缺少作品标题", url)
-    if cover_element is None or not cover_element.get("src"):
-        raise _parse_error("页面缺少封面地址", url)
-    if author_element is None:
-        raise _parse_error("页面缺少作者信息", url)
-    if date_element is None or not date_element.string:
-        raise _parse_error("页面缺少上传日期", url)
+    title_element = parser.find(node=soup_userwrap, name="h2")
+    cover_element = parser.find(node=soup_userwrap, name="img")
+    author_element = parser.find(node=soup_uinfo, name="p")
+    date_element = parser.find(node=soup_cc,
+        name="div",
+        string=re.compile(r"上傳於"),
+    )
+
+    cover_src = cover_element.get("src")
+    if not isinstance(cover_src, str):
+        parser.fail("cover_element 的 src 为空")
 
     comic_title = title_element.get_text(strip=True)
     if not comic_title:
-        raise _parse_error("作品标题为空", url)
+        parser.fail("comic_title 内容为空")
 
-    comic_cover_url = "https://" + str(cover_element.get("src")).lstrip("/")
+    comic_cover_url = "https://" + cover_src.lstrip("/")
     comic_author = author_element.get_text(strip=True)
     if not comic_author:
-        raise _parse_error("作者信息为空", url)
+        parser.fail("comic_author 内容为空")
 
-    comic_tag_list = [
-        tag.get_text(strip=True)
-        for tag in soup_info.find_all("a", attrs={"class": "tagshow"})
-        if tag.get_text(strip=True)
-    ]
+    comic_tag_list = []
+    for tag in parser.find_all(node=soup_info,
+        name="a",
+        attrs={"class": "tagshow"},
+    ):
+        text = tag.get_text(strip=True)
+        if text:
+            comic_tag_list.append(text)
 
     type_match = re.search(
-        r"(?<=<label>分類：)[\s\S]+?(?=</label>)", str(soup_info)
+        r"(?<=<label>分類：)[\s\S]+?(?=</label>)",
+        str(soup_info),
     )
-    if not type_match:
-        raise _parse_error("页面缺少分类信息", url)
+    if type_match is None:
+        parser.fail("type_match 匹配失败")
     comic_type = type_match.group().strip()
     comic_tag_list.append(comic_type)
 
@@ -100,14 +112,15 @@ def parse_comic_info(
     elif "漢化" in comic_type:
         comic_lang = "zh"
 
-    desc_element = soup_info.find("p", string=re.compile(r"簡介："))
-    if desc_element is None:
-        raise _parse_error("页面缺少简介信息", url)
+    desc_element = parser.find(node=soup_info,
+        name="p",
+        string=re.compile(r"簡介："),
+    )
     comic_desc = desc_element.get_text().split("簡介：", 1)[-1].strip()
 
     date_match = re.search(r"(\d+)-(\d+)-(\d+)", date_element.get_text())
-    if not date_match:
-        raise _parse_error("无法解析上传日期", url)
+    if date_match is None:
+        parser.fail("date_match 匹配失败")
 
     comic_info = ComicInfo()
     comic_info.view_url = url
@@ -123,7 +136,7 @@ def parse_comic_info(
     comic_chapter.id = 1
     comic_chapter.metadata.series = comic_title
     comic_chapter.metadata.title = comic_title
-    comic_chapter.metadata.number = 1
+    comic_chapter.metadata.number = "1"
     comic_chapter.metadata.language = comic_lang
     comic_chapter.metadata.creator = comic_author
     comic_chapter.metadata.subjects = comic_tag_list

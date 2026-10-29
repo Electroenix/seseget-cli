@@ -25,6 +25,10 @@ files = [
   "seseget/request",
   "seseget/utils",
   "seseget/cli.py",
+  "seseget/sites/parser.py",
+  "seseget/sites/hanime.py",
+  "seseget/sites/bika.py",
+  "seseget/sites/wnacg.py",
   "web_app",
 ]
 check_untyped_defs = true

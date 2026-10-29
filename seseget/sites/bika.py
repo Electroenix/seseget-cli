@@ -12,6 +12,7 @@ from ..config.session_store import session_store
 from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
 from ..utils.trace import logger
 from ..request.requests import async_request
+from ..request.errors import SiteParseError
 
 
 
@@ -231,7 +232,17 @@ class BikaFetcher(ComicFetcher):
             chapter_info.metadata.creator = bika_context.author
             chapter_info.metadata.subjects = bika_context.genres
 
-            date_match = re.search(r"^(\d+)-(\d+)-(\d+)", bika_chapter["updated_at"])
+            updated_at = bika_chapter.get("updated_at")
+            date_match = re.search(
+                r"^(\d+)-(\d+)-(\d+)",
+                str(updated_at) if updated_at else "",
+            )
+            if date_match is None:
+                raise SiteParseError(
+                    "未匹配到章节更新时间（字段 updated_at，期望 YYYY-MM-DD）",
+                    site="bika",
+                    url=url,
+                )
             chapter_info.metadata.year = date_match.group(1)
             chapter_info.metadata.month = date_match.group(2)
             chapter_info.metadata.day = date_match.group(3)

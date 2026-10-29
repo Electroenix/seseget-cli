@@ -45,10 +45,10 @@ def test_missing_title_raises_site_parse_error():
     html = (FIXTURE_DIR / "comic.html").read_text(encoding="utf-8")
     html = html.replace("<h2>Test Comic</h2>", "")
 
-    with pytest.raises(SiteParseError, match="标题"):
+    with pytest.raises(SiteParseError, match="h2"):
         parse_comic_info(html, "https://example.test/123.html", "123", [])
 
 
 def test_missing_imglist_raises_site_parse_error():
-    with pytest.raises(SiteParseError, match="imglist"):
+    with pytest.raises(SiteParseError, match="image_list_match"):
         parse_image_urls("<html></html>", "https://example.test/123.html")
