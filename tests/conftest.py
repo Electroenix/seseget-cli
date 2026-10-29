@@ -1,16 +1,17 @@
+from copy import deepcopy
+
 import httpx
 import pytest
 import pytest_asyncio
-from copy import deepcopy
 from PIL import Image
 
+import web_app
 from seseget.config.config_manager import _update_nested_dict
 from seseget.config.schema import validate_config
 from seseget.metadata.comic import ComicMetaData
 from seseget.metadata.video import VideoMetaData
 from seseget.request.download_history import DownloadHistoryStore
 from seseget.request.downloadtask import download_manager
-import web_app
 from web_app.api import auth as auth_api
 from web_app.api import settings as settings_api
 

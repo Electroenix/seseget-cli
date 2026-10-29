@@ -4,12 +4,11 @@ import re
 import shutil
 import tempfile
 
-from .downloadtask import TaskDLProgress, FileDLProgress
-from .requests import async_request, session_manager
 from ..utils.file_utils import get_file_basename
 from ..utils.subprocess_utils import exec_cmd
 from ..utils.trace import logger
-
+from .downloadtask import FileDLProgress, TaskDLProgress
+from .requests import async_request, session_manager
 
 DOWNLOAD_RETRY_INTERVAL = 2
 
@@ -166,7 +165,7 @@ async def _download_files(file_name_list: list[str],
         async with semaphore:
             return await _download_file(file_name, url, True, progress, **kwargs)
 
-    tasks = [_download_with_semaphore(f, u) for f, u in zip(file_name_list, url_list)]
+    tasks = [_download_with_semaphore(f, u) for f, u in zip(file_name_list, url_list, strict=True)]
     logger.info("已提交所有下载任务！")
 
     try:

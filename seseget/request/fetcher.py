@@ -1,21 +1,21 @@
 import asyncio
 import os
-import sys
 import shutil
+import sys
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Dict, Type, Optional, TypeVar, Generic, Union
+from typing import Dict, Generic, Optional, Type, TypeVar, Union
 
-from . import downloader
 from ..config.config_manager import config
 from ..metadata.comic import ComicMetaData
 from ..metadata.video import VideoMetaData
 from ..output.comic import package_comic
 from ..output.video import make_video_metadata_file
-from ..utils.file_utils import make_filename_valid, make_diff_dir_name
+from ..utils.file_utils import make_diff_dir_name, make_filename_valid
 from ..utils.trace import logger
-from .errors import RequestError, SiteError, SiteParseError
+from . import downloader
 from .downloadtask import FileDLProgress, TaskDLProgress, download_manager
+from .errors import RequestError, SiteError, SiteParseError
 
 
 class ChapterInfo:
@@ -444,7 +444,7 @@ class FetcherRegistry:
         import pkgutil
         package = importlib.import_module(package_name)
 
-        for _, module_name, is_pkg in pkgutil.iter_modules(package.__path__):
+        for _, module_name, _is_pkg in pkgutil.iter_modules(package.__path__):
             try:
                 full_module_name = f"{package_name}.{module_name}"
                 importlib.import_module(full_module_name)

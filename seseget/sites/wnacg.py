@@ -4,7 +4,7 @@ from typing import List
 
 from ..config.path import DATA_DIR
 from ..request.errors import SiteParseError
-from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
+from ..request.fetcher import ChapterInfo, ComicFetcher, ComicInfo, FetcherRegistry
 from ..request.requests import async_request
 from .parser import SiteParser
 

@@ -3,10 +3,11 @@ import logging
 
 from fastapi import APIRouter, Request
 
-from seseget.request.fetcher import FetcherRegistry, VideoFetcher, ComicFetcher
 from seseget.request.downloadtask import download_manager
-from .response import ResponseCode, ApiResponse
+from seseget.request.fetcher import ComicFetcher, FetcherRegistry, VideoFetcher
+
 from .. import sio
+from .response import ApiResponse, ResponseCode
 
 logger = logging.getLogger(__name__)
 

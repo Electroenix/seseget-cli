@@ -1,20 +1,20 @@
 import copy
 import os
 import re
-from bs4.element import Tag
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
-from ..request import downloader
+from bs4.element import Tag
+
+from ..config.config_manager import config
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
-from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
-from ..request.requests import async_request
+from ..request import downloader
 from ..request.errors import SiteParseError
-from .parser import SiteParser
-from ..utils.trace import logger
+from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo
+from ..request.requests import async_request
 from ..utils.file_utils import make_diff_dir_name, make_filename_valid
-from ..config.config_manager import config
-
+from ..utils.trace import logger
+from .parser import SiteParser
 
 HANIME_HEADERS = {
     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -269,7 +269,7 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
 
         if video_genre in GENRES_SIMP + GENRES_TRAD:
             if video_genre in GENRES_SIMP:
-                mapped_genre = dict(zip(GENRES_SIMP, GENRES_TRAD)).get(video_genre)
+                mapped_genre = dict(zip(GENRES_SIMP, GENRES_TRAD, strict=True)).get(video_genre)
                 if mapped_genre:
                     video_genre = mapped_genre
             search_url = f'https://hanime1.me/search?type=&genre={video_genre}&sort=&date=&duration='

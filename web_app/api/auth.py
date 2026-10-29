@@ -4,7 +4,8 @@ import secrets
 from fastapi import APIRouter, Request
 
 from web_app.config.web_config import web_config, web_config_manager
-from .response import ResponseCode, ApiResponse
+
+from .response import ApiResponse, ResponseCode
 
 router: APIRouter = APIRouter()
 

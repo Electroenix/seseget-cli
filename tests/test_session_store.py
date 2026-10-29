@@ -2,8 +2,9 @@ import os
 import stat
 
 import pytest
-from seseget.config.schema import get_default_config
+
 import seseget.config.session_store as session_store_module
+from seseget.config.schema import get_default_config
 from seseget.config.session_store import (
     SessionStore,
     backup_config,

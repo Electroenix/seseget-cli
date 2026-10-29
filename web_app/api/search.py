@@ -1,18 +1,19 @@
 import os
 
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Form, Request
 
-from seseget.request.fetcher import FetcherRegistry, VideoInfo, ComicInfo
 from seseget.request.downloader import download_file, download_files_ex
-from seseget.request.downloadtask import TaskDLProgress, FileDLProgress
-from .response import ResponseCode, ApiResponse
+from seseget.request.downloadtask import FileDLProgress, TaskDLProgress
+from seseget.request.fetcher import ComicInfo, FetcherRegistry, VideoInfo
 from seseget.utils.trace import logger
+
 from ..config.path import (
     STATIC_COVER_DIR,
     STATIC_COVER_URI,
     STATIC_THUMBNAIL_DIR,
     STATIC_THUMBNAIL_URI,
 )
+from .response import ApiResponse, ResponseCode
 
 router: APIRouter = APIRouter()
 

@@ -1,11 +1,12 @@
 import os
+import shutil
 import uuid
 import zipfile
-from tempfile import TemporaryDirectory
-from pathlib import Path
-import shutil
 from datetime import datetime, timezone
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from xml.sax.saxutils import escape
+
 from PIL import Image
 
 from ...metadata.comic import ComicMetaData
@@ -386,7 +387,7 @@ html, body {
                     filename = Path(self.output_dir) / f"{self.metadata.title}.epub"
 
                 with zipfile.ZipFile(filename, 'w', zipfile.ZIP_DEFLATED) as new_zf:
-                    for root, dirs, files in os.walk(self.package_dir):
+                    for root, _dirs, files in os.walk(self.package_dir):
                         for file in files:
                             file_path = os.path.join(root, file)
                             arcname = os.path.relpath(file_path, self.package_dir)

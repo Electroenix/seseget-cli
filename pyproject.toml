@@ -10,7 +10,7 @@ exclude = [
 
 [tool.ruff.lint]
 # 首版只启用高置信度的语法/未定义/未使用类规则
-select = ["E4", "E7", "E9", "F"]
+select = ["E4", "E7", "E9", "F", "I", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 # 该文件在 sys.path 注入后才导入本地模块

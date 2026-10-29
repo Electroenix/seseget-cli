@@ -1,8 +1,9 @@
-import subprocess
 import logging
+import subprocess
 from typing import cast
-from .trace import logger, SSGLogger, SSGFormatter
+
 from ..config import settings
+from .trace import SSGFormatter, SSGLogger, logger
 
 
 class CmdLogger(SSGLogger):

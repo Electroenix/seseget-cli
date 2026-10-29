@@ -1,19 +1,18 @@
+import hmac
 import os
 import re
 import time
-import hmac
 from hashlib import sha256
 from typing import List
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urljoin, urlparse
 
-from ..config.path import DATA_DIR
 from ..config.config_manager import config
+from ..config.path import DATA_DIR
 from ..config.session_store import session_store
-from ..request.fetcher import ChapterInfo, ComicInfo, FetcherRegistry, ComicFetcher
-from ..utils.trace import logger
-from ..request.requests import async_request
 from ..request.errors import SiteParseError
-
+from ..request.fetcher import ChapterInfo, ComicFetcher, ComicInfo, FetcherRegistry
+from ..request.requests import async_request
+from ..utils.trace import logger
 
 
 def parse_updated_at(updated_at: object, url: str = "") -> tuple[str, str, str]:

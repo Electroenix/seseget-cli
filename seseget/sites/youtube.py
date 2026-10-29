@@ -6,12 +6,12 @@ import re
 
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
-from ..request.fetcher import VideoInfo, VideoFetcher, FetcherRegistry
-from ..request.requests import async_request
-from ..request.downloadtask import TaskDLProgress
 from ..request import ytdlp
-from ..utils.trace import logger
+from ..request.downloadtask import TaskDLProgress
+from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo
+from ..request.requests import async_request
 from ..utils.file_utils import make_filename_valid
+from ..utils.trace import logger
 
 
 class YtbVideoInfo(VideoInfo):

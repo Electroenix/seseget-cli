@@ -1,10 +1,10 @@
 import asyncio
 import logging
 import os
-from contextlib import asynccontextmanager
-import socketio
-
 import sys
+from contextlib import asynccontextmanager
+
+import socketio
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -38,8 +38,6 @@ sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 app = FastAPI(lifespan=lifespan)
 
 
-from .api.auth import AUTH_WHITELIST, get_stored_token, check_token
-from .api.response import ApiResponse, ResponseCode
 from seseget.request.errors import (
     RequestError,
     RequestHTTPError,
@@ -47,6 +45,9 @@ from seseget.request.errors import (
     SiteError,
     SiteUnsupportedError,
 )
+
+from .api.auth import AUTH_WHITELIST, check_token, get_stored_token
+from .api.response import ApiResponse, ResponseCode
 
 
 # --- 未预期异常兜底 ---

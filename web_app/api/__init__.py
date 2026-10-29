@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from . import download, search, settings, auth, version
+
+from . import auth, download, search, settings, version
 
 api_router: APIRouter = APIRouter()
 
