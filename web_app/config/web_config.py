@@ -1,9 +1,12 @@
+import logging
 import os
 from copy import deepcopy
 
 from ruamel.yaml import YAML
 
 from .path import WEB_CONFIG_PATH
+
+logger = logging.getLogger(__name__)
 
 _yaml = YAML()
 _yaml.preserve_quotes = True
@@ -58,7 +61,7 @@ class WebConfigManager:
                 _yaml.dump(data, f)
             os.replace(temp_path, WEB_CONFIG_PATH)
         except Exception as e:
-            print(f"[WebConfig] Save failed: {e}")
+            logger.error("WebConfig 保存失败: %s", e)
             raise
 
     @property
