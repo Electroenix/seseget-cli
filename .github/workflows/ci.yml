@@ -16,9 +16,13 @@ concurrency:
 
 jobs:
   python:
-    name: Python compile, import & tests
+    name: Python ${{ matrix.python-version }} compile, import & tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12']
 
     steps:
       - name: Checkout
@@ -27,7 +31,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: |
             requirements.txt
