@@ -257,7 +257,7 @@ jmcomic.JmModuleConfig.CLASS_OPTION = SSGJmOption
 jmcomic.JmModuleConfig.register_client(SSGJmClient)
 
 
-@FetcherRegistry.register("jmcomic")
+@FetcherRegistry.register("jmcomic", "JMComic")
 class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
     site_dir = os.path.join(DATA_DIR, "jmcomic")
 

@@ -404,15 +404,17 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
 class FetcherRegistry:
     """Fetcher类注册器"""
     _registry: Dict[str, Type[AbstractFetcher]] = {}
+    _site_names: Dict[str, str] = {}
     _fetchers: Dict[str, AbstractFetcher] = {}
 
     @classmethod
-    def register(cls, site_name: str):
-        """注册装饰器"""
+    def register(cls, site_key: str, site_name: str = ""):
+        """注册装饰器；site_key 用于请求，site_name 用于展示。"""
         def decorator(fetcher_class: Type[AbstractFetcher]):
             if not issubclass(fetcher_class, AbstractFetcher):
                 raise TypeError(f"{fetcher_class} 必须继承自 AbstractFetcher")
-            cls._registry[site_name] = fetcher_class
+            cls._registry[site_key] = fetcher_class
+            cls._site_names[site_key] = site_name or site_key
             logger.debug(f"注册Fetcher类{fetcher_class}")
             return fetcher_class
         return decorator
@@ -434,8 +436,16 @@ class FetcherRegistry:
 
     @classmethod
     def list_sites(cls) -> list:
-        """获取所有已注册站点名称"""
+        """获取所有已注册站点的 key。"""
         return list(cls._registry.keys())
+
+    @classmethod
+    def list_site_info(cls) -> list[dict[str, str]]:
+        """获取站点 key 和展示名称。"""
+        return [
+            {"key": key, "name": cls._site_names.get(key, key)}
+            for key in cls._registry
+        ]
 
     @classmethod
     def discover(cls, package_name: str):

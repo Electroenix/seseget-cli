@@ -39,6 +39,16 @@ async def test_auth_verify_accepts_valid_token(api_client):
 
 
 @pytest.mark.asyncio
+async def test_site_list_contains_display_names(api_client):
+    response = await api_client.get("/api/search/site_list", headers=AUTH)
+
+    assert response.status_code == 200
+    sites = {item["key"]: item["name"] for item in response.json()["data"]}
+    assert sites["bika"] == "哔咔"
+    assert sites["bilibili"] == "哔哩哔哩"
+
+
+@pytest.mark.asyncio
 async def test_protected_api_requires_token(api_client):
     response = await api_client.get("/api/download/history")
 

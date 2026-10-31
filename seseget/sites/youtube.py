@@ -35,7 +35,7 @@ class YtbVideoInfo(VideoInfo):
         logger.info("---------------------------------")
 
 
-@FetcherRegistry.register("youtube")
+@FetcherRegistry.register("youtube", "YouTube")
 class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
     site_dir = os.path.join(DATA_DIR, "youtube")
     GET_INFO_BY_HTML = 1

@@ -242,5 +242,5 @@ async def search_series(request: Request):
 
 @router.get("/site_list")
 def get_site_list():
-    sites = FetcherRegistry.list_sites()
+    sites = FetcherRegistry.list_site_info()
     return ApiResponse(code=ResponseCode.SUCCESS, message="Success", data=sites)

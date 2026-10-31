@@ -202,7 +202,7 @@ class BikaClient:
         return self.context
 
 
-@FetcherRegistry.register("bika")
+@FetcherRegistry.register("bika", "哔咔")
 class BikaFetcher(ComicFetcher):
     site_dir = os.path.join(DATA_DIR, "bika")
 

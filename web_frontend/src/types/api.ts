@@ -5,6 +5,12 @@ export interface ApiResponse<T = unknown> {
   data: T;
 }
 
+// --- Site ---
+export interface SiteOption {
+  key: string;
+  name: string;
+}
+
 // --- Chapter ---
 export interface Chapter {
   title: string;

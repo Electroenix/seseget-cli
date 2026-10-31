@@ -151,7 +151,7 @@ def parse_comic_info(
     return comic_info
 
 
-@FetcherRegistry.register("wnacg")
+@FetcherRegistry.register("wnacg", "Wnacg")
 class WnacgFetcher(ComicFetcher):
     site_dir = os.path.join(DATA_DIR, "wnacg")
 

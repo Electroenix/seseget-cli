@@ -339,7 +339,7 @@ def parse_play_urls(payload: Any, url: str = "") -> tuple[str, str]:
     return video_url, audio_url
 
 
-@FetcherRegistry.register("bilibili")
+@FetcherRegistry.register("bilibili", "哔哩哔哩")
 class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
     site_dir = os.path.join(DATA_DIR, "bilibili")
     BILI_HEADERS = {

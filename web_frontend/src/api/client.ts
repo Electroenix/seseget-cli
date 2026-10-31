@@ -6,6 +6,7 @@ import type {
   ConfigSchema,
   FormatOptions,
   DownloadHistoryData,
+  SiteOption,
 } from "../types/api";
 
 const TOKEN_KEY = "seseget_auth_token";
@@ -33,12 +34,12 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
 }
 
 // GET /api/search/site_list
-export async function fetchSiteList(): Promise<ApiResponse<string[]>> {
+export async function fetchSiteList(): Promise<ApiResponse<SiteOption[]>> {
   const response = await fetch("/api/search/site_list", {
     method: "GET",
     headers: authHeaders(),
   });
-  return handleResponse<string[]>(response);
+  return handleResponse<SiteOption[]>(response);
 }
 
 // POST /api/search  (FormData: station, url)
