@@ -1,7 +1,8 @@
 import type { FormEvent } from "react";
+import type { SiteOption } from "../types/api";
 
 interface SearchBarProps {
-  siteList: string[];
+  siteList: SiteOption[];
   onSubmit: (formData: FormData) => void;
 }
 
@@ -24,8 +25,8 @@ export default function SearchBar({ siteList, onSubmit }: SearchBarProps) {
               style={{ maxWidth: "130px" }}
             >
               {siteList.map((site) => (
-                <option key={site} value={site}>
-                  {site}
+                <option key={site.key} value={site.key}>
+                  {site.name}
                 </option>
               ))}
             </select>

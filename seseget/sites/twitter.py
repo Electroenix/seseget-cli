@@ -11,7 +11,7 @@ from ..utils.file_utils import make_filename_valid
 from ..utils.trace import logger
 
 
-@FetcherRegistry.register("twitter")
+@FetcherRegistry.register("twitter", "Twitter")
 class TwitterFetcher(VideoFetcher[VideoInfo]):
     site_dir = os.path.join(DATA_DIR, "twitter")
 

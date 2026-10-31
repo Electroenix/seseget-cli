@@ -13,3 +13,11 @@ def test_all_sites_registered():
 def test_unknown_site_raises_value_error():
     with pytest.raises(ValueError, match="未注册的站点"):
         FetcherRegistry.get_fetcher("not-a-site")
+
+
+def test_site_info_contains_names():
+    info = {item["key"]: item["name"] for item in FetcherRegistry.list_site_info()}
+
+    assert info["bika"] == "哔咔"
+    assert info["bilibili"] == "哔哩哔哩"
+    assert info["hanime"] == "Hanime"

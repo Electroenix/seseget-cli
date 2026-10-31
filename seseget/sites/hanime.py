@@ -49,7 +49,7 @@ class HanimeVideoInfo(VideoInfo):
         self.video_genre = ""         # 视频类型
 
 
-@FetcherRegistry.register("hanime")
+@FetcherRegistry.register("hanime", "Hanime")
 class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
     site_dir = os.path.join(DATA_DIR, "hanime")
 

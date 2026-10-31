@@ -6,6 +6,7 @@ import type {
   ConfigChanges,
   ConfigSchema,
   FormatOptions,
+  SiteOption,
 } from "./types/api";
 import {
   fetchSiteList,
@@ -49,7 +50,7 @@ export default function App() {
 
 function MainApp({ version }: { version: string }) {
   // Search / site state
-  const [siteList, setSiteList] = useState<string[]>([]);
+  const [siteList, setSiteList] = useState<SiteOption[]>([]);
   const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null);
   const [searchError, setSearchError] = useState("");
 
