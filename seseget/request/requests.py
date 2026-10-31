@@ -68,7 +68,6 @@ class SessionManager:
             kwargs["headers"] = headers.copy()
         else:
             kwargs["headers"] = DEFAULT_HEADERS.copy()
-        logger.debug(f'headers: {kwargs["headers"]}')
 
         if "proxies" not in kwargs:
             proxy_config = config["network"]["proxy"]
@@ -139,7 +138,6 @@ class AsyncSessionManager:
             kwargs["headers"] = headers.copy()
         else:
             kwargs["headers"] = DEFAULT_HEADERS.copy()
-        logger.debug(f'headers: {kwargs["headers"]}')
 
         if "proxies" not in kwargs:
             proxy_config = config["network"]["proxy"]

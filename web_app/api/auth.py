@@ -3,6 +3,7 @@ import secrets
 
 from fastapi import APIRouter, Request
 
+from web_app.config.path import WEB_CONFIG_PATH
 from web_app.config.web_config import web_config, web_config_manager
 
 from .response import ApiResponse, ResponseCode
@@ -30,6 +31,8 @@ def init_auth_token():
 
     token = secrets.token_urlsafe(16)
     web_config_manager.update({"auth_token": token})
+    print(f"[Auth Token] generated: {token}")
+    print(f"[Auth Token] saved to {WEB_CONFIG_PATH}")
     return token
 
 

@@ -22,7 +22,7 @@ async def download_cover(site: str, filename: str, url: str) -> bool:
     site_dir = os.path.join(STATIC_COVER_DIR, site)
     os.makedirs(site_dir, exist_ok=True)
     cover_file_path = os.path.join(STATIC_COVER_DIR, f"{site}/{filename}")
-    print(f"Download [{url}] to [{cover_file_path}]")
+    logger.debug("下载封面: %s", cover_file_path)
     try:
         await download_file(cover_file_path, url)
         return True
@@ -35,7 +35,7 @@ async def download_thumbnail(site: str, filename: str, url: str) -> bool:
     site_dir = os.path.join(STATIC_THUMBNAIL_DIR, site)
     os.makedirs(site_dir, exist_ok=True)
     thumbnail_file_path = os.path.join(STATIC_THUMBNAIL_DIR, f"{site}/{filename}")
-    print(f"Download [{url}] to [{thumbnail_file_path}]")
+    logger.debug("下载缩略图: %s", thumbnail_file_path)
     try:
         await download_file(thumbnail_file_path, url)
         return True
@@ -72,7 +72,7 @@ async def search(
     url: str = Form(...),
 ):
     site = station
-    print(f"form: station={site}, url={url}")
+    logger.debug("搜索站点: %s", site)
 
     if site and url:
         fetcher = FetcherRegistry.get_fetcher(site)
@@ -83,10 +83,8 @@ async def search(
             )
         info = await fetcher.info(url)
         info.print_info()
-        print("fetch info OK!")
 
         if isinstance(info, VideoInfo):
-            print("Media Type: Video")
 
             cover_filename = f"{info.vid}.jpg"
             cover_ok = await download_cover(site, cover_filename, info.cover_url)
@@ -132,11 +130,9 @@ async def search(
                     }
                 ],
             }
-            print("response: ", data)
             return ApiResponse(code=ResponseCode.SUCCESS, message="Success", data=data)
 
         elif isinstance(info, ComicInfo):
-            print("Media Type: Comic")
 
             cover_filename = f"{info.cid}.jpg"
             cover_ok = await download_cover(site, cover_filename, info.cover_url)
@@ -164,7 +160,6 @@ async def search(
                 "cover": cover_uri,
                 "chapter": chapters,
             }
-            print("response: ", data)
             return ApiResponse(code=ResponseCode.SUCCESS, message="Success", data=data)
 
         else:
@@ -177,7 +172,6 @@ async def search(
 @router.post("/series")
 async def search_series(request: Request):
     data = await request.json()
-    print("data: ", data)
 
     site = data.get("station")
     url = data.get("url")
@@ -191,10 +185,8 @@ async def search_series(request: Request):
             )
         info = await fetcher.info(url)
         info.print_info()
-        print("fetch info OK!")
 
         if isinstance(info, VideoInfo):
-            print("Media Type: Video")
             series = info.series_info
 
             first_video_info = await fetcher.info(series[-1]["url"])
@@ -239,7 +231,6 @@ async def search_series(request: Request):
                 "cover": series_cover_uri,
                 "chapter": chapters,
             }
-            print("response: ", data)
             return ApiResponse(code=ResponseCode.SUCCESS, message="Success", data=data)
 
         else:
@@ -252,5 +243,4 @@ async def search_series(request: Request):
 @router.get("/site_list")
 def get_site_list():
     sites = FetcherRegistry.list_sites()
-    print("sites: ", sites)
     return ApiResponse(code=ResponseCode.SUCCESS, message="Success", data=sites)

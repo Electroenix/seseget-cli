@@ -24,7 +24,6 @@ async def _safe_download(fetcher, url, **kwargs):
 @router.post("")
 async def download(request: Request):
     data = await request.json()
-    print("data: ", data)
 
     site = data.get("station")
     url = data.get("url")

@@ -449,4 +449,4 @@ class FetcherRegistry:
                 full_module_name = f"{package_name}.{module_name}"
                 importlib.import_module(full_module_name)
             except ImportError as e:
-                print(f"注册站点异常 {module_name}: {str(e)}")
+                logger.error("注册站点异常 %s: %s", module_name, e)
