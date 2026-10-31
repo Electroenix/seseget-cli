@@ -428,8 +428,8 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
 
         await downloader.download_mp4_by_merge_video_audio(
             video_path,
-            video_info.audio_download_url,
             video_info.video_download_url,
+            video_info.audio_download_url,
             headers,
             progress)
 
