@@ -251,10 +251,7 @@ async def download_mp4_by_merge_video_audio(filename, video_url, audio_url, head
     cache_dir = os.path.join(dir, "cache")
     audio_path = os.path.join(cache_dir, "cache.mp3")
     video_path = os.path.join(cache_dir, "cache.mp4")
-    if not os.path.exists(dir):
-        os.mkdir(dir)
-    if not os.path.exists(cache_dir):
-        os.mkdir(cache_dir)
+    os.makedirs(cache_dir, exist_ok=True)
 
     if progress is not None:
         progress.init_progress()
@@ -275,11 +272,22 @@ async def download_mp4_by_merge_video_audio(filename, video_url, audio_url, head
         progress.set_status(FileDLProgress.Status.PROCESS)
 
     # ffmpeg 是 CPU 密集型子进程，放入线程池执行
-    await asyncio.to_thread(
+    merged = await asyncio.to_thread(
         exec_cmd,
         ["ffmpeg", "-hide_banner", "-i", f"{video_path}", "-i", f"{audio_path}", "-c:v", "copy", "-c:a", "aac",
          "-strict", "experimental", f"{filename}"]
     )
+
+    if not merged or not os.path.exists(filename) or os.path.getsize(filename) == 0:
+        logger.error("ffmpeg 合并失败，保留缓存以便重试: %s", cache_dir)
+        if os.path.exists(filename):
+            try:
+                os.remove(filename)
+            except OSError as exc:
+                logger.warning("删除不完整输出失败: %s", exc)
+        if progress is not None:
+            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+        return -1
 
     logger.info(f"合并完成，保存在{filename}")
     if progress is not None:
