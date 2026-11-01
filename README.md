@@ -101,26 +101,25 @@ docker compose up -d
 > ```
 
 #### 访问
-服务启动后会在终端显示 Auth Token 和服务器地址，浏览器中访问对应地址，输入 Auth Token 即可使用。
+服务启动后会显示启动信息和服务器地址。首次运行且未配置 Auth Token 时，终端会先输出自动生成的 token 和保存路径；已通过环境变量或 `conf/web_conf.yaml` 配置时不会重复打印。
 
 ```
+[Auth Token] generated: xxxxxxxxxxxxxxxxxxxxxx
+[Auth Token] saved to conf/web_conf.yaml
+
 ==================================================
   Version: x.x.x
   [Development Mode]  FastAPI + Socket.IO (ASGI)
   debug=True
   Listening on http://0.0.0.0:12450
 ==================================================
-
-==================================================
-  [Auth Token]: xxxxxxxxxxxxxxxxxxxxxx
-==================================================
 ```
 
-Auth Token 从`SESEGET_AUTH_TOKEN` 环境变量或 `conf/web_conf.yaml` 中读取，优先级：
+Auth Token 从 `SESEGET_AUTH_TOKEN` 环境变量或 `conf/web_conf.yaml` 中读取，优先级：
 ```
 环境变量优先
 → 否则读取 web_conf.yaml
-→ 否则自动生成并写入`web_conf.yaml`
+→ 否则自动生成并写入 web_conf.yaml
 ```
 
 ## 配置
