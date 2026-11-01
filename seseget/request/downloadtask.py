@@ -197,9 +197,10 @@ class TaskDLProgress:
 class DownloadTask:
     """下载任务，记录任务id, name和进度"""
 
-    def __init__(self, task_id: str, name: str):
+    def __init__(self, task_id: str, name: str, site: str = ""):
         self.id: str = task_id
         self.name: str = name
+        self.site: str = site
         self.task_progress: TaskDLProgress = TaskDLProgress(name)
         self.asyncio_task: asyncio.Task | None = None
         self.started_at: datetime | None = None
@@ -266,6 +267,8 @@ class DownloadManager:
         record = {
             "id": task.id,
             "name": task.name,
+            "site": task.site,
+            "total_bytes": progress.total_progress.total,
             "status": status,
             "started_at": started_at.isoformat(),
             "finished_at": finished_at.isoformat(),
@@ -290,10 +293,10 @@ class DownloadManager:
         else:
             return original_func
 
-    async def create_task(self, name, func, *args):
+    async def create_task(self, name, func, *args, site: str = ""):
         """创建异步下载任务"""
         task_id = self._generate_task_id()
-        task = DownloadTask(task_id, name)
+        task = DownloadTask(task_id, name, site=site)
 
         self.tasks.append(task)
         self.id_to_task[task_id] = task

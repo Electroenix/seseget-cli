@@ -1,5 +1,10 @@
+import { Download, ListChecks, X } from "lucide-react";
+import { Button } from "./ui";
+
 interface DownloadBarProps {
   showCheckboxes: boolean;
+  selectedCount: number;
+  totalChapters: number;
   onToggleBatch: () => void;
   onSelectAll: (checked: boolean) => void;
   onDownloadSelected: () => void;
@@ -7,51 +12,47 @@ interface DownloadBarProps {
 
 export default function DownloadBar({
   showCheckboxes,
+  selectedCount,
+  totalChapters,
   onToggleBatch,
   onSelectAll,
   onDownloadSelected,
 }: DownloadBarProps) {
+  if (!showCheckboxes) {
+    return (
+      <Button variant="secondary" size="sm" onClick={onToggleBatch}>
+        <ListChecks className="h-3.5 w-3.5" />
+        批量选择
+      </Button>
+    );
+  }
+
+  const allSelected = totalChapters > 0 && selectedCount === totalChapters;
+
   return (
-    <div>
-      <div className="batch-bar">
-        <button
-          className="btn btn-outline-primary btn-sm"
-          onClick={onToggleBatch}
-        >
-          <i className="bi bi-list-check me-1" />
-          批量选择
-        </button>
-      </div>
-      {showCheckboxes && (
-        <div className="select-bar">
-          <div className="d-flex align-items-center gap-2">
-            <input
-              type="checkbox"
-              className="form-check-input m-0"
-              id="selectAllCb"
-              onChange={(e) => onSelectAll(e.target.checked)}
-            />
-            <label className="form-check-label small" htmlFor="selectAllCb">
-              全选
-            </label>
-          </div>
-          <div className="d-flex gap-2">
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={onDownloadSelected}
-            >
-              <i className="bi bi-download me-1" />
-              下载选中
-            </button>
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              onClick={onToggleBatch}
-            >
-              取消
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="flex flex-wrap items-center gap-2">
+      <label className="flex cursor-pointer items-center gap-2 text-xs text-muted">
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-accent"
+          checked={allSelected}
+          onChange={(event) => onSelectAll(event.target.checked)}
+        />
+        全选
+      </label>
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={onDownloadSelected}
+        disabled={selectedCount === 0}
+      >
+        <Download className="h-3.5 w-3.5" />
+        下载选中 {selectedCount > 0 && `(${selectedCount})`}
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onToggleBatch}>
+        <X className="h-3.5 w-3.5" />
+        取消
+      </Button>
     </div>
   );
 }

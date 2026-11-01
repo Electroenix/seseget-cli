@@ -1,4 +1,4 @@
-import { OverlayTrigger, Tooltip } from "react-bootstrap";
+import { HelpCircle } from "lucide-react";
 
 interface ConfigFieldLabelProps {
   label: string;
@@ -15,33 +15,26 @@ export default function ConfigFieldLabel({
   titleId,
   asTitle = false,
 }: ConfigFieldLabelProps) {
-  const tooltipId = `config-help-${htmlFor ?? titleId ?? label}`;
-
   return (
-    <div className="config-field-label-row">
+    <div className="flex items-center gap-1.5">
       {asTitle ? (
-        <span id={titleId} className="config-field-title">
+        <span id={titleId} className="text-xs font-medium text-fg">
           {label}
         </span>
       ) : (
-        <label htmlFor={htmlFor} className="config-field-label">
+        <label htmlFor={htmlFor} className="text-xs font-medium text-fg">
           {label}
         </label>
       )}
       {description && (
-        <OverlayTrigger
-          placement="top"
-          trigger={["hover", "focus"]}
-          overlay={<Tooltip id={tooltipId}>{description}</Tooltip>}
+        <button
+          type="button"
+          className="text-faint transition hover:text-accent"
+          title={description}
+          aria-label={`${label} 说明`}
         >
-          <button
-            type="button"
-            className="config-help-button"
-            aria-label={`${label} 说明`}
-          >
-            <i className="bi bi-question-circle" />
-          </button>
-        </OverlayTrigger>
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
       )}
     </div>
   );

@@ -1,6 +1,9 @@
+import type { ReactNode } from "react";
+import { CalendarDays, Layers3, Tags, UserRound } from "lucide-react";
 import type { MediaInfo } from "../types/api";
-import DownloadBar from "./DownloadBar";
 import ChapterPanel from "./ChapterPanel";
+import DownloadBar from "./DownloadBar";
+import { Panel } from "./ui";
 
 interface InfoPanelProps {
   info: MediaInfo;
@@ -15,6 +18,24 @@ interface InfoPanelProps {
   onToggleChapter: (order: number) => void;
 }
 
+function MetaRow({
+  icon,
+  label,
+  children,
+}: {
+  icon: ReactNode;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-2 text-xs">
+      <span className="mt-0.5 text-faint">{icon}</span>
+      <span className="w-10 shrink-0 text-faint">{label}</span>
+      <span className="min-w-0 flex-1 break-words text-muted">{children}</span>
+    </div>
+  );
+}
+
 export default function InfoPanel({
   info,
   showCheckboxes,
@@ -27,56 +48,68 @@ export default function InfoPanel({
   onDownloadSelected,
   onToggleChapter,
 }: InfoPanelProps) {
+  const genres = info.genres ?? [];
+
   return (
-    <div className="info-panel">
-      {/* Cover + Metadata row */}
-      <div className="row mb-3">
-        <div className="col-md-4 col-lg-3 mb-3 mb-md-0">
-          <img
-            className="cover-image"
-            src={info.cover}
-            alt={info.title}
-          />
+    <Panel className="overflow-hidden">
+      <div className="grid gap-6 p-5 lg:grid-cols-[210px_minmax(0,1fr)]">
+        <div className="mx-auto w-full max-w-[210px] lg:mx-0">
+          {info.cover ? (
+            <img
+              src={info.cover}
+              alt={info.title}
+              className="aspect-[3/4] w-full rounded-lg border border-edge object-cover"
+            />
+          ) : (
+            <div className="flex aspect-[3/4] w-full items-center justify-center rounded-lg border border-edge bg-raised text-xs text-faint">
+              暂无封面
+            </div>
+          )}
         </div>
-        <div className="metadata-panel col-md-8 col-lg-9">
-          {info.title && <h1 className="mb-2">{info.title}</h1>}
 
-          {info.sub_title && (
-            <div className="meta-row">
-              <span>{info.sub_title}</span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold leading-7 text-fg">{info.title}</h2>
+              {info.sub_title && <p className="mt-1 text-xs text-muted">{info.sub_title}</p>}
             </div>
-          )}
+            <span className="rounded-md border border-edge bg-raised px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-faint">
+              {info.station}
+            </span>
+          </div>
 
-          {info.date && (
-            <div className="meta-row">
-              <span className="meta-label">日期:</span>
-              <span>{info.date}</span>
-            </div>
-          )}
+          <div className="mt-4 grid gap-2.5">
+            {info.author && (
+              <MetaRow icon={<UserRound className="h-3.5 w-3.5" />} label="作者">
+                {info.author}
+              </MetaRow>
+            )}
+            {info.date && (
+              <MetaRow icon={<CalendarDays className="h-3.5 w-3.5" />} label="日期">
+                {info.date}
+              </MetaRow>
+            )}
+            {info.series && (
+              <MetaRow icon={<Layers3 className="h-3.5 w-3.5" />} label="系列">
+                <button
+                  type="button"
+                  className="text-left text-accent transition hover:text-accent-hover hover:underline"
+                  onClick={() => onSeriesClick(info.station, info.url)}
+                >
+                  {info.series}
+                </button>
+              </MetaRow>
+            )}
+          </div>
 
-          {info.series && (
-            <div className="meta-row">
-              <span className="meta-label">系列:</span>
-              <button
-                className="series-btn btn btn-link btn-sm p-0"
-                onClick={() => onSeriesClick(info.station, info.url)}
-              >
-                {info.series}
-              </button>
-            </div>
-          )}
-
-          {info.author && (
-            <div className="meta-row">
-              <span className="meta-label">作者:</span>
-              <span>{info.author}</span>
-            </div>
-          )}
-
-          {info.genres && info.genres.length > 0 && (
-            <div className="mt-2">
-              {info.genres.map((genre) => (
-                <span className="tag" key={genre}>
+          {genres.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-1.5">
+              <Tags className="mr-1 h-3.5 w-3.5 text-faint" />
+              {genres.map((genre) => (
+                <span
+                  key={genre}
+                  className="rounded-md border border-edge bg-raised px-2 py-0.5 text-[11px] text-muted"
+                >
                   {genre}
                 </span>
               ))}
@@ -84,32 +117,40 @@ export default function InfoPanel({
           )}
 
           {info.description && (
-            <p className="description-text mt-2">{info.description}</p>
+            <p className="mt-4 max-h-28 overflow-y-auto whitespace-pre-line text-xs leading-5 text-muted">
+              {info.description}
+            </p>
           )}
         </div>
       </div>
 
-      <hr />
-
-      {/* Download bar (batch) */}
-      <DownloadBar
-        showCheckboxes={showCheckboxes}
-        onToggleBatch={onToggleBatch}
-        onSelectAll={onSelectAll}
-        onDownloadSelected={onDownloadSelected}
-      />
-
-      {/* Chapter list */}
-      <ChapterPanel
-        station={info.station}
-        url={info.url}
-        chapters={info.chapter}
-        showCheckboxes={showCheckboxes}
-        selectedChapters={selectedChapters}
-        onToggleChapter={onToggleChapter}
-        onJump={onJump}
-        onDownloadSingle={onDownloadSingle}
-      />
-    </div>
+      <div className="border-t border-edge">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-fg">章节</h3>
+            <span className="rounded-full border border-edge bg-raised px-2 py-0.5 text-[10px] text-muted">
+              {info.chapter.length}
+            </span>
+          </div>
+          <DownloadBar
+            showCheckboxes={showCheckboxes}
+            selectedCount={selectedChapters.size}
+            totalChapters={info.chapter.length}
+            onToggleBatch={onToggleBatch}
+            onSelectAll={onSelectAll}
+            onDownloadSelected={onDownloadSelected}
+          />
+        </div>
+        <ChapterPanel
+          station={info.station}
+          chapters={info.chapter}
+          showCheckboxes={showCheckboxes}
+          selectedChapters={selectedChapters}
+          onToggleChapter={onToggleChapter}
+          onJump={onJump}
+          onDownloadSingle={onDownloadSingle}
+        />
+      </div>
+    </Panel>
   );
 }

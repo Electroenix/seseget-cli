@@ -59,12 +59,13 @@ async def test_manager_finalizes_success_and_failure(tmp_path):
     async def success(progress=None):
         progress.progress_count = 2
         progress.finish_count = 2
+        progress.total_progress.total = 2048
         return "ok"
 
     async def failure(progress=None):
         raise RuntimeError("network failed")
 
-    success_task = await manager.create_task("success", success)
+    success_task = await manager.create_task("success", success, site="bika")
     await success_task.asyncio_task
 
     failure_task = await manager.create_task("failure", failure)
@@ -77,6 +78,8 @@ async def test_manager_finalizes_success_and_failure(tmp_path):
     assert "network failed" in store.items[0]["error"]
     assert store.items[1]["status"] == "success"
     assert store.items[1]["file_count"] == 2
+    assert store.items[1]["site"] == "bika"
+    assert store.items[1]["total_bytes"] == 2048
 
 
 @pytest.mark.asyncio

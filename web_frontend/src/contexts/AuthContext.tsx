@@ -1,6 +1,5 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-
-const TOKEN_KEY = "seseget_auth_token";
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { clearStoredToken, getStoredToken, storeToken } from "../lib/authToken";
 
 interface AuthContextType {
   token: string | null;
@@ -12,19 +11,16 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem(TOKEN_KEY)
-  );
-
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
   const isAuthenticated = token !== null;
 
   const login = useCallback((newToken: string) => {
-    localStorage.setItem(TOKEN_KEY, newToken);
+    storeToken(newToken);
     setToken(newToken);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
+    clearStoredToken();
     setToken(null);
   }, []);
 

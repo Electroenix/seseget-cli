@@ -99,6 +99,8 @@ async def emit_download_status():
                 {
                     "id": task.id,
                     "name": progress.name,
+                    "site": task.site,
+                    "total_bytes": progress.total_progress.total,
                     "progress": progress.total_progress.percent,
                     "speed": progress.total_progress.speed,
                     "status": progress.total_progress.status,

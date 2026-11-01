@@ -1,43 +1,25 @@
-import { useState, useEffect, useCallback } from "react";
-import type {
-  MediaInfo,
-  DownloadTask,
-  ConfigObject,
-  ConfigChanges,
-  ConfigSchema,
-  FormatOptions,
-  SiteOption,
-} from "./types/api";
-import {
-  fetchSiteList,
-  fetchSearch,
-  fetchSeriesInfo,
-  downloadMedia,
-  fetchSettings,
-  fetchConfigSchema,
-  fetchFormatOptions,
-  saveSettings,
-  fetchVersion,
-} from "./api/client";
-import { useDownloadSocket } from "./hooks/useSocket";
-import { useAuth } from "./contexts/AuthContext";
-import type { MainPage } from "./types/ui";
-import LoginPage from "./components/LoginPage";
-import NavBar from "./components/NavBar";
-import SearchBar from "./components/SearchBar";
-import InfoPanel from "./components/InfoPanel";
+import { useCallback, useEffect, useState } from "react";
+import { fetchVersion } from "./api/client";
+import AppShell from "./components/AppShell";
 import ConfigPage from "./components/ConfigPage";
-import DownloadPage from "./components/DownloadPage";
-
-const VIDEO_STATIONS = new Set(["hanime", "bilibili", "youtube", "twitter"]);
+import LoginPage from "./components/LoginPage";
+import { useAuth } from "./contexts/AuthContext";
+import { useConfigSettings } from "./hooks/useConfigSettings";
+import { useDownloadTasks } from "./hooks/useDownloadTasks";
+import { useMediaSearch } from "./hooks/useMediaSearch";
+import { useSearchForm } from "./hooks/useSearchForm";
+import { useSiteList } from "./hooks/useSiteList";
+import DownloadsPage from "./pages/DownloadsPage";
+import SearchPage from "./pages/SearchPage";
+import type { MainPage } from "./types/ui";
 
 export default function App() {
   const { isAuthenticated } = useAuth();
-  const [version, setVersion] = useState<string>("");
+  const [version, setVersion] = useState("");
 
   useEffect(() => {
     fetchVersion()
-      .then((res) => setVersion(res.data?.version ?? ""))
+      .then((response) => setVersion(response.data?.version ?? ""))
       .catch(console.error);
   }, []);
 
@@ -49,270 +31,67 @@ export default function App() {
 }
 
 function MainApp({ version }: { version: string }) {
-  // Search / site state
-  const [siteList, setSiteList] = useState<SiteOption[]>([]);
-  const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null);
-  const [searchError, setSearchError] = useState("");
+  const [page, setPage] = useState<MainPage>("search");
+  const { siteList, error: siteError } = useSiteList();
+  const searchForm = useSearchForm(siteList);
+  const search = useMediaSearch();
+  const config = useConfigSettings();
+  const downloads = useDownloadTasks();
+  const loadConfig = config.load;
 
-  // Main page navigation, ready to extend to settings later
-  const [activePage, setActivePage] = useState<MainPage>("search");
-
-  // Batch download state
-  const [showCheckboxes, setShowCheckboxes] = useState(false);
-  const [selectedChapters, setSelectedChapters] = useState<Set<number>>(new Set());
-
-  // Download list via WebSocket
-  const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([]);
-  const [historyVersion, setHistoryVersion] = useState(0);
-  const handleDownloadFinished = useCallback(() => {
-    setHistoryVersion((version) => version + 1);
-  }, []);
-  useDownloadSocket(setDownloadTasks, handleDownloadFinished);
-
-  // Config page state
-  const [configData, setConfigData] = useState<ConfigObject | null>(null);
-  const [secretFields, setSecretFields] = useState<string[]>([]);
-  const [secretConfigured, setSecretConfigured] = useState<string[]>([]);
-  const [configSchema, setConfigSchema] = useState<ConfigSchema | null>(null);
-  const [formatOptions, setFormatOptions] = useState<FormatOptions | null>(null);
-
-  // Load site list on mount
-  useEffect(() => {
-    fetchSiteList()
-      .then((res) => setSiteList(res.data ?? []))
-      .catch(console.error);
-  }, []);
-
-  // --- Search handlers ---
-  const handleSearch = useCallback(async (formData: FormData) => {
-    setSearchError("");
-    try {
-      const res = await fetchSearch(formData);
-      if (res.code !== 200) {
-        setSearchError(res.message || "搜索失败");
-        return;
+  const navigate = useCallback(
+    async (next: MainPage) => {
+      if (next === "settings") {
+        await loadConfig();
       }
-      if (res.data) {
-        setMediaInfo(res.data);
-        setShowCheckboxes(false);
-        setSelectedChapters(new Set());
-      }
-    } catch (err) {
-      console.error("Search error:", err);
-      setSearchError(err instanceof Error ? err.message : "搜索失败");
-    }
-  }, []);
-
-  const handleChapterJump = useCallback(
-    async (station: string, url: string) => {
-      const formData = new FormData();
-      formData.append("station", station);
-      formData.append("url", url);
-      await handleSearch(formData);
+      setPage(next);
     },
-    [handleSearch]
-  );
-
-  const handleSeriesClick = useCallback(
-    async (station: string, url: string) => {
-      try {
-        const res = await fetchSeriesInfo(station, url);
-        if (res.code !== 200) {
-          setSearchError(res.message || "系列信息获取失败");
-          return;
-        }
-        if (res.data) {
-          setMediaInfo(res.data);
-          setShowCheckboxes(false);
-          setSelectedChapters(new Set());
-        }
-      } catch (err) {
-        console.error("Series fetch error:", err);
-        setSearchError(err instanceof Error ? err.message : "系列信息获取失败");
-      }
-    },
-    []
-  );
-
-  // --- Download handlers ---
-  const handleDownloadSingle = useCallback(
-    async (station: string, url: string, chapterOrder: number) => {
-      try {
-        await downloadMedia(station, url, [chapterOrder]);
-      } catch (err) {
-        console.error("Download error:", err);
-      }
-    },
-    []
-  );
-
-  const handleDownloadSelected = useCallback(async () => {
-    if (!mediaInfo || selectedChapters.size === 0) return;
-
-    const station = mediaInfo.station;
-    let url: string;
-    let chapters: (string | number)[];
-
-    try {
-      if (VIDEO_STATIONS.has(station)) {
-        // 视频站点：每集/每个视频的 URL 不同，传 URL 列表
-        url = "";
-        chapters = mediaInfo.chapter
-          .filter((ch) => selectedChapters.has(ch.order))
-          .map((ch) => ch.url);
-      } else {
-        // 漫画站点：同一作品 URL，传章节 ID 列表
-        url = mediaInfo.url;
-        chapters = Array.from(selectedChapters);
-      }
-
-      await downloadMedia(station, url, chapters);
-    } catch (err) {
-      console.error("Batch download error:", err);
-    }
-  }, [mediaInfo, selectedChapters]);
-
-  // --- Batch toggle handlers ---
-  const handleToggleBatch = useCallback(() => {
-    setShowCheckboxes((prev) => {
-      if (prev) {
-        // Hiding - clear selections
-        setSelectedChapters(new Set());
-      }
-      return !prev;
-    });
-  }, []);
-
-  const handleSelectAll = useCallback(
-    (checked: boolean) => {
-      if (!mediaInfo) return;
-      if (checked) {
-        setSelectedChapters(
-          new Set(mediaInfo.chapter.map((ch) => ch.order))
-        );
-      } else {
-        setSelectedChapters(new Set());
-      }
-    },
-    [mediaInfo]
-  );
-
-  const handleToggleChapter = useCallback((order: number) => {
-    setSelectedChapters((prev) => {
-      const next = new Set(prev);
-      if (next.has(order)) {
-        next.delete(order);
-      } else {
-        next.add(order);
-      }
-      return next;
-    });
-  }, []);
-
-  // --- Config handlers ---
-  const loadConfig = useCallback(async () => {
-    try {
-      const formatsPromise = fetchFormatOptions().catch((err) => {
-        console.error("Failed to load format options:", err);
-        return null;
-      });
-      const schemaPromise = fetchConfigSchema().catch((err) => {
-        console.error("Failed to load config schema:", err);
-        return null;
-      });
-      const [mainRes, formatsRes, schemaRes] = await Promise.all([
-        fetchSettings(),
-        formatsPromise,
-        schemaPromise,
-      ]);
-      setConfigData(mainRes.data.config);
-      setSecretFields(mainRes.data.secret_fields);
-      setSecretConfigured(mainRes.data.secret_configured);
-      setConfigSchema(schemaRes?.data ?? null);
-      setFormatOptions(formatsRes?.data ?? null);
-    } catch (err) {
-      console.error("Failed to load config:", err);
-    }
-  }, []);
-
-  const handleSaveConfig = useCallback(async (changes: ConfigChanges) => {
-    try {
-      const response = await saveSettings(changes);
-      if (response.code !== 200) {
-        window.alert(response.message || "保存配置失败");
-        return false;
-      }
-      return true;
-    } catch (err) {
-      console.error("Failed to save config:", err);
-      return false;
-    }
-  }, []);
-
-  const handleNavigate = useCallback(
-    (page: MainPage) => {
-      if (page !== "settings") {
-        setActivePage(page);
-        return;
-      }
-      void loadConfig().then(() => setActivePage("settings"));
-    },
-    [loadConfig]
+    [loadConfig],
   );
 
   return (
-    <>
-      <NavBar
-        activePage={activePage}
-        onNavigate={handleNavigate}
-        downloadTasks={downloadTasks}
-        version={version}
-      />
-
-      {activePage === "settings" ? (
+    <AppShell
+      page={page}
+      version={version}
+      activeDownloads={downloads.tasks.length}
+      onNavigate={navigate}
+    >
+      {page === "settings" ? (
         <ConfigPage
-          config={configData}
-          schema={configSchema}
-          formatOptions={formatOptions}
-          secretFields={secretFields}
-          secretConfigured={secretConfigured}
-          onSave={handleSaveConfig}
+          config={config.data}
+          schema={config.schema}
+          formatOptions={config.formatOptions}
+          secretFields={config.secretFields}
+          secretConfigured={config.secretConfigured}
+          onSave={config.save}
         />
-      ) : activePage === "download" ? (
-        <DownloadPage
-          tasks={downloadTasks}
-          historyVersion={historyVersion}
+      ) : page === "download" ? (
+        <DownloadsPage
+          tasks={downloads.tasks}
+          historyVersion={downloads.historyVersion}
+          siteList={siteList}
         />
       ) : (
-        <div className="container-fluid">
-          <div className="row justify-content-center">
-            <div className="col-lg-6">
-              <SearchBar siteList={siteList} onSubmit={handleSearch} />
-              {searchError && (
-                <div className="alert alert-danger py-2" role="alert">
-                  {searchError}
-                </div>
-              )}
-
-              {mediaInfo && (
-                <InfoPanel
-                  info={mediaInfo}
-                  showCheckboxes={showCheckboxes}
-                  selectedChapters={selectedChapters}
-                  onSeriesClick={handleSeriesClick}
-                  onJump={handleChapterJump}
-                  onDownloadSingle={handleDownloadSingle}
-                  onToggleBatch={handleToggleBatch}
-                  onSelectAll={handleSelectAll}
-                  onDownloadSelected={handleDownloadSelected}
-                  onToggleChapter={handleToggleChapter}
-                />
-              )}
-            </div>
-          </div>
-        </div>
+        <SearchPage
+          siteList={siteList}
+          station={searchForm.station}
+          url={searchForm.url}
+          onStationChange={searchForm.setStation}
+          onUrlChange={searchForm.setUrl}
+          mediaInfo={search.mediaInfo}
+          searchError={search.searchError || siteError}
+          showCheckboxes={search.showCheckboxes}
+          selectedChapters={search.selectedChapters}
+          onSearch={search.search}
+          onSeriesClick={search.openSeries}
+          onJump={search.jump}
+          onDownloadSingle={search.downloadSingle}
+          onToggleBatch={search.toggleBatch}
+          onSelectAll={search.selectAll}
+          onDownloadSelected={search.downloadSelected}
+          onToggleChapter={search.toggleChapter}
+        />
       )}
-
-    </>
+    </AppShell>
   );
 }

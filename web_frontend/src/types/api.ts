@@ -24,12 +24,12 @@ export interface MediaInfo {
   station: string;
   url: string;
   title: string;
-  sub_title: string;
-  date: string;
-  series: string;
+  sub_title?: string;
+  date?: string;
+  series?: string;
   author: string;
-  genres: string[];
-  description: string;
+  genres?: string[];
+  description?: string;
   cover: string;
   chapter: Chapter[];
 }
@@ -38,6 +38,8 @@ export interface MediaInfo {
 export interface DownloadTask {
   id: string;
   name: string;
+  site?: string;
+  total_bytes?: number;
   progress: number;
   speed: number;
   status: string;
@@ -49,6 +51,8 @@ export interface DownloadTask {
 export interface DownloadHistoryItem {
   id: string;
   name: string;
+  site?: string;
+  total_bytes?: number;
   status: "success" | "failed" | "cancelled" | string;
   started_at: string;
   finished_at: string;
