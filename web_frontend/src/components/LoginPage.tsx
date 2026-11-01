@@ -1,19 +1,8 @@
 import { useState, type FormEvent } from "react";
+import { KeyRound, Library, LoaderCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-
-async function verifyToken(token: string): Promise<boolean> {
-  try {
-    const response = await fetch("/api/auth/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    const data = await response.json().catch(() => null);
-    return response.ok && data?.code === 200;
-  } catch {
-    return false;
-  }
-}
+import { verifyToken } from "../api/client";
+import { Button } from "./ui";
 
 interface LoginPageProps {
   version?: string;
@@ -25,8 +14,8 @@ export default function LoginPage({ version }: LoginPageProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
     const trimmed = value.trim();
     if (!trimmed) {
       setError("请输入认证 Token");
@@ -47,69 +36,70 @@ export default function LoginPage({ version }: LoginPageProps) {
   };
 
   return (
-    <div
-      className="d-flex align-items-center justify-content-center"
-      style={{ minHeight: "100vh" }}
-    >
-      <div className="card bg-dark border-secondary" style={{ width: 400 }}>
-        <div className="card-body p-4">
-          <div className="text-center mb-4">
-            <div
-              style={{
-                fontSize: "2.5rem",
-                color: "var(--bs-primary)",
-                marginBottom: "0.5rem",
-              }}
-            >
-              <i className="bi bi-shield-lock" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-canvas px-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(216,112,147,0.13),transparent_34rem)]" />
+      <div className="relative w-full max-w-sm">
+        <div className="mb-5 flex flex-col items-center text-center">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-accent/25 bg-accent-soft text-accent">
+            <Library className="h-6 w-6" />
+          </div>
+          <h1 className="text-lg font-semibold tracking-wide">seseGet</h1>
+          <p className="mt-1 text-xs text-muted">Download Workbench</p>
+        </div>
+
+        <div className="panel p-5">
+          <div className="mb-4 flex items-center gap-2 border-b border-edge pb-3">
+            <ShieldCheck className="h-4 w-4 text-accent" />
+            <div>
+              <div className="text-sm font-medium">需要认证</div>
+              <div className="text-[11px] text-faint">输入服务端生成的访问 Token</div>
             </div>
-            <h4 className="text-light mb-1">seseGet</h4>
           </div>
 
-          {version && (
-            <p className="text-center text-muted small">
-              seseGet v{version}
-            </p>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <div className="mb-3">
-              <label htmlFor="token" className="form-label text-light small">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="token" className="field-label">
                 Auth Token
               </label>
-              <input
-                id="token"
-                type="password"
-                className={`form-control bg-dark text-light border-secondary ${error ? "is-invalid" : ""}`}
-                placeholder="输入 Token..."
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                autoFocus
-              />
-              {error && (
-                <div className="invalid-feedback">{error}</div>
-              )}
+              <div className="relative">
+                <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+                <input
+                  id="token"
+                  type="password"
+                  className={`field pl-9 font-mono text-xs ${error ? "border-danger/60" : ""}`}
+                  placeholder="输入 Token..."
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                  autoComplete="current-password"
+                  autoFocus
+                />
+              </div>
+              {error && <p className="mt-1.5 text-[11px] text-danger">{error}</p>}
             </div>
 
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary w-100"
+              variant="primary"
+              className="w-full"
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <span
-                    className="spinner-border spinner-border-sm me-2"
-                    role="status"
-                  />
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
                   验证中...
                 </>
               ) : (
-                "确认"
+                "进入工作台"
               )}
-            </button>
+            </Button>
           </form>
         </div>
+
+        {version && (
+          <p className="mt-4 text-center font-mono text-[10px] text-faint">
+            seseGet v{version}
+          </p>
+        )}
       </div>
     </div>
   );

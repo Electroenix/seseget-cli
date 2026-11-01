@@ -1,22 +1,17 @@
+import { clearStoredToken, getStoredToken } from "../lib/authToken";
 import type {
   ApiResponse,
-  MediaInfo,
   ConfigChanges,
-  ConfigSettingsData,
   ConfigSchema,
-  FormatOptions,
+  ConfigSettingsData,
   DownloadHistoryData,
+  FormatOptions,
+  MediaInfo,
   SiteOption,
 } from "../types/api";
 
-const TOKEN_KEY = "seseget_auth_token";
-
-function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
 function authHeaders(): Record<string, string> {
-  const token = getToken();
+  const token = getStoredToken();
   if (token) {
     return { Authorization: `Bearer ${token}` };
   }
@@ -26,11 +21,26 @@ function authHeaders(): Record<string, string> {
 async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   if (response.status === 401) {
     // Token 失效，清除本地存储
-    localStorage.removeItem(TOKEN_KEY);
+    clearStoredToken();
     window.location.reload();
     throw new Error("Authentication required");
   }
   return response.json();
+}
+
+// POST /api/auth/verify
+export async function verifyToken(token: string): Promise<boolean> {
+  try {
+    const response = await fetch("/api/auth/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    const data = await response.json().catch(() => null);
+    return response.ok && data?.code === 200;
+  } catch {
+    return false;
+  }
 }
 
 // GET /api/search/site_list

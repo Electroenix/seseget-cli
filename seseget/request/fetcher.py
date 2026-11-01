@@ -122,6 +122,8 @@ class AbstractFetcher(ABC):
     - info 获取元数据信息
     """
 
+    site_key: str = ""
+
     @abstractmethod
     async def download(self, url, **kwargs):
         pass
@@ -255,7 +257,12 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
             await self._download_process(video_info, progress)
 
     async def _start_download_task(self, video_info: T_VideoInfo):
-        await download_manager.create_task(video_info.name, self._download_process_with_semaphore, video_info)
+        await download_manager.create_task(
+            video_info.name,
+            self._download_process_with_semaphore,
+            video_info,
+            site=self.site_key,
+        )
 
     @abstractmethod
     async def _fetch_info(self, url, **kwargs) -> T_VideoInfo:
@@ -369,7 +376,13 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
 
         logger.info("正在下载第%d章" % chapter.id)
         task_name = comic_title
-        await download_manager.create_task(task_name, self._download_process_with_semaphore, comic_title, chapter)
+        await download_manager.create_task(
+            task_name,
+            self._download_process_with_semaphore,
+            comic_title,
+            chapter,
+            site=self.site_key,
+        )
 
     def _make_source_info_file(self, info: T_ComicInfo):
         make_source_info_file(info.comic_dir, info)
@@ -415,6 +428,7 @@ class FetcherRegistry:
                 raise TypeError(f"{fetcher_class} 必须继承自 AbstractFetcher")
             cls._registry[site_key] = fetcher_class
             cls._site_names[site_key] = site_name or site_key
+            fetcher_class.site_key = site_key
             logger.debug(f"注册Fetcher类{fetcher_class}")
             return fetcher_class
         return decorator

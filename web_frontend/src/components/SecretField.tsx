@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Eye, EyeOff, Trash2 } from "lucide-react";
 import ConfigFieldLabel from "./ConfigFieldLabel";
+import { Button } from "./ui";
 
 interface SecretFieldProps {
   id: string;
@@ -27,39 +29,35 @@ export default function SecretField({
   const canClear = configured || hasInput;
 
   return (
-    <div className="config-field secret-field">
+    <div>
       {showLabel && (
-        <ConfigFieldLabel
-          htmlFor={id}
-          label={label}
-          description={description}
-        />
+        <ConfigFieldLabel htmlFor={id} label={label} description={description} />
       )}
-      <div className="d-flex align-items-center gap-2">
+      <div className="flex items-center gap-2">
         <input
           type={visible ? "text" : "password"}
           id={id}
-          className="form-control form-control-sm"
+          className="field font-mono text-xs"
           value={value}
           placeholder={configured ? "********" : "未设置"}
           autoComplete="new-password"
-          onChange={(e) => onChange(e.target.value)}
-          style={{ maxWidth: "100%" }}
+          onChange={(event) => onChange(event.target.value)}
         />
-        <button
-          type="button"
-          className="btn btn-link btn-sm px-1 text-decoration-none"
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 px-0"
           onClick={() => setVisible((prev) => !prev)}
           disabled={!hasInput}
           aria-label={`${visible ? "隐藏" : "查看"}${label}`}
-          aria-pressed={visible}
           title={visible ? "隐藏内容" : "查看内容"}
         >
-          <i className={`bi ${visible ? "bi-eye-slash" : "bi-eye"}`} />
-        </button>
-        <button
-          type="button"
-          className="btn btn-outline-danger btn-sm text-nowrap"
+          {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </Button>
+        <Button
+          variant="danger"
+          size="sm"
+          className="h-8 w-8 px-0"
           onClick={() => {
             setVisible(false);
             onClear();
@@ -68,9 +66,8 @@ export default function SecretField({
           aria-label={`删除${label}`}
           title="删除该字段的值"
         >
-          <i className="bi bi-trash me-1" />
-          删除
-        </button>
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

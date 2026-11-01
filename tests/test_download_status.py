@@ -7,14 +7,14 @@ from web_app.api import download as download_api
 
 
 def _task(task_id: str, name: str, percent: float):
-    total = SimpleNamespace(percent=percent, speed=0, status="DOWNLOAD")
+    total = SimpleNamespace(percent=percent, speed=0, status="DOWNLOAD", total=1234)
     progress = SimpleNamespace(
         name=name,
         total_progress=total,
         progress_count=2,
         finish_count=1,
     )
-    return SimpleNamespace(id=task_id, task_progress=progress)
+    return SimpleNamespace(id=task_id, site="bika", task_progress=progress)
 
 
 class FakeManager:
@@ -42,3 +42,5 @@ async def test_emit_download_status_only_active_newest_first(monkeypatch):
     assert [item["id"] for item in status_events[0]] == ["new", "old"]
     assert status_events[0][0]["file_count"] == 2
     assert status_events[0][0]["file_finish_count"] == 1
+    assert status_events[0][0]["site"] == "bika"
+    assert status_events[0][0]["total_bytes"] == 1234
