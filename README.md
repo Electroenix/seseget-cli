@@ -89,16 +89,17 @@ curl -O https://raw.githubusercontent.com/Electroenix/seseget-cli/master/docker-
 # 3. 创建conf和data目录，如果选择在其它位置创建，记得要修改下一步中docker-compose.yml中对应的挂载路径
 mkdir conf && mkdir data
 
-# 4. （可选）编辑 docker-compose.yml，按需调整端口映射、挂载路径、SESEGET_AUTH_TOKEN 等配置
+# 4. （可选）编辑 docker-compose.yml，按需调整端口映射、挂载路径、环境变量等配置
 
 # 5. 拉取镜像并启动服务
 docker compose up -d
 ```
 
-> Docker 镜像同样支持 CLI 模式，进入容器后可直接使用命令行下载：
-> ```bash
-> docker compose exec seseget python seseget -s hanime https://hanime1.me/watch?v=xxxxxxx
-> ```
+**权限配置**
+
+PUID/PGID 对应 `data/`、`conf/` 的属主和属组，UMASK 控制容器新建文件/目录的权限。具体取值和查询方式见 [docker-compose.yml](docker-compose.yml) 的环境变量注释。
+
+启动时若提示目录不可写，按注释检查并修改对应的环境变量。
 
 #### 访问
 服务启动后会显示启动信息和服务器地址。首次运行且未配置 Auth Token 时，终端会先输出自动生成的 token 和保存路径；已通过环境变量或 `conf/web_conf.yaml` 配置时不会重复打印。

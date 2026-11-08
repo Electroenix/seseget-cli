@@ -12,5 +12,29 @@ services:
     restart: unless-stopped
     environment:
       - TZ=Asia/Shanghai
+
+      # ===== 权限配置 =====
+      # 按以下方式配置，避免宿主机与容器之间的文件访问权限问题。
+      #
+      # 1. 容器访问宿主机挂载目录：
+      #    把 PUID/PGID 设为 data/、conf/ 的属主和属组。
+      #    查看方式：stat -c '%u %g %n' data conf
+      #    宿主机上该属主/组需要对目录有读写和执行权限。
+      #
+      # 2. 宿主机访问容器新建的文件：
+      #    PUID/PGID 决定新文件的属主/属组，UMASK 决定权限。
+      #    UMASK 常用取值：
+      #      022 -> 文件 644、目录 755（其他用户可读）
+      #      002 -> 文件 664、目录 775（同组可写，其他用户可读）
+      #      007 -> 文件 660、目录 770（仅属主和同组可读写）
+      #
+      # 3. 需要放开所有权限时（不推荐）：
+      #    UMASK=000，并在宿主机执行：chmod -R a+rwX data conf
+      #
+      # 修改下方环境变量即可；默认 PUID=1000、PGID=1000、UMASK=022。
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - UMASK=${UMASK:-022}
+
       # 可选：设置 Auth Token 用于登录认证，不设置则自动生成一个，可在 conf/web_conf.yaml 中查看
       # - SESEGET_AUTH_TOKEN=your_custom_token_here
