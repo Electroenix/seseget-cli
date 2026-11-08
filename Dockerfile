@@ -86,16 +86,12 @@ LABEL org.opencontainers.image.description="seseget 媒体资源下载工具 Web
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libjpeg62-turbo \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # 从 Stage 1 复制静态编译的 ffmpeg/ffprobe
 COPY --from=ffmpeg-builder /ffmpeg-install/usr/local/bin/ffmpeg /usr/local/bin/
 COPY --from=ffmpeg-builder /ffmpeg-install/usr/local/bin/ffprobe /usr/local/bin/
-
-# 创建用户和运行时目录
-RUN useradd --create-home --uid 1000 seseget \
-    && mkdir -p /app/data /app/conf \
-    && chown -R seseget:seseget /app
 
 WORKDIR /app
 
@@ -111,16 +107,24 @@ RUN pip install --no-cache-dir \
     && find /usr/local/lib/python*/site-packages -type d -name "docs" -exec rm -rf {} + 2>/dev/null; true \
     && rm -rf /usr/local/lib/python*/site-packages/pip /usr/local/lib/python*/site-packages/pip-*.dist-info
 
-# 复制源码 + 前端静态文件
-COPY --chown=seseget:seseget seseget/ ./seseget/
-COPY --chown=seseget:seseget web_app/ ./web_app/
-COPY --chown=seseget:seseget --from=frontend-builder /app/dist/ ./web_app/static/
+# 复制源码 + 前端静态文件（镜像内保持 root 只读，运行时用户只需读权限）
+COPY seseget/ ./seseget/
+COPY web_app/ ./web_app/
+COPY --from=frontend-builder /app/dist/ ./web_app/static/
 
-USER seseget
+# 入口脚本负责创建/切换运行用户；文件模式 755 由构建上下文保留
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+ENV PUID=1000 \
+    PGID=1000 \
+    UMASK=022 \
+    HOME=/home/seseget \
+    PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 12450
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:12450')" || exit 1
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["python", "-m", "web_app", "--prod", "--host", "0.0.0.0", "--port", "12450"]
