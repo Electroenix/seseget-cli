@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-import seseget.request.downloader as downloader
+import seseget.request.task_downloader as task_downloader
 
 
 @pytest.mark.asyncio
@@ -25,11 +25,11 @@ async def test_m3u8_uses_isolated_temp_dir_and_ordered_concat(monkeypatch):
             concat_state["content"] = f.read()
         return True
 
-    monkeypatch.setattr(downloader, "_get_ts_list_from_m3u8", fake_get_ts_list)
-    monkeypatch.setattr(downloader, "_download_file", fake_download_file)
-    monkeypatch.setattr(downloader, "exec_cmd", fake_exec_cmd)
+    monkeypatch.setattr(task_downloader, "_get_ts_list_from_m3u8", fake_get_ts_list)
+    monkeypatch.setattr(task_downloader, "_download_file", fake_download_file)
+    monkeypatch.setattr(task_downloader, "exec_cmd", fake_exec_cmd)
 
-    result = await downloader.download_mp4_by_m3u8("output.mp4", "https://example.test/playlist.m3u8")
+    result = await task_downloader.download_mp4_by_m3u8("output.mp4", "https://example.test/playlist.m3u8")
 
     assert result == 0
     assert concat_state["content"].splitlines() == [
@@ -44,10 +44,10 @@ async def test_m3u8_empty_playlist_fails(monkeypatch):
     async def fake_get_ts_list(url):
         return []
 
-    monkeypatch.setattr(downloader, "_get_ts_list_from_m3u8", fake_get_ts_list)
+    monkeypatch.setattr(task_downloader, "_get_ts_list_from_m3u8", fake_get_ts_list)
 
     with pytest.raises(ValueError, match="没有找到 ts 分片"):
-        await downloader.download_mp4_by_m3u8("output.mp4", "https://example.test/playlist.m3u8")
+        await task_downloader.download_mp4_by_m3u8("output.mp4", "https://example.test/playlist.m3u8")
 
 
 @pytest.mark.asyncio
@@ -67,12 +67,12 @@ async def test_m3u8_ffmpeg_failure_cleans_temp_dir(monkeypatch):
         temp_dirs.append(os.path.dirname(concat_path))
         return False
 
-    monkeypatch.setattr(downloader, "_get_ts_list_from_m3u8", fake_get_ts_list)
-    monkeypatch.setattr(downloader, "_download_file", fake_download_file)
-    monkeypatch.setattr(downloader, "exec_cmd", fake_exec_cmd)
+    monkeypatch.setattr(task_downloader, "_get_ts_list_from_m3u8", fake_get_ts_list)
+    monkeypatch.setattr(task_downloader, "_download_file", fake_download_file)
+    monkeypatch.setattr(task_downloader, "exec_cmd", fake_exec_cmd)
 
     with pytest.raises(RuntimeError, match="ffmpeg 拼接 m3u8 失败"):
-        await downloader.download_mp4_by_m3u8("output.mp4", "https://example.test/playlist.m3u8")
+        await task_downloader.download_mp4_by_m3u8("output.mp4", "https://example.test/playlist.m3u8")
 
     assert temp_dirs
     assert not os.path.exists(temp_dirs[0])

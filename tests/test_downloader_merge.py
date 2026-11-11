@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-import seseget.request.downloader as downloader
+import seseget.request.task_downloader as task_downloader
 from seseget.request.downloadtask import FileDLProgress
 
 
@@ -39,8 +39,8 @@ def _prepare_download(monkeypatch, tmp_path, exec_result):
             output.write_bytes(b"partial")
         return exec_result
 
-    monkeypatch.setattr(downloader, "_download_files", fake_download_files)
-    monkeypatch.setattr(downloader, "exec_cmd", fake_exec_cmd)
+    monkeypatch.setattr(task_downloader, "_download_files", fake_download_files)
+    monkeypatch.setattr(task_downloader, "exec_cmd", fake_exec_cmd)
     return output, cache_files
 
 
@@ -49,7 +49,7 @@ async def test_merge_success_removes_cache(monkeypatch, tmp_path):
     output, cache_files = _prepare_download(monkeypatch, tmp_path, True)
     progress = FakeProgress()
 
-    result = await downloader.download_mp4_by_merge_video_audio(
+    result = await task_downloader.download_mp4_by_merge_video_audio(
         str(output), "https://example.test/video.mp4", "https://example.test/audio.mp3", {}, progress
     )
 
@@ -65,7 +65,7 @@ async def test_merge_failure_keeps_cache_and_removes_partial_output(monkeypatch,
     output, cache_files = _prepare_download(monkeypatch, tmp_path, False)
     progress = FakeProgress()
 
-    result = await downloader.download_mp4_by_merge_video_audio(
+    result = await task_downloader.download_mp4_by_merge_video_audio(
         str(output), "https://example.test/video.mp4", "https://example.test/audio.mp3", {}, progress
     )
 
@@ -86,11 +86,11 @@ async def test_merge_missing_output_is_failure(monkeypatch, tmp_path):
     def fake_exec_cmd(_command):
         return True
 
-    monkeypatch.setattr(downloader, "_download_files", fake_download_files)
-    monkeypatch.setattr(downloader, "exec_cmd", fake_exec_cmd)
+    monkeypatch.setattr(task_downloader, "_download_files", fake_download_files)
+    monkeypatch.setattr(task_downloader, "exec_cmd", fake_exec_cmd)
     progress = FakeProgress()
 
-    result = await downloader.download_mp4_by_merge_video_audio(
+    result = await task_downloader.download_mp4_by_merge_video_audio(
         str(output), "https://example.test/video.mp4", "https://example.test/audio.mp3", {}, progress
     )
 

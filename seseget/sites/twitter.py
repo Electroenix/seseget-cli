@@ -4,7 +4,7 @@ import os
 from ..config.config_manager import config
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
-from ..request import ytdlp
+from ..request import task_downloader, ytdlp
 from ..request.downloadtask import TaskDLProgress
 from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo
 from ..utils.file_utils import make_filename_valid
@@ -100,7 +100,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         }
 
         # yt-dlp 是同步的，放到线程池执行
-        await asyncio.to_thread(ytdlp.download_by_yt_dlp, "", video_info.view_url, extend_opts, progress)
+        await asyncio.to_thread(task_downloader.download_ytdlp, "", video_info.view_url, extend_opts, progress)
 
     def _make_save_dir(self, info: VideoInfo):
         if not self.__class__.site_dir:

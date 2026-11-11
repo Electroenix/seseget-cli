@@ -22,7 +22,7 @@ async def test_thumbnail_batch_failure_is_non_fatal(monkeypatch):
     async def fail_downloads(*args, **kwargs):
         raise RuntimeError("thumbnails failed")
 
-    monkeypatch.setattr(search_api, "download_files_ex", fail_downloads)
+    monkeypatch.setattr(search_api, "download_files", fail_downloads)
 
     result = await search_api.download_thumbnails(
         "test-site",

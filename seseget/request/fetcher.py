@@ -13,7 +13,7 @@ from ..output.comic import package_comic
 from ..output.video import make_video_metadata_file
 from ..utils.file_utils import make_diff_dir_name, make_filename_valid
 from ..utils.trace import logger
-from . import downloader
+from . import downloader, task_downloader
 from .downloadtask import FileDLProgress, TaskDLProgress, download_manager
 from .errors import RequestError, SiteError, SiteParseError
 
@@ -248,9 +248,9 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)
 
         if '.m3u8' in video_info.download_url.split('/')[-1]:
-            await downloader.download_mp4_by_m3u8(video_path, video_info.download_url, progress)
+            await task_downloader.download_mp4_by_m3u8(video_path, video_info.download_url, progress)
         else:
-            await downloader.download_mp4(video_path, video_info.download_url, progress)
+            await task_downloader.download_mp4(video_path, video_info.download_url, progress)
 
     async def _download_process_with_semaphore(self, video_info: T_VideoInfo, progress: TaskDLProgress | None = None):
         async with self.task_semaphore:
@@ -339,7 +339,7 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
         if not os.path.exists(image_temp_dir_path):
             os.mkdir(image_temp_dir_path)
 
-        res = await downloader.download_comic_capter_images(image_temp_dir_path, chapter.image_urls, progress)
+        res = await task_downloader.download_comic_capter_images(image_temp_dir_path, chapter.image_urls, progress)
 
         # 图片下载完成，打包成漫画文件
         package_comic(comic_dir, comic_title, image_temp_dir_path, chapter.metadata)

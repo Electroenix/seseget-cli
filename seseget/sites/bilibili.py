@@ -9,7 +9,7 @@ from typing import Any
 from ..config.config_manager import config
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
-from ..request import downloader
+from ..request import task_downloader
 from ..request.downloadtask import TaskDLProgress
 from ..request.errors import RequestError, SiteParseError
 from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo, make_source_info_file
@@ -426,7 +426,7 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
 
         headers = self._headers(video_info.view_url)
 
-        await downloader.download_mp4_by_merge_video_audio(
+        await task_downloader.download_mp4_by_merge_video_audio(
             video_path,
             video_info.video_download_url,
             video_info.audio_download_url,
