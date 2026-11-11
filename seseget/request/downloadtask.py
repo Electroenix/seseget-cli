@@ -1,11 +1,16 @@
 import asyncio
+import os
+import shutil
 import traceback
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Awaitable, Callable
 
 from ..config import settings
 from ..config.config_manager import config
+from ..config.path import DATA_DIR
 from ..utils.file_utils import get_file_basename
 from ..utils.output import ProgressBar
 from ..utils.trace import logger
@@ -14,6 +19,14 @@ from .download_history import DownloadHistoryStore
 DEFAULT_MAX_HISTORY = 200
 
 TaskRunner = Callable[..., Awaitable[None]]
+
+
+@dataclass
+class TaskArtifact:
+    """任务创建的产物，失败时用于清理。"""
+
+    path: Path
+    is_dir: bool
 
 
 class FileDLProgress:
@@ -208,11 +221,18 @@ class DownloadTask:
         self.state: str = "CREATED"
         self.runner: TaskRunner | None = None
         self.runner_args: tuple = ()
+        self.artifacts: list[TaskArtifact] = []
 
     def set_runner(self, runner: TaskRunner, *args) -> None:
         """设置任务执行函数；runner 的第一个参数是 task。"""
         self.runner = runner
         self.runner_args = args
+
+    def track_file(self, path) -> None:
+        self.artifacts.append(TaskArtifact(Path(path), False))
+
+    def track_dir(self, path) -> None:
+        self.artifacts.append(TaskArtifact(Path(path), True))
 
 
 class DownloadManager:
@@ -273,6 +293,11 @@ class DownloadManager:
             task.state = "FAILED"
             error = error or progress.total_progress.error or "下载失败"
 
+        cleaned = False
+        cleaned_bytes = 0
+        if status == "failed" and self._cleanup_enabled():
+            cleaned, cleaned_bytes = self._cleanup_artifacts(task)
+
         record = {
             "id": task.id,
             "name": task.name,
@@ -286,11 +311,71 @@ class DownloadManager:
             "file_finish_count": progress.finish_count,
             "progress": round(progress.total_progress.percent, 2),
             "error": error or "",
+            "cleaned": cleaned,
+            "cleaned_bytes": cleaned_bytes,
         }
         self.history_store.add(record, self.get_history_limit())
 
         self.tasks = [t for t in self.tasks if t.id != task.id]
         self.id_to_task.pop(task.id, None)
+
+    @staticmethod
+    def _cleanup_enabled() -> bool:
+        try:
+            return bool(config["download"].get("cleanup_on_failure", True))
+        except (KeyError, TypeError, ValueError):
+            return True
+
+    @staticmethod
+    def _path_size(path: Path) -> int:
+        if path.is_file():
+            try:
+                return path.stat().st_size
+            except OSError:
+                return 0
+        total = 0
+        for root, _dirs, files in os.walk(path):
+            for name in files:
+                try:
+                    total += os.path.getsize(os.path.join(root, name))
+                except OSError:
+                    pass
+        return total
+
+    def _cleanup_artifacts(self, task: DownloadTask) -> tuple[bool, int]:
+        """移除任务创建的产物；只处理 DATA_DIR 内的路径。"""
+        root = Path(DATA_DIR).resolve()
+        cleaned = False
+        cleaned_bytes = 0
+
+        for artifact in reversed(task.artifacts):
+            try:
+                path = artifact.path.resolve()
+            except OSError as exc:
+                logger.warning("清理产物失败，路径无法解析: %s (%s)", artifact.path, exc)
+                continue
+
+            if path == root or not path.is_relative_to(root):
+                logger.warning("跳过 DATA_DIR 外的产物: %s", path)
+                continue
+            if not path.exists():
+                continue
+
+            size = self._path_size(path)
+            try:
+                if artifact.is_dir:
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+            except OSError as exc:
+                logger.warning("删除产物失败: %s (%s)", path, exc)
+                continue
+
+            cleaned = True
+            cleaned_bytes += size
+            logger.info("已清理失败任务产物: %s (%d bytes)", path, size)
+
+        return cleaned, cleaned_bytes
 
     def new_task(self, name, site: str = "") -> DownloadTask:
         """创建未启动的任务；设置 runner 后调用 start。"""

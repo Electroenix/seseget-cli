@@ -257,6 +257,7 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         async with self._dir_lock:
             self._prepare_dir(info)
 
+        task.track_dir(info.video_dir)
         task.task_progress.set_status(FileDLProgress.Status.PROCESS)
         try:
             await self._write_outputs(task, info)
@@ -319,7 +320,14 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
 
     def _package(self, task: DownloadTask, comic_dir: str, comic_title: str,
                  image_dir: str, chapter: T_ChapterInfo):
-        package_comic(comic_dir, comic_title, image_dir, chapter.metadata)
+        before = set(os.listdir(comic_dir))
+        try:
+            package_comic(comic_dir, comic_title, image_dir, chapter.metadata)
+        finally:
+            for name in set(os.listdir(comic_dir)) - before:
+                path = os.path.join(comic_dir, name)
+                if os.path.isfile(path):
+                    task.track_file(path)
 
     def _write_source_info(self, task: DownloadTask, comic_info: ComicInfo):
         make_source_info_file(comic_info.comic_dir, 'comic url: %s\r\n' % comic_info.view_url)
@@ -331,6 +339,7 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
 
         async with self.capter_lock:
             image_dir = self._prepare_chapter(comic_info, chapter)
+            task.track_dir(image_dir)
             res = await task_downloader.download_comic_capter_images(
                 task, image_dir, chapter.image_urls
             )

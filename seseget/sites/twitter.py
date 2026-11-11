@@ -97,6 +97,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         for video_info in video_info_list:
             async with self._dir_lock:
                 self._prepare_dir(video_info)
+            task.track_dir(video_info.video_dir)
             try:
                 await self._write_outputs(task, video_info)
             except Exception as exc:

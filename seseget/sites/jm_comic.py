@@ -414,11 +414,22 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
         if comic_info is None:
             raise ValueError("章节缺少所属漫画信息")
 
+        image_dir = os.path.join(comic_info.comic_dir, comic_title)
+        task.track_dir(image_dir)
+
         async with self.capter_lock:
-            result = await asyncio.to_thread(
-                self.download_jmcomic_sync,
-                comic_info.comic_dir, comic_title, chapter.url, chapter, task.task_progress
-            )
+            before = set(os.listdir(comic_info.comic_dir))
+            try:
+                result = await asyncio.to_thread(
+                    self.download_jmcomic_sync,
+                    comic_info.comic_dir, comic_title, chapter.url, chapter, task.task_progress
+                )
+            finally:
+                for name in set(os.listdir(comic_info.comic_dir)) - before:
+                    path = os.path.join(comic_info.comic_dir, name)
+                    if os.path.isfile(path):
+                        task.track_file(path)
+
             if result == 0:
                 self._write_source_info(task, comic_info)
             return result
