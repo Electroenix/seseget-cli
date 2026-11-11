@@ -14,7 +14,7 @@ from ..output.video import make_video_metadata_file
 from ..utils.file_utils import make_diff_dir_name, make_filename_valid
 from ..utils.trace import logger
 from . import downloader, task_downloader
-from .downloadtask import FileDLProgress, TaskDLProgress, download_manager
+from .downloadtask import DownloadTask, FileDLProgress, download_manager
 from .errors import RequestError, SiteError, SiteParseError
 
 
@@ -141,14 +141,15 @@ T_ChapterInfo = TypeVar('T_ChapterInfo', bound=ChapterInfo)
 
 class SSGBaseFetcher(AbstractFetcher, Generic[T_Info]):
     """站点抓取器基类
-    
-    补充了一些通用方法
+
+    补充了一些通用方法。
     """
+
     site_dir = ""
 
     def __init__(self, max_tasks=5):
         self.max_tasks = max_tasks
-        self.task_semaphore = asyncio.Semaphore(max_tasks)
+        self.fetch_semaphore = asyncio.Semaphore(max_tasks)
 
     @abstractmethod
     async def _fetch_info(self, url, **kwargs) -> T_Info:
@@ -178,37 +179,32 @@ class SSGBaseFetcher(AbstractFetcher, Generic[T_Info]):
             ) from exc
 
     async def info(self, url, **kwargs):
-        return await self._fetch_info_guarded(url, **kwargs)
+        async with self.fetch_semaphore:
+            return await self._fetch_info_guarded(url, **kwargs)
 
 
-# 视频站点的抓取器需要继承VideoFetcher
+# 视频站点的抓取器需要继承 VideoFetcher
 class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
     """视频抓取器基类
-    
-    已实现如下功能：
-    - _make_save_dir 创建保存目录
-    - _make_metadata_file 创建元数据文件
-    - _make_source_info_file 创建来源信息
-    - _download_process 基础的下载流程，通过 VideoInfo 对象中的 url 地址下载
-    - _download_process_with_semaphore 控制并发数的下载流程
-    - _start_download_task 创建下载任务
-    - download 基础的下载接口
 
-    需要实现的功能：
-    - _fetch_info 获取站点信息，解析出 T_VideoInfo 信息
+    下载任务由两层组成：
+    - download(): 抓取 Info，创建任务并设置 runner；
+    - _download_task(): 任务 runner，负责目录、元数据、source 和媒体下载。
 
-    Note:
-
-    如果_download_process中的下载方式无法满足需求，可根据需求重写， 
-
-    T_VideoInfo 可修改为继承自 VideoInfo 的子类型，其它使用 T_VideoInfo 作为参数的函数根据需要重写
+    子类通常只需要重写：
+    - _fetch_info
+    - _prepare_dir（站点特殊的保存路径）
+    - _write_outputs（站点特殊的元数据）
+    - _build_source_info（source.txt 内容）
+    - _download_media（merge/yt-dlp 等特殊下载方式）
     """
 
     def __init__(self, max_tasks=5):
         super().__init__(max_tasks)
         self.video_info_cache = VideoInfoCache(10)
+        self._dir_lock = asyncio.Lock()
 
-    def _make_save_dir(self, info: T_VideoInfo):
+    def _prepare_dir(self, info: T_VideoInfo):
         if not self.__class__.site_dir:
             raise ValueError("未指定下载目录!")
         if not os.path.exists(self.__class__.site_dir):
@@ -223,51 +219,52 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         if not os.path.exists(info.video_dir):
             os.mkdir(info.video_dir)
 
-    async def _make_metadata_file(self, video_info: T_VideoInfo):
+    def _build_source_info(self, info: T_VideoInfo) -> str:
+        content = 'video url: %s\r\n' % info.view_url
+        content = content + 'thumbnail url: %s\r\n' % info.thumbnail_url
+        content = content + 'cover url: %s\r\n' % info.cover_url
+        content = content + 'download url: %s\r\n' % info.download_url
+        return content
+
+    async def _write_outputs(self, task: DownloadTask, info: T_VideoInfo):
         result = 0
         poster_path = ""
         fanart_path = ""
 
-        if video_info.cover_url:
-            poster_path = video_info.video_dir + '/' + 'poster.jpg'
-            result = await downloader.download_file(poster_path, video_info.cover_url)
-        if video_info.thumbnail_url:
-            fanart_path = video_info.video_dir + '/' + 'fanart.jpg'
-            result = result | await downloader.download_file(fanart_path, video_info.thumbnail_url)
+        if info.cover_url:
+            poster_path = info.video_dir + '/' + 'poster.jpg'
+            result = await downloader.download_file(poster_path, info.cover_url)
+        if info.thumbnail_url:
+            fanart_path = info.video_dir + '/' + 'fanart.jpg'
+            result = result | await downloader.download_file(fanart_path, info.thumbnail_url)
 
         if result == 0:
-            video_info.metadata.describe = video_info.metadata.describe + '\r\n%s' % video_info.view_url
-            video_info.metadata.back_ground_path = fanart_path
-            make_video_metadata_file(video_info.video_dir, video_info.name, video_info.metadata)
+            info.metadata.describe = info.metadata.describe + '\r\n%s' % info.view_url
+            info.metadata.back_ground_path = fanart_path
+            make_video_metadata_file(info.video_dir, info.name, info.metadata)
 
-    def _make_source_info_file(self, info: T_VideoInfo):
-        make_source_info_file(info.video_dir, info)
+        make_source_info_file(info.video_dir, self._build_source_info(info))
 
-    async def _download_process(self, video_info: T_VideoInfo, progress: TaskDLProgress | None = None):
-        """此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
-        video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)
+    async def _download_media(self, task: DownloadTask, info: T_VideoInfo):
+        video_path = info.video_dir + '/' + make_filename_valid('%s.mp4' % info.name)
 
-        if '.m3u8' in video_info.download_url.split('/')[-1]:
-            await task_downloader.download_mp4_by_m3u8(video_path, video_info.download_url, progress)
+        if '.m3u8' in info.download_url.split('/')[-1]:
+            await task_downloader.download_mp4_by_m3u8(task, video_path, info.download_url)
         else:
-            await task_downloader.download_mp4(video_path, video_info.download_url, progress)
+            await task_downloader.download_mp4(task, video_path, info.download_url)
 
-    async def _download_process_with_semaphore(self, video_info: T_VideoInfo, progress: TaskDLProgress | None = None):
-        async with self.task_semaphore:
-            await self._download_process(video_info, progress)
+    async def _download_task(self, task: DownloadTask, info: T_VideoInfo):
+        async with self._dir_lock:
+            self._prepare_dir(info)
 
-    async def _start_download_task(self, video_info: T_VideoInfo):
-        await download_manager.create_task(
-            video_info.name,
-            self._download_process_with_semaphore,
-            video_info,
-            site=self.site_key,
-        )
+        task.task_progress.set_status(FileDLProgress.Status.PROCESS)
+        try:
+            await self._write_outputs(task, info)
+        except Exception as exc:
+            logger.warning("写入视频元数据失败，继续下载: %s", exc)
 
-    @abstractmethod
-    async def _fetch_info(self, url, **kwargs) -> T_VideoInfo:
-        """抓取资源信息，子类需要实现该功能"""
-        pass
+        task.task_progress.set_status(FileDLProgress.Status.DOWNLOADING)
+        await self._download_media(task, info)
 
     async def download(self, url, **kwargs):
         default_params = {
@@ -275,48 +272,35 @@ class VideoFetcher(SSGBaseFetcher[T_VideoInfo], Generic[T_VideoInfo]):
         }
         params = {**default_params, **kwargs}
 
-        # fetch 与下载任务共享信号量，避免解析请求同时爆发
-        async with self.task_semaphore:
+        async with self.fetch_semaphore:
             video_info = await self._fetch_info_guarded(url)
         video_info.print_info()
 
         if params["no_download"]:
             return
 
-        self._make_save_dir(video_info)
-        await self._start_download_task(video_info)
-        await self._make_metadata_file(video_info)
-        self._make_source_info_file(video_info)
+        task = download_manager.new_task(video_info.name, site=self.site_key)
+        task.set_runner(self._download_task, video_info)
+        download_manager.start(task)
 
 
-# 漫画站点的抓取器需要继承ComicFetcher
+# 漫画站点的抓取器需要继承 ComicFetcher
 class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterInfo]):
     """漫画抓取器基类
-    
-    已实现如下功能：
-    - _make_save_dir 创建保存目录
-    - _download_process 基础的下载流程，通过 ChapterInfo 对象中的 chapter.image_urls 地址下载所有图片并合并为漫画文件
-    - _download_process_with_semaphore 控制并发数的下载流程
-    - _start_download_task 创建下载任务
-    - download 基础的下载接口
 
-    需要实现的功能：
-    - _fetch_info 获取站点信息，并解析出 T_ComicInfo 中信息
-
-    Note:
-
-    如果_download_process中的下载方式无法满足需求，可根据需求重写， 
-
-    T_ComicInfo 可修改为继承自 ComicInfo 的子类型，
-    T_ChapterInfo 可修改为继承自 ChapterInfo 的子类型，
-    其它使用 T_ComicInfo 或 T_ChapterInfo 作为参数的函数根据需要重写
+    子类通常只需要重写：
+    - _fetch_info
+    - _prepare_comic_dir（整部漫画的共享目录）
+    - _prepare_chapter / _package / _write_source_info
+    - 或直接重写 _download_task（如 jm_comic）
     """
 
     def __init__(self, max_tasks=1):
         super().__init__(max_tasks=max_tasks)
         self.capter_lock = asyncio.Lock()
+        self._dir_lock = asyncio.Lock()
 
-    def _make_save_dir(self, info: T_ComicInfo):
+    def _prepare_comic_dir(self, info: T_ComicInfo):
         if not self.__class__.site_dir:
             raise ValueError("未指定下载目录!")
         if not os.path.exists(self.__class__.site_dir):
@@ -327,42 +311,41 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
         if not os.path.exists(info.comic_dir):
             os.mkdir(info.comic_dir)
 
-    async def _download_process(self, comic_title: str, chapter: T_ChapterInfo, progress: TaskDLProgress | None = None):
-        """此处实现了基本的资源下载逻辑，子类可以根据需要选择继承或重写"""
+    def _prepare_chapter(self, comic_info: ComicInfo, chapter: T_ChapterInfo) -> str:
+        image_dir = f"{comic_info.comic_dir}/img-{chapter.id}"
+        if not os.path.exists(image_dir):
+            os.mkdir(image_dir)
+        return image_dir
+
+    def _package(self, task: DownloadTask, comic_dir: str, comic_title: str,
+                 image_dir: str, chapter: T_ChapterInfo):
+        package_comic(comic_dir, comic_title, image_dir, chapter.metadata)
+
+    def _write_source_info(self, task: DownloadTask, comic_info: ComicInfo):
+        make_source_info_file(comic_info.comic_dir, 'comic url: %s\r\n' % comic_info.view_url)
+
+    async def _download_task(self, task: DownloadTask, comic_title: str, chapter: T_ChapterInfo):
         comic_info = chapter.comic_info
         if comic_info is None:
             raise ValueError("章节缺少所属漫画信息")
-        comic_dir = comic_info.comic_dir
 
-        image_temp_dir_path = f"{comic_dir}/img-{chapter.id}"
+        async with self.capter_lock:
+            image_dir = self._prepare_chapter(comic_info, chapter)
+            res = await task_downloader.download_comic_capter_images(
+                task, image_dir, chapter.image_urls
+            )
+            self._package(task, comic_info.comic_dir, comic_title, image_dir, chapter)
 
-        if not os.path.exists(image_temp_dir_path):
-            os.mkdir(image_temp_dir_path)
+            task.task_progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
 
-        res = await task_downloader.download_comic_capter_images(image_temp_dir_path, chapter.image_urls, progress)
+            if not config["download"]["comic"]["leave_images"]:
+                shutil.rmtree(image_dir)
+                logger.info('已删除图片缓存')
 
-        # 图片下载完成，打包成漫画文件
-        package_comic(comic_dir, comic_title, image_temp_dir_path, chapter.metadata)
+            self._write_source_info(task, comic_info)
+            return res
 
-        if progress:
-            progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
-
-        # 删除图片文件夹
-        if not config["download"]["comic"]["leave_images"]:
-            shutil.rmtree(image_temp_dir_path)
-            logger.info('已删除图片缓存')
-
-        return res
-
-    async def _download_process_with_semaphore(self, comic_title: str, chapter: T_ChapterInfo, progress: TaskDLProgress | None = None):
-        async with self.task_semaphore:
-            async with self.capter_lock:
-                await self._download_process(comic_title, chapter, progress)
-
-    async def _start_download_task(self, chapter: T_ChapterInfo):
-        comic_info = chapter.comic_info
-        if comic_info is None:
-            raise ValueError("章节缺少所属漫画信息")
+    def _chapter_task_name(self, comic_info: T_ComicInfo, chapter: T_ChapterInfo) -> str:
         comic_title = make_filename_valid(comic_info.title + "_%03d" % chapter.id)
 
         if sys.platform.startswith("win"):
@@ -373,19 +356,7 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
                     comic_title = str(chapter.id)
                 else:
                     raise ValueError("当前目标路径过长，无法创建漫画文件")
-
-        logger.info("正在下载第%d章" % chapter.id)
-        task_name = comic_title
-        await download_manager.create_task(
-            task_name,
-            self._download_process_with_semaphore,
-            comic_title,
-            chapter,
-            site=self.site_key,
-        )
-
-    def _make_source_info_file(self, info: T_ComicInfo):
-        make_source_info_file(info.comic_dir, info)
+        return comic_title
 
     @abstractmethod
     async def _fetch_info(self, url, **kwargs) -> T_ComicInfo:
@@ -399,19 +370,22 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
         }
         params = {**default_params, **kwargs}
 
-        # fetch 与下载任务共享信号量，避免解析请求同时爆发
-        async with self.task_semaphore:
+        async with self.fetch_semaphore:
             comic_info = await self._fetch_info_guarded(url, chapter_id_list=params["chapter_id_list"])
         comic_info.print_info()
 
         if params["no_download"]:
             return
 
-        self._make_save_dir(comic_info)
+        async with self._dir_lock:
+            self._prepare_comic_dir(comic_info)
 
         for chapter in comic_info.chapter_list:
-            await self._start_download_task(chapter)
-            self._make_source_info_file(comic_info)
+            comic_title = self._chapter_task_name(comic_info, chapter)
+            logger.info("正在下载第%d章" % chapter.id)
+            task = download_manager.new_task(comic_title, site=self.site_key)
+            task.set_runner(self._download_task, comic_title, chapter)
+            download_manager.start(task)
 
 
 class FetcherRegistry:

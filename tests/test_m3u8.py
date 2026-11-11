@@ -5,6 +5,22 @@ import pytest
 import seseget.request.task_downloader as task_downloader
 
 
+class FakeProgress:
+    def init_progress(self):
+        pass
+
+    def set_progress_count(self, _count):
+        pass
+
+    def set_status(self, _status):
+        pass
+
+
+class FakeTask:
+    def __init__(self):
+        self.task_progress = FakeProgress()
+
+
 @pytest.mark.asyncio
 async def test_m3u8_uses_isolated_temp_dir_and_ordered_concat(monkeypatch):
     concat_state = {}
@@ -29,7 +45,7 @@ async def test_m3u8_uses_isolated_temp_dir_and_ordered_concat(monkeypatch):
     monkeypatch.setattr(task_downloader, "_download_file", fake_download_file)
     monkeypatch.setattr(task_downloader, "exec_cmd", fake_exec_cmd)
 
-    result = await task_downloader.download_mp4_by_m3u8("output.mp4", "https://example.test/playlist.m3u8")
+    result = await task_downloader.download_mp4_by_m3u8(FakeTask(), "output.mp4", "https://example.test/playlist.m3u8")
 
     assert result == 0
     assert concat_state["content"].splitlines() == [
@@ -47,7 +63,7 @@ async def test_m3u8_empty_playlist_fails(monkeypatch):
     monkeypatch.setattr(task_downloader, "_get_ts_list_from_m3u8", fake_get_ts_list)
 
     with pytest.raises(ValueError, match="没有找到 ts 分片"):
-        await task_downloader.download_mp4_by_m3u8("output.mp4", "https://example.test/playlist.m3u8")
+        await task_downloader.download_mp4_by_m3u8(FakeTask(), "output.mp4", "https://example.test/playlist.m3u8")
 
 
 @pytest.mark.asyncio
@@ -72,7 +88,7 @@ async def test_m3u8_ffmpeg_failure_cleans_temp_dir(monkeypatch):
     monkeypatch.setattr(task_downloader, "exec_cmd", fake_exec_cmd)
 
     with pytest.raises(RuntimeError, match="ffmpeg 拼接 m3u8 失败"):
-        await task_downloader.download_mp4_by_m3u8("output.mp4", "https://example.test/playlist.m3u8")
+        await task_downloader.download_mp4_by_m3u8(FakeTask(), "output.mp4", "https://example.test/playlist.m3u8")
 
     assert temp_dirs
     assert not os.path.exists(temp_dirs[0])

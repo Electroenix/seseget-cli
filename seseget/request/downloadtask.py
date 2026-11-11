@@ -1,10 +1,8 @@
 import asyncio
-import functools
-import inspect
 import traceback
 import uuid
 from datetime import datetime, timezone
-from typing import Callable
+from typing import Awaitable, Callable
 
 from ..config import settings
 from ..config.config_manager import config
@@ -14,6 +12,8 @@ from ..utils.trace import logger
 from .download_history import DownloadHistoryStore
 
 DEFAULT_MAX_HISTORY = 200
+
+TaskRunner = Callable[..., Awaitable[None]]
 
 
 class FileDLProgress:
@@ -195,7 +195,7 @@ class TaskDLProgress:
 
 
 class DownloadTask:
-    """下载任务，记录任务id, name和进度"""
+    """下载任务，记录任务 id、名称、进度和 runner。"""
 
     def __init__(self, task_id: str, name: str, site: str = ""):
         self.id: str = task_id
@@ -205,6 +205,14 @@ class DownloadTask:
         self.asyncio_task: asyncio.Task | None = None
         self.started_at: datetime | None = None
         self.finalized: bool = False
+        self.state: str = "CREATED"
+        self.runner: TaskRunner | None = None
+        self.runner_args: tuple = ()
+
+    def set_runner(self, runner: TaskRunner, *args) -> None:
+        """设置任务执行函数；runner 的第一个参数是 task。"""
+        self.runner = runner
+        self.runner_args = args
 
 
 class DownloadManager:
@@ -262,6 +270,7 @@ class DownloadManager:
             and progress.total_progress.status == FileDLProgress.Status.DOWNLOAD_ERROR
         ):
             status = "failed"
+            task.state = "FAILED"
             error = error or progress.total_progress.error or "下载失败"
 
         record = {
@@ -283,52 +292,51 @@ class DownloadManager:
         self.tasks = [t for t in self.tasks if t.id != task.id]
         self.id_to_task.pop(task.id, None)
 
-    def _wrap_download_func(self, original_func: Callable, progress: TaskDLProgress) -> Callable:
-        """向original_func中注入关键字参数progress（如果函数支持）"""
-        sig = inspect.signature(original_func)
-
-        param = sig.parameters.get('progress')
-        if param and (param.default != inspect.Parameter.empty or param.kind == param.KEYWORD_ONLY):
-            return functools.partial(original_func, progress=progress)
-        else:
-            return original_func
-
-    async def create_task(self, name, func, *args, site: str = ""):
-        """创建异步下载任务"""
+    def new_task(self, name, site: str = "") -> DownloadTask:
+        """创建未启动的任务；设置 runner 后调用 start。"""
         task_id = self._generate_task_id()
         task = DownloadTask(task_id, name, site=site)
-
-        self.tasks.append(task)
-        self.id_to_task[task_id] = task
-
-        wrapped_func = self._wrap_download_func(func, task.task_progress)
-
-        async def _run_with_semaphore():
-            status = "failed"
-            error = None
-            try:
-                async with self._semaphore:
-                    task.started_at = datetime.now(timezone.utc)
-                    result = await wrapped_func(*args)
-                status = "success"
-                return result
-            except asyncio.CancelledError:
-                status = "cancelled"
-                error = "任务已取消"
-                raise
-            except Exception as exc:
-                error = str(exc) or exc.__class__.__name__
-                logger.error("下载任务异常! traceback:\r\n%s" %
-                             ''.join(traceback.format_exc()))
-                raise
-            finally:
-                self._finalize_task(task, status, error)
-
-        asyncio_task = asyncio.create_task(_run_with_semaphore())
-        task.asyncio_task = asyncio_task
-
         logger.debug(f"创建下载任务[task_id: {task_id}, name: {name}]")
         return task
+
+    def start(self, task: DownloadTask) -> DownloadTask:
+        """注册并启动任务；调用方需要先 set_runner。"""
+        if task.state != "CREATED":
+            raise RuntimeError("任务已启动")
+        if task.runner is None:
+            raise RuntimeError("任务未设置 runner")
+
+        task.state = "RUNNING"
+        self.tasks.append(task)
+        self.id_to_task[task.id] = task
+        task.asyncio_task = asyncio.create_task(self._run_task(task))
+        return task
+
+    async def _run_task(self, task: DownloadTask) -> None:
+        status = "failed"
+        error = None
+        try:
+            async with self._semaphore:
+                task.state = "RUNNING"
+                task.started_at = datetime.now(timezone.utc)
+                assert task.runner is not None
+                await task.runner(task, *task.runner_args)
+            status = "success"
+            task.state = "SUCCESS"
+        except asyncio.CancelledError:
+            status = "cancelled"
+            task.state = "CANCELLED"
+            error = "任务已取消"
+            raise
+        except Exception as exc:
+            status = "failed"
+            task.state = "FAILED"
+            error = str(exc) or exc.__class__.__name__
+            logger.error("下载任务异常! traceback:\r\n%s" %
+                         ''.join(traceback.format_exc()))
+            raise
+        finally:
+            self._finalize_task(task, status, error)
 
     def get_task_by_id(self, task_id):
         return self.id_to_task.get(task_id)

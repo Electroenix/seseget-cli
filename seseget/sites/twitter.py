@@ -5,7 +5,7 @@ from ..config.config_manager import config
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request import task_downloader, ytdlp
-from ..request.downloadtask import TaskDLProgress
+from ..request.downloadtask import DownloadTask, FileDLProgress, download_manager
 from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo
 from ..utils.file_utils import make_filename_valid
 from ..utils.trace import logger
@@ -91,18 +91,35 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         video_info_list = await self._get_video_info_list_by_yt_dlp(url)
         return video_info_list[0] if video_info_list else None
 
-    async def _download_process(self, video_info: VideoInfo, progress: TaskDLProgress | None = None):
-        artist_dir = os.path.dirname(video_info.video_dir)
+    async def _download_task(self, task: DownloadTask, video_info_list):
+        task.task_progress.set_status(FileDLProgress.Status.PROCESS)
 
+        for video_info in video_info_list:
+            async with self._dir_lock:
+                self._prepare_dir(video_info)
+            try:
+                await self._write_outputs(task, video_info)
+            except Exception as exc:
+                logger.warning("写入视频元数据失败，继续下载: %s", exc)
+
+        task.task_progress.set_status(FileDLProgress.Status.DOWNLOADING)
+        first_info = video_info_list[0]
+        artist_dir = os.path.dirname(first_info.video_dir)
         extend_opts = {
             'outtmpl': artist_dir + '/%(uploader_id)s_%(upload_date)s_%(id)s/%(uploader_id)s_%(upload_date)s_%(id)s.%(ext)s',
             'cookiefile': config["sites"]["twitter"]["cookie_file"],
         }
 
         # yt-dlp 是同步的，放到线程池执行
-        await asyncio.to_thread(task_downloader.download_ytdlp, "", video_info.view_url, extend_opts, progress)
+        await asyncio.to_thread(
+            task_downloader.download_ytdlp,
+            task,
+            "",
+            first_info.view_url,
+            extend_opts,
+        )
 
-    def _make_save_dir(self, info: VideoInfo):
+    def _prepare_dir(self, info: VideoInfo):
         if not self.__class__.site_dir:
             raise ValueError("未指定下载目录!")
         if not os.path.exists(self.__class__.site_dir):
@@ -123,26 +140,22 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
         params = {**default_params, **kwargs}
 
         logger.info("开始请求资源信息")
-        # fetch 与下载任务共享信号量，避免解析请求同时爆发
-        async with self.task_semaphore:
+        async with self.fetch_semaphore:
             video_info_list = await self._get_video_info_list_by_yt_dlp(url)
 
-        if video_info_list:
-            logger.info(f"获取到{len(video_info_list)}个视频")
-            for index, video_info in enumerate(video_info_list):
-                logger.info(f"视频{index + 1}")
-                video_info.print_info()
-
-            if params["no_download"]:
-                return
-
-            # 遍历所有视频信息，创建目录和元数据文件
-            for video_info in video_info_list:
-                self._make_save_dir(video_info)
-                await self._make_metadata_file(video_info)
-                self._make_source_info_file(video_info)
-
-            # 创建下载任务，yt-dlp只需要提供页面url，调用一次可以下载所有视频
-            await self._start_download_task(video_info_list[0])
-        else:
+        if not video_info_list:
             logger.warning("未获取到任何视频")
+            return
+
+        logger.info(f"获取到{len(video_info_list)}个视频")
+        for index, video_info in enumerate(video_info_list):
+            logger.info(f"视频{index + 1}")
+            video_info.print_info()
+
+        if params["no_download"]:
+            return
+
+        # yt-dlp 只需提供页面 url，调用一次可以下载所有视频
+        task = download_manager.new_task(video_info_list[0].name, site=self.site_key)
+        task.set_runner(self._download_task, video_info_list)
+        download_manager.start(task)

@@ -10,9 +10,9 @@ from ..config.config_manager import config
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
 from ..request import task_downloader
-from ..request.downloadtask import TaskDLProgress
+from ..request.downloadtask import DownloadTask
 from ..request.errors import RequestError, SiteParseError
-from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo, make_source_info_file
+from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo
 from ..request.requests import async_request
 from ..utils.file_utils import make_filename_valid
 from ..utils.trace import logger
@@ -417,26 +417,23 @@ class BilibiliFetcher(VideoFetcher[BiliVideoInfo]):
         page.info.audio_download_url = audio_url
         return copy.deepcopy(page.info)
 
-    async def _download_process(
-        self,
-        video_info: BiliVideoInfo,
-        progress: TaskDLProgress | None = None,
-    ):
+    async def _download_media(self, task: DownloadTask, video_info: BiliVideoInfo):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)
 
         headers = self._headers(video_info.view_url)
 
         await task_downloader.download_mp4_by_merge_video_audio(
+            task,
             video_path,
             video_info.video_download_url,
             video_info.audio_download_url,
             headers,
-            progress)
+        )
 
-    def _make_source_info_file(self, info: BiliVideoInfo):
+    def _build_source_info(self, info: BiliVideoInfo) -> str:
         source_info = 'video url: %s\r\n' % info.view_url
         source_info = source_info + 'thumbnail url: %s\r\n' % info.thumbnail_url
         source_info = source_info + 'cover url: %s\r\n' % info.cover_url
         source_info = source_info + 'video download url: %s\r\n' % info.video_download_url
         source_info = source_info + 'audio download url: %s\r\n' % info.audio_download_url
-        make_source_info_file(info.video_dir, source_info)
+        return source_info

@@ -56,21 +56,27 @@ async def test_manager_finalizes_success_and_failure(tmp_path):
     store = DownloadHistoryStore(str(tmp_path / "history.json"))
     manager = DownloadManager(max_concurrent=1, history_store=store)
 
-    async def success(progress=None):
-        progress.progress_count = 2
-        progress.finish_count = 2
-        progress.total_progress.total = 2048
+    async def success(task):
+        task.task_progress.progress_count = 2
+        task.task_progress.finish_count = 2
+        task.task_progress.total_progress.total = 2048
         return "ok"
 
-    async def failure(progress=None):
+    async def failure(task):
         raise RuntimeError("network failed")
 
-    success_task = await manager.create_task("success", success, site="bika")
+    success_task = manager.new_task("success", site="bika")
+    success_task.set_runner(success)
+    manager.start(success_task)
     await success_task.asyncio_task
+    assert success_task.state == "SUCCESS"
 
-    failure_task = await manager.create_task("failure", failure)
+    failure_task = manager.new_task("failure")
+    failure_task.set_runner(failure)
+    manager.start(failure_task)
     with pytest.raises(RuntimeError):
         await failure_task.asyncio_task
+    assert failure_task.state == "FAILED"
 
     assert manager.tasks == []
     assert [item["name"] for item in store.items] == ["failure", "success"]
@@ -87,15 +93,18 @@ async def test_manager_marks_error_status_as_failed(tmp_path):
     store = DownloadHistoryStore(str(tmp_path / "history.json"))
     manager = DownloadManager(max_concurrent=1, history_store=store)
 
-    async def error_but_returns(progress=None):
-        progress.total_progress.status = FileDLProgress.Status.DOWNLOAD_ERROR
-        progress.total_progress.error = "disk full"
+    async def error_but_returns(task):
+        task.task_progress.total_progress.status = FileDLProgress.Status.DOWNLOAD_ERROR
+        task.task_progress.total_progress.error = "disk full"
 
-    task = await manager.create_task("error-status", error_but_returns)
+    task = manager.new_task("error-status")
+    task.set_runner(error_but_returns)
+    manager.start(task)
     await task.asyncio_task
 
     assert store.items[0]["status"] == "failed"
     assert store.items[0]["error"] == "disk full"
+    assert task.state == "FAILED"
 
 
 @pytest.mark.asyncio
@@ -104,11 +113,13 @@ async def test_manager_finalizes_cancelled_task(tmp_path):
     manager = DownloadManager(max_concurrent=1, history_store=store)
     started = asyncio.Event()
 
-    async def pending(progress=None):
+    async def pending(task):
         started.set()
         await asyncio.Event().wait()
 
-    task = await manager.create_task("cancelled", pending)
+    task = manager.new_task("cancelled")
+    task.set_runner(pending)
+    manager.start(task)
     await started.wait()
     task.asyncio_task.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -116,6 +127,7 @@ async def test_manager_finalizes_cancelled_task(tmp_path):
 
     assert store.items[0]["status"] == "cancelled"
     assert store.items[0]["error"] == "任务已取消"
+    assert task.state == "CANCELLED"
 
 
 @pytest.mark.asyncio

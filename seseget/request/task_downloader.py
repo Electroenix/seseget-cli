@@ -9,7 +9,7 @@ from ..utils.subprocess_utils import exec_cmd
 from ..utils.trace import logger
 from . import ytdlp
 from .downloader import DownloadObserver, _download_file, _download_files
-from .downloadtask import FileDLProgress, TaskDLProgress
+from .downloadtask import DownloadTask, FileDLProgress, TaskDLProgress
 from .requests import async_request
 
 
@@ -37,26 +37,25 @@ class TaskProgressObserver:
         self.progress.set_status(status)
 
 
-def _observer(progress: TaskDLProgress | None) -> DownloadObserver | None:
-    return TaskProgressObserver(progress) if progress is not None else None
+def _observer(task: DownloadTask) -> DownloadObserver:
+    return TaskProgressObserver(task.task_progress)
 
 
-async def download_mp4(filename, url, progress: TaskDLProgress | None = None):
+async def download_mp4(task: DownloadTask, filename, url):
     """下载 mp4 视频。"""
-    if progress is not None:
-        progress.init_progress()
-        progress.set_progress_count(1)
-        progress.set_status(FileDLProgress.Status.DOWNLOADING)
+    progress = task.task_progress
+    progress.init_progress()
+    progress.set_progress_count(1)
+    progress.set_status(FileDLProgress.Status.DOWNLOADING)
 
-    result = await _download_file(filename, url, observer=_observer(progress))
+    result = await _download_file(filename, url, observer=_observer(task))
 
-    if progress is not None:
-        status = (
-            FileDLProgress.Status.DOWNLOAD_OK
-            if result == 0
-            else FileDLProgress.Status.DOWNLOAD_ERROR
-        )
-        progress.set_status(status)
+    status = (
+        FileDLProgress.Status.DOWNLOAD_OK
+        if result == 0
+        else FileDLProgress.Status.DOWNLOAD_ERROR
+    )
+    progress.set_status(status)
     if result == 0:
         logger.info(f"{get_file_basename(filename)} Download OK!")
     else:
@@ -64,32 +63,29 @@ async def download_mp4(filename, url, progress: TaskDLProgress | None = None):
     return result
 
 
-async def download_mp4_by_merge_video_audio(filename, video_url, audio_url, headers,
-                                             progress: TaskDLProgress | None = None):
+async def download_mp4_by_merge_video_audio(task: DownloadTask, filename, video_url, audio_url, headers):
     """下载视频和音频文件并合并成 mp4 文件。"""
+    progress = task.task_progress
     dir = os.path.dirname(filename)
     cache_dir = os.path.join(dir, "cache")
     audio_path = os.path.join(cache_dir, "cache.mp3")
     video_path = os.path.join(cache_dir, "cache.mp4")
     os.makedirs(cache_dir, exist_ok=True)
 
-    if progress is not None:
-        progress.init_progress()
-        progress.set_progress_count(2)
-        progress.set_status(FileDLProgress.Status.DOWNLOADING)
+    progress.init_progress()
+    progress.set_progress_count(2)
+    progress.set_status(FileDLProgress.Status.DOWNLOADING)
     if await _download_files(
             [audio_path, video_path],
             [audio_url, video_url],
-            observer=_observer(progress),
+            observer=_observer(task),
             headers=headers) != 0:
         logger.error("download_files failed!")
-        if progress is not None:
-            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+        progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
         return -1
 
     logger.info("开始合并音视频文件...")
-    if progress is not None:
-        progress.set_status(FileDLProgress.Status.PROCESS)
+    progress.set_status(FileDLProgress.Status.PROCESS)
 
     # ffmpeg 是 CPU 密集型子进程，放入线程池执行
     merged = await asyncio.to_thread(
@@ -105,13 +101,11 @@ async def download_mp4_by_merge_video_audio(filename, video_url, audio_url, head
                 os.remove(filename)
             except OSError as exc:
                 logger.warning("删除不完整输出失败: %s", exc)
-        if progress is not None:
-            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+        progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
         return -1
 
     logger.info(f"合并完成，保存在{filename}")
-    if progress is not None:
-        progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
+    progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
 
     shutil.rmtree(cache_dir)
     logger.info("已删除缓存文件")
@@ -138,19 +132,18 @@ async def _get_ts_list_from_m3u8(url):
     return ts_list
 
 
-async def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress | None = None):
+async def download_mp4_by_m3u8(task: DownloadTask, filename, url):
     """下载 m3u8 文件，保存为 mp4 格式。"""
+    progress = task.task_progress
     ts_list = await _get_ts_list_from_m3u8(url)
 
     if not ts_list:
-        if progress:
-            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+        progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
         raise ValueError(f"m3u8 中没有找到 ts 分片: {url}")
 
-    if progress is not None:
-        progress.init_progress()
-        progress.set_progress_count(len(ts_list))
-        progress.set_status(FileDLProgress.Status.DOWNLOADING)
+    progress.init_progress()
+    progress.set_progress_count(len(ts_list))
+    progress.set_status(FileDLProgress.Status.DOWNLOADING)
 
     semaphore = asyncio.Semaphore(10)
 
@@ -173,15 +166,13 @@ async def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress | None = 
             results = await asyncio.gather(*tasks, return_exceptions=True)
         except Exception as e:
             logger.error(f"下载失败！info: {e}")
-            if progress:
-                progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
             raise
 
         for result in results:
             if isinstance(result, Exception):
                 logger.error(f"下载失败！info: {result}")
-                if progress:
-                    progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+                progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
                 raise result
 
         # 按分片顺序写 concat 列表，不能依赖并发下载的完成顺序
@@ -192,8 +183,7 @@ async def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress | None = 
                 f.write(f"file '{ts_name}'\n")
 
         logger.info('下载完成!')
-        if progress:
-            progress.set_status(FileDLProgress.Status.PROCESS)
+        progress.set_status(FileDLProgress.Status.PROCESS)
 
         # ffmpeg 拼接 ts 文件，保存为 mp4
         ok = await asyncio.to_thread(
@@ -204,28 +194,19 @@ async def download_mp4_by_m3u8(filename, url, progress: TaskDLProgress | None = 
             ]
         )
         if not ok:
-            if progress:
-                progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
             raise RuntimeError(f"ffmpeg 拼接 m3u8 失败: {url}")
 
-        if progress:
-            progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
+        progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
         return 0
 
 
-async def download_comic_capter_images(save_dir: str, image_urls, progress: TaskDLProgress | None = None):
-    """
-    下载漫画章节
-
-    Args:
-        save_dir: 图片保存目录
-        image_urls: 存放漫画图片的 url 列表
-        progress: 控制下载进度的对象
-    """
-    if progress is not None:
-        progress.init_progress()
-        progress.set_progress_count(len(image_urls))
-        progress.set_status(FileDLProgress.Status.DOWNLOADING)
+async def download_comic_capter_images(task: DownloadTask, save_dir: str, image_urls):
+    """下载漫画章节图片。"""
+    progress = task.task_progress
+    progress.init_progress()
+    progress.set_progress_count(len(image_urls))
+    progress.set_status(FileDLProgress.Status.DOWNLOADING)
 
     logger.debug(f"image_urls: {image_urls}")
 
@@ -235,7 +216,7 @@ async def download_comic_capter_images(save_dir: str, image_urls, progress: Task
         image_name = "%05d.jpg" % index
         image_path = save_dir + "/" + image_name
         async with semaphore:
-            await _download_file(image_path, url, True, _observer(progress))
+            await _download_file(image_path, url, True, _observer(task))
 
     tasks = [_download_image(idx, url) for idx, url in enumerate(image_urls)]
 
@@ -244,40 +225,36 @@ async def download_comic_capter_images(save_dir: str, image_urls, progress: Task
         for r in results:
             if isinstance(r, Exception):
                 logger.error(f"下载失败！info: {r}")
-                if progress:
-                    progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+                progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
                 raise r
     except Exception as e:
         logger.error(f"下载失败！info: {e}")
-        if progress:
-            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
+        progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
         raise
 
     logger.info("下载完成！")
-    if progress:
-        progress.set_status(FileDLProgress.Status.PROCESS)
+    progress.set_status(FileDLProgress.Status.PROCESS)
 
 
-def download_ytdlp(filename, url, extend_opts=None, progress: TaskDLProgress | None = None):
+def download_ytdlp(task: DownloadTask, filename, url, extend_opts=None):
     """通过 yt-dlp 下载视频；同步函数，调用方负责放入线程池。"""
-    if progress is not None:
-        progress.init_progress()
-        progress.set_progress_count(2)
-        progress.set_status(FileDLProgress.Status.DOWNLOADING)
+    progress = task.task_progress
+    progress.init_progress()
+    progress.set_progress_count(2)
+    progress.set_status(FileDLProgress.Status.DOWNLOADING)
 
     result = ytdlp.download_by_yt_dlp(
         filename,
         url,
         extend_opts,
-        _observer(progress),
+        _observer(task),
     )
 
-    if progress is not None:
-        status = (
-            FileDLProgress.Status.DOWNLOAD_OK
-            if result == 0
-            else FileDLProgress.Status.DOWNLOAD_ERROR
-        )
-        progress.set_status(status)
+    status = (
+        FileDLProgress.Status.DOWNLOAD_OK
+        if result == 0
+        else FileDLProgress.Status.DOWNLOAD_ERROR
+    )
+    progress.set_status(status)
 
     return result
