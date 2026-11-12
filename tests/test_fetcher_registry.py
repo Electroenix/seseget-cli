@@ -1,7 +1,9 @@
 import pytest
 
-import seseget  # noqa: F401  # 触发站点发现和注册
+from seseget.config import settings
 from seseget.request.fetcher import FetcherRegistry
+
+FetcherRegistry.discover(settings.SITE_FETCHERS_PACKAGE)
 
 EXPECTED_SITES = {"hanime", "bilibili", "youtube", "twitter", "bika", "jmcomic", "wnacg"}
 

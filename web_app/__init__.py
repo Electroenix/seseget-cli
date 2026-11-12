@@ -13,8 +13,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from seseget.config import settings
+from seseget.request.fetcher import FetcherRegistry
 
 settings.PROGRESS_BAR_ENABLED = False
+FetcherRegistry.discover(settings.SITE_FETCHERS_PACKAGE)
 logger = logging.getLogger(__name__)
 
 

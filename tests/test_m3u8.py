@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-import seseget.request.task_downloader as task_downloader
+import seseget.request.task_downloader.media as task_downloader
 
 
 class FakeProgress:

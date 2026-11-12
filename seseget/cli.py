@@ -3,6 +3,7 @@ import asyncio
 import signal
 
 from . import __version__
+from .config import settings
 from .request.downloadtask import download_manager
 from .request.errors import RequestError, SiteError
 from .request.fetcher import FetcherRegistry
@@ -11,6 +12,8 @@ from .utils.trace import logger
 
 
 async def process_worker_async():
+    FetcherRegistry.discover(settings.SITE_FETCHERS_PACKAGE)
+
     def handle_signal(signum, frame):
         logger.debug("收到退出信号")
         asyncio.ensure_future(cleanup())
