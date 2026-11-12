@@ -153,3 +153,26 @@ async def test_video_download_starts_task_and_waits(monkeypatch, tmp_path):
 
     assert manager.tasks == []
     assert store.items[0]["status"] == "success"
+
+
+def test_comic_dir_is_reused_without_suffix(tmp_path):
+    class ComicDirFetcher(ComicFetcher):
+        async def _fetch_info(self, url, **kwargs):
+            return ComicInfo()
+
+    ComicDirFetcher.site_dir = str(tmp_path)
+    fetcher = ComicDirFetcher()
+
+    first = ComicInfo()
+    first.title = "Same Title"
+    fetcher._prepare_comic_dir(first)
+    assert first.comic_dir == str(tmp_path / "Same Title")
+
+    (tmp_path / "Same Title" / "chapter.cbz").write_bytes(b"existing")
+
+    second = ComicInfo()
+    second.title = "Same Title"
+    fetcher._prepare_comic_dir(second)
+
+    assert second.comic_dir == first.comic_dir
+    assert not (tmp_path / "Same Title_[1]").exists()

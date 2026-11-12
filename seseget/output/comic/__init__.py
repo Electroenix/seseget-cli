@@ -1,10 +1,12 @@
 """漫画成品打包。
 """
 
+import os
 from typing import Callable
 
 from ...config.config_manager import config
 from ...metadata.comic import ComicMetaData
+from ...utils.trace import logger
 from .cbz import write_cbz
 from .epub import write_epub
 
@@ -34,6 +36,16 @@ def register_comic_packager(format_name: str, packager: ComicPackager) -> None:
 def package_comic(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
     """按配置把图片目录打包为一种或多种漫画格式。"""
     comic_format = config["download"]["comic"]["format"]
+
+    existing = [
+        os.path.join(save_dir, f"{comic_title}.{format_name}")
+        for format_name in COMIC_PACKAGERS
+        if format_name in comic_format
+        and os.path.exists(os.path.join(save_dir, f"{comic_title}.{format_name}"))
+    ]
+    if existing:
+        logger.warning("漫画文件已存在，跳过打包: %s", ", ".join(existing))
+        return
 
     for format_name, packager in COMIC_PACKAGERS.items():
         if format_name in comic_format:

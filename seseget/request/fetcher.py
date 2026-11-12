@@ -307,10 +307,13 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
         if not os.path.exists(self.__class__.site_dir):
             os.mkdir(self.__class__.site_dir)
 
-        info.comic_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.title))
-        info.comic_dir = make_diff_dir_name(info.comic_dir)
-        if not os.path.exists(info.comic_dir):
-            os.mkdir(info.comic_dir)
+        # 漫画目录由整部漫画共享，不能避重；章节产物靠章节文件名区分
+        comic_dir = os.path.join(self.__class__.site_dir, make_filename_valid(info.title))
+        if os.path.exists(comic_dir) and not os.path.isdir(comic_dir):
+            raise ValueError(f"漫画保存路径已存在且不是目录: {comic_dir}")
+
+        info.comic_dir = comic_dir
+        os.makedirs(info.comic_dir, exist_ok=True)
 
     def _prepare_chapter(self, comic_info: ComicInfo, chapter: T_ChapterInfo) -> str:
         image_dir = f"{comic_info.comic_dir}/img-{chapter.id}"

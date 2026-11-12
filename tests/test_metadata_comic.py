@@ -54,3 +54,19 @@ def test_write_epub_is_valid_and_escaped(tmp_path, comic_images, comic_metadata)
         assert opf.findtext(".//dc:title", namespaces=dc) == comic_metadata.title
         assert opf.findtext(".//dc:creator", namespaces=dc) == comic_metadata.creator
         assert opf.findtext(".//dc:subject", namespaces=dc) == comic_metadata.subjects[0]
+
+
+def test_package_comic_skips_when_output_exists(monkeypatch, tmp_path, comic_images, comic_metadata):
+    import seseget.output.comic as comic_output
+
+    monkeypatch.setattr(
+        comic_output,
+        "config",
+        {"download": {"comic": {"format": ["cbz"]}}},
+    )
+    target = tmp_path / "chapter.cbz"
+    target.write_bytes(b"existing")
+
+    comic_output.package_comic(str(tmp_path), "chapter", str(comic_images), comic_metadata)
+
+    assert target.read_bytes() == b"existing"
