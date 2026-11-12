@@ -1,19 +1,32 @@
 import asyncio
-import functools
-import inspect
+import os
+import shutil
 import traceback
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable
+from pathlib import Path
+from typing import Awaitable, Callable
 
 from ..config import settings
 from ..config.config_manager import config
+from ..config.path import DATA_DIR
 from ..utils.file_utils import get_file_basename
 from ..utils.output import ProgressBar
 from ..utils.trace import logger
 from .download_history import DownloadHistoryStore
 
 DEFAULT_MAX_HISTORY = 200
+
+TaskRunner = Callable[..., Awaitable[None]]
+
+
+@dataclass
+class TaskArtifact:
+    """任务创建的产物，失败时用于清理。"""
+
+    path: Path
+    is_dir: bool
 
 
 class FileDLProgress:
@@ -195,7 +208,7 @@ class TaskDLProgress:
 
 
 class DownloadTask:
-    """下载任务，记录任务id, name和进度"""
+    """下载任务，记录任务 id、名称、进度和 runner。"""
 
     def __init__(self, task_id: str, name: str, site: str = ""):
         self.id: str = task_id
@@ -205,6 +218,21 @@ class DownloadTask:
         self.asyncio_task: asyncio.Task | None = None
         self.started_at: datetime | None = None
         self.finalized: bool = False
+        self.state: str = "CREATED"
+        self.runner: TaskRunner | None = None
+        self.runner_args: tuple = ()
+        self.artifacts: list[TaskArtifact] = []
+
+    def set_runner(self, runner: TaskRunner, *args) -> None:
+        """设置任务执行函数；runner 的第一个参数是 task。"""
+        self.runner = runner
+        self.runner_args = args
+
+    def track_file(self, path) -> None:
+        self.artifacts.append(TaskArtifact(Path(path), False))
+
+    def track_dir(self, path) -> None:
+        self.artifacts.append(TaskArtifact(Path(path), True))
 
 
 class DownloadManager:
@@ -262,7 +290,13 @@ class DownloadManager:
             and progress.total_progress.status == FileDLProgress.Status.DOWNLOAD_ERROR
         ):
             status = "failed"
+            task.state = "FAILED"
             error = error or progress.total_progress.error or "下载失败"
+
+        cleaned = False
+        cleaned_bytes = 0
+        if status == "failed" and self._cleanup_enabled():
+            cleaned, cleaned_bytes = self._cleanup_artifacts(task)
 
         record = {
             "id": task.id,
@@ -277,58 +311,117 @@ class DownloadManager:
             "file_finish_count": progress.finish_count,
             "progress": round(progress.total_progress.percent, 2),
             "error": error or "",
+            "cleaned": cleaned,
+            "cleaned_bytes": cleaned_bytes,
         }
         self.history_store.add(record, self.get_history_limit())
 
         self.tasks = [t for t in self.tasks if t.id != task.id]
         self.id_to_task.pop(task.id, None)
 
-    def _wrap_download_func(self, original_func: Callable, progress: TaskDLProgress) -> Callable:
-        """向original_func中注入关键字参数progress（如果函数支持）"""
-        sig = inspect.signature(original_func)
+    @staticmethod
+    def _cleanup_enabled() -> bool:
+        try:
+            return bool(config["download"].get("cleanup_on_failure", True))
+        except (KeyError, TypeError, ValueError):
+            return True
 
-        param = sig.parameters.get('progress')
-        if param and (param.default != inspect.Parameter.empty or param.kind == param.KEYWORD_ONLY):
-            return functools.partial(original_func, progress=progress)
-        else:
-            return original_func
+    @staticmethod
+    def _path_size(path: Path) -> int:
+        if path.is_file():
+            try:
+                return path.stat().st_size
+            except OSError:
+                return 0
+        total = 0
+        for root, _dirs, files in os.walk(path):
+            for name in files:
+                try:
+                    total += os.path.getsize(os.path.join(root, name))
+                except OSError:
+                    pass
+        return total
 
-    async def create_task(self, name, func, *args, site: str = ""):
-        """创建异步下载任务"""
+    def _cleanup_artifacts(self, task: DownloadTask) -> tuple[bool, int]:
+        """移除任务创建的产物；只处理 DATA_DIR 内的路径。"""
+        root = Path(DATA_DIR).resolve()
+        cleaned = False
+        cleaned_bytes = 0
+
+        for artifact in reversed(task.artifacts):
+            try:
+                path = artifact.path.resolve()
+            except OSError as exc:
+                logger.warning("清理产物失败，路径无法解析: %s (%s)", artifact.path, exc)
+                continue
+
+            if path == root or not path.is_relative_to(root):
+                logger.warning("跳过 DATA_DIR 外的产物: %s", path)
+                continue
+            if not path.exists():
+                continue
+
+            size = self._path_size(path)
+            try:
+                if artifact.is_dir:
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+            except OSError as exc:
+                logger.warning("删除产物失败: %s (%s)", path, exc)
+                continue
+
+            cleaned = True
+            cleaned_bytes += size
+            logger.info("已清理失败任务产物: %s (%d bytes)", path, size)
+
+        return cleaned, cleaned_bytes
+
+    def new_task(self, name, site: str = "") -> DownloadTask:
+        """创建未启动的任务；设置 runner 后调用 start。"""
         task_id = self._generate_task_id()
         task = DownloadTask(task_id, name, site=site)
-
-        self.tasks.append(task)
-        self.id_to_task[task_id] = task
-
-        wrapped_func = self._wrap_download_func(func, task.task_progress)
-
-        async def _run_with_semaphore():
-            status = "failed"
-            error = None
-            try:
-                async with self._semaphore:
-                    task.started_at = datetime.now(timezone.utc)
-                    result = await wrapped_func(*args)
-                status = "success"
-                return result
-            except asyncio.CancelledError:
-                status = "cancelled"
-                error = "任务已取消"
-                raise
-            except Exception as exc:
-                error = str(exc) or exc.__class__.__name__
-                logger.error("下载任务异常! traceback:\r\n%s" %
-                             ''.join(traceback.format_exc()))
-                raise
-            finally:
-                self._finalize_task(task, status, error)
-
-        asyncio_task = asyncio.create_task(_run_with_semaphore())
-        task.asyncio_task = asyncio_task
-
         logger.debug(f"创建下载任务[task_id: {task_id}, name: {name}]")
         return task
+
+    def start(self, task: DownloadTask) -> DownloadTask:
+        """注册并启动任务；调用方需要先 set_runner。"""
+        if task.state != "CREATED":
+            raise RuntimeError("任务已启动")
+        if task.runner is None:
+            raise RuntimeError("任务未设置 runner")
+
+        task.state = "RUNNING"
+        self.tasks.append(task)
+        self.id_to_task[task.id] = task
+        task.asyncio_task = asyncio.create_task(self._run_task(task))
+        return task
+
+    async def _run_task(self, task: DownloadTask) -> None:
+        status = "failed"
+        error = None
+        try:
+            async with self._semaphore:
+                task.state = "RUNNING"
+                task.started_at = datetime.now(timezone.utc)
+                assert task.runner is not None
+                await task.runner(task, *task.runner_args)
+            status = "success"
+            task.state = "SUCCESS"
+        except asyncio.CancelledError:
+            status = "cancelled"
+            task.state = "CANCELLED"
+            error = "任务已取消"
+            raise
+        except Exception as exc:
+            status = "failed"
+            task.state = "FAILED"
+            error = str(exc) or exc.__class__.__name__
+            logger.error("下载任务异常! traceback:\r\n%s" %
+                         ''.join(traceback.format_exc()))
+            raise
+        finally:
+            self._finalize_task(task, status, error)
 
     def get_task_by_id(self, task_id):
         return self.id_to_task.get(task_id)

@@ -1,7 +1,7 @@
 import yt_dlp
 
 from ..utils.trace import SSGLogger, logger
-from .downloadtask import FileDLProgress, TaskDLProgress
+from .downloader import DownloadObserver
 
 yt_logger = SSGLogger("yt_dlp")
 
@@ -50,7 +50,7 @@ def get_info(url, extend_opts=None):
     return info
 
 
-def download_by_yt_dlp(filename, url, extend_opts=None, progress: TaskDLProgress | None = None):
+def download_by_yt_dlp(filename, url, extend_opts=None, observer: DownloadObserver | None = None):
     """通过yt_dlp下载视频"""
     # 下载进度回调
     def progress_hook(d):
@@ -74,10 +74,9 @@ def download_by_yt_dlp(filename, url, extend_opts=None, progress: TaskDLProgress
         #         f.write(f"{d}".encode())
 
         # logger.info(f"current_progress:{downloaded}/{total}")
-        if progress is not None:
-            progress.add_progress(file_name, total=total)
-            progress.set_downloaded(file_name, downloaded)
-            progress.set_status(status)
+        if observer is not None:
+            observer.on_progress(file_name, downloaded, total)
+            observer.on_status(status)
 
     # 下载配置
     ydl_opts = {
@@ -98,25 +97,14 @@ def download_by_yt_dlp(filename, url, extend_opts=None, progress: TaskDLProgress
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            if progress is not None:
-                progress.init_progress()
-                progress.set_progress_count(2)
-                progress.set_status(FileDLProgress.Status.DOWNLOADING)
             error_code = ydl.download([url])
 
             if error_code:
                 logger.error(f'YoutubeDL.download error! code:{error_code}')
-                if progress is not None:
-                    progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
                 return -1
-            else:
-                if progress is not None:
-                    progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
 
     except Exception as result:
         logger.error('Error! info: %s' % result)
-        if progress is not None:
-            progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
         return -1
 
     return 0

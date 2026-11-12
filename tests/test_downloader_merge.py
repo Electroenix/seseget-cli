@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-import seseget.request.downloader as downloader
+import seseget.request.task_downloader as task_downloader
 from seseget.request.downloadtask import FileDLProgress
 
 
@@ -18,6 +18,17 @@ class FakeProgress:
 
     def set_status(self, status):
         self.statuses.append(status)
+
+    def add_progress(self, _file_name, total=0):
+        pass
+
+    def update(self, _file_name, _size):
+        pass
+
+
+class FakeTask:
+    def __init__(self):
+        self.task_progress = FakeProgress()
 
 
 def _prepare_download(monkeypatch, tmp_path, exec_result):
@@ -39,23 +50,23 @@ def _prepare_download(monkeypatch, tmp_path, exec_result):
             output.write_bytes(b"partial")
         return exec_result
 
-    monkeypatch.setattr(downloader, "_download_files", fake_download_files)
-    monkeypatch.setattr(downloader, "exec_cmd", fake_exec_cmd)
+    monkeypatch.setattr(task_downloader, "_download_files", fake_download_files)
+    monkeypatch.setattr(task_downloader, "exec_cmd", fake_exec_cmd)
     return output, cache_files
 
 
 @pytest.mark.asyncio
 async def test_merge_success_removes_cache(monkeypatch, tmp_path):
     output, cache_files = _prepare_download(monkeypatch, tmp_path, True)
-    progress = FakeProgress()
+    task = FakeTask()
 
-    result = await downloader.download_mp4_by_merge_video_audio(
-        str(output), "https://example.test/video.mp4", "https://example.test/audio.mp3", {}, progress
+    result = await task_downloader.download_mp4_by_merge_video_audio(
+        task, str(output), "https://example.test/video.mp4", "https://example.test/audio.mp3", {}
     )
 
     assert result == 0
     assert output.read_bytes() == b"merged"
-    assert progress.statuses[-1] == FileDLProgress.Status.DOWNLOAD_OK
+    assert task.task_progress.statuses[-1] == FileDLProgress.Status.DOWNLOAD_OK
     assert cache_files
     assert not os.path.exists(os.path.join(tmp_path, "cache"))
 
@@ -63,15 +74,15 @@ async def test_merge_success_removes_cache(monkeypatch, tmp_path):
 @pytest.mark.asyncio
 async def test_merge_failure_keeps_cache_and_removes_partial_output(monkeypatch, tmp_path):
     output, cache_files = _prepare_download(monkeypatch, tmp_path, False)
-    progress = FakeProgress()
+    task = FakeTask()
 
-    result = await downloader.download_mp4_by_merge_video_audio(
-        str(output), "https://example.test/video.mp4", "https://example.test/audio.mp3", {}, progress
+    result = await task_downloader.download_mp4_by_merge_video_audio(
+        task, str(output), "https://example.test/video.mp4", "https://example.test/audio.mp3", {}
     )
 
     assert result == -1
     assert not output.exists()
-    assert progress.statuses[-1] == FileDLProgress.Status.DOWNLOAD_ERROR
+    assert task.task_progress.statuses[-1] == FileDLProgress.Status.DOWNLOAD_ERROR
     assert os.path.isdir(os.path.join(tmp_path, "cache"))
     assert cache_files
 
@@ -86,13 +97,13 @@ async def test_merge_missing_output_is_failure(monkeypatch, tmp_path):
     def fake_exec_cmd(_command):
         return True
 
-    monkeypatch.setattr(downloader, "_download_files", fake_download_files)
-    monkeypatch.setattr(downloader, "exec_cmd", fake_exec_cmd)
-    progress = FakeProgress()
+    monkeypatch.setattr(task_downloader, "_download_files", fake_download_files)
+    monkeypatch.setattr(task_downloader, "exec_cmd", fake_exec_cmd)
+    task = FakeTask()
 
-    result = await downloader.download_mp4_by_merge_video_audio(
-        str(output), "https://example.test/video.mp4", "https://example.test/audio.mp3", {}, progress
+    result = await task_downloader.download_mp4_by_merge_video_audio(
+        task, str(output), "https://example.test/video.mp4", "https://example.test/audio.mp3", {}
     )
 
     assert result == -1
-    assert progress.statuses[-1] == FileDLProgress.Status.DOWNLOAD_ERROR
+    assert task.task_progress.statuses[-1] == FileDLProgress.Status.DOWNLOAD_ERROR

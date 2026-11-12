@@ -197,7 +197,7 @@ class HanimeFetcher(VideoFetcher[HanimeVideoInfo]):
 
         logger.info('\n下载完成!')
 
-    def _make_save_dir(self, info: HanimeVideoInfo):
+    def _prepare_dir(self, info: HanimeVideoInfo):
         if not self.__class__.site_dir:
             raise ValueError("未指定下载目录!")
         if not os.path.exists(self.__class__.site_dir):

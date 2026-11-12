@@ -22,8 +22,8 @@ from jmcomic import (
 from ..config.config_manager import config
 from ..config.path import DATA_DIR
 from ..config.session_store import session_store
-from ..output.comic import package_comic
-from ..request.downloadtask import FileDLProgress, TaskDLProgress
+from ..output.comic import comic_missing_formats, package_comic
+from ..request.downloadtask import DownloadTask, FileDLProgress, TaskDLProgress
 from ..request.fetcher import ChapterInfo, ComicFetcher, ComicInfo, FetcherRegistry
 from ..utils.file_utils import make_filename_valid
 from ..utils.trace import SSGLogger, logger
@@ -409,9 +409,31 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
     async def _fetch_info(self, url, **kwargs) -> JMComicInfo:
         return await asyncio.to_thread(self._fetch_info_sync, url, **kwargs)
 
-    async def _download_process(self, comic_title: str, chapter: JMChapterInfo, progress: TaskDLProgress = None):
+    async def _download_task(self, task: DownloadTask, comic_title: str, chapter: JMChapterInfo):
         comic_info = chapter.comic_info
-        return await asyncio.to_thread(
-            self.download_jmcomic_sync,
-            comic_info.comic_dir, comic_title, chapter.url, chapter, progress
-        )
+        if comic_info is None:
+            raise ValueError("章节缺少所属漫画信息")
+
+        async with self.capter_lock:
+            if not comic_missing_formats(comic_info.comic_dir, comic_title):
+                logger.warning("漫画成品已存在，跳过下载: %s", comic_title)
+                task.task_progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
+                return 0
+
+            image_dir = os.path.join(comic_info.comic_dir, comic_title)
+            task.track_dir(image_dir)
+            before = set(os.listdir(comic_info.comic_dir))
+            try:
+                result = await asyncio.to_thread(
+                    self.download_jmcomic_sync,
+                    comic_info.comic_dir, comic_title, chapter.url, chapter, task.task_progress
+                )
+            finally:
+                for name in set(os.listdir(comic_info.comic_dir)) - before:
+                    path = os.path.join(comic_info.comic_dir, name)
+                    if os.path.isfile(path):
+                        task.track_file(path)
+
+            if result == 0:
+                self._write_source_info(task, comic_info)
+            return result

@@ -2,8 +2,7 @@ import os
 
 from fastapi import APIRouter, Form, Request
 
-from seseget.request.downloader import download_file, download_files_ex
-from seseget.request.downloadtask import FileDLProgress, TaskDLProgress
+from seseget.request.downloader import download_file, download_files
 from seseget.request.fetcher import ComicInfo, FetcherRegistry, VideoInfo
 from seseget.utils.trace import logger
 
@@ -52,16 +51,10 @@ async def download_thumbnails(site: str, filenames: list, urls: list) -> bool:
         for filename in filenames
     ]
 
-    progress = TaskDLProgress("下载缩略图")
-    progress.init_progress()
-    progress.set_progress_count(len(urls))
-    progress.set_status(FileDLProgress.Status.DOWNLOADING)
     try:
-        await download_files_ex(thumbnail_file_paths, urls, progress=progress)
-        progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
+        await download_files(thumbnail_file_paths, urls)
         return True
     except Exception as e:
-        progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
         logger.warning("下载系列缩略图失败，搜索继续: %s", e, exc_info=True)
         return False
 

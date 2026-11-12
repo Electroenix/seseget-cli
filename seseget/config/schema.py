@@ -131,6 +131,11 @@ class DownloadConfig(ConfigModel):
         description="是否在下载目录生成 source.txt",
         json_schema_extra={"label": "生成来源信息"},
     )
+    cleanup_on_failure: bool = Field(
+        True,
+        description="任务失败后删除本任务创建的文件",
+        json_schema_extra={"label": "失败清理"},
+    )
     comic: DownloadComicConfig = Field(default_factory=lambda: DownloadComicConfig())
     video: DownloadVideoConfig = Field(default_factory=lambda: DownloadVideoConfig())
 

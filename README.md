@@ -146,6 +146,7 @@ Auth Token 从 `SESEGET_AUTH_TOKEN` 环境变量或 `conf/web_conf.yaml` 中读�
 | `sites.twitter.cookie_file` | string | `""` | Netscape 格式 Cookie 文件路径 |
 | `download.max_history` | integer | `200` | 下载历史最多保留条数 |
 | `download.save_source_info` | boolean | `false` | 是否在下载目录生成 source.txt |
+| `download.cleanup_on_failure` | boolean | `true` | 任务失败后删除本任务创建的文件 |
 | `download.comic.leave_images` | boolean | `false` | 打包后是否保留原始图片 |
 | `download.comic.format` | string[] | `["cbz"]` | 漫画成品格式 |
 | `download.video.metadata_file` | string[] | `["nfo"]` | 视频元数据文件格式 |

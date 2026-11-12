@@ -6,8 +6,8 @@ import re
 
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
-from ..request import ytdlp
-from ..request.downloadtask import TaskDLProgress
+from ..request import task_downloader, ytdlp
+from ..request.downloadtask import DownloadTask
 from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo
 from ..request.requests import async_request
 from ..utils.file_utils import make_filename_valid
@@ -152,8 +152,14 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
         else:
             return await self._get_video_info_by_yt_dlp(url)
 
-    async def _download_process(self, video_info: YtbVideoInfo, progress: TaskDLProgress | None = None):
+    async def _download_media(self, task: DownloadTask, video_info: YtbVideoInfo):
         video_path = video_info.video_dir + '/' + make_filename_valid('%s.mp4' % video_info.name)
 
         # yt-dlp 是同步的，放到线程池执行
-        await asyncio.to_thread(ytdlp.download_by_yt_dlp, video_path, video_info.view_url, None, progress)
+        await asyncio.to_thread(
+            task_downloader.download_ytdlp,
+            task,
+            video_path,
+            video_info.view_url,
+            None,
+        )
