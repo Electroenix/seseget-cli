@@ -6,10 +6,11 @@ import re
 
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
-from ..request import task_downloader, ytdlp
+from ..request import ytdlp_engine
 from ..request.downloadtask import DownloadTask
 from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo
 from ..request.requests import async_request
+from ..request.task_downloader import ytdlp as ytdlp_task
 from ..utils.file_utils import make_filename_valid
 from ..utils.trace import logger
 
@@ -98,7 +99,7 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
             vid = match.group(1)
 
         # yt-dlp 是同步的，放到线程池执行
-        info = await asyncio.to_thread(ytdlp.get_info, video_url)
+        info = await asyncio.to_thread(ytdlp_engine.get_info, video_url)
 
         if not info:
             logger.error("video info is None!")
@@ -157,7 +158,7 @@ class YoutubeFetcher(VideoFetcher[YtbVideoInfo]):
 
         # yt-dlp 是同步的，放到线程池执行
         await asyncio.to_thread(
-            task_downloader.download_ytdlp,
+            ytdlp_task.download_ytdlp,
             task,
             video_path,
             video_info.view_url,

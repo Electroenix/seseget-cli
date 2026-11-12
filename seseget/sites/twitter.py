@@ -4,9 +4,10 @@ import os
 from ..config.config_manager import config
 from ..config.path import DATA_DIR
 from ..metadata.video import VideoMetaData
-from ..request import task_downloader, ytdlp
+from ..request import ytdlp_engine
 from ..request.downloadtask import DownloadTask, FileDLProgress, download_manager
 from ..request.fetcher import FetcherRegistry, VideoFetcher, VideoInfo
+from ..request.task_downloader import ytdlp as ytdlp_task
 from ..utils.file_utils import make_filename_valid
 from ..utils.trace import logger
 
@@ -28,7 +29,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
             'cookiefile': config["sites"]["twitter"]["cookie_file"]
         }
         # yt-dlp 是同步的，放到线程池执行
-        twitter_info = await asyncio.to_thread(ytdlp.get_info, video_url, extend_opts)
+        twitter_info = await asyncio.to_thread(ytdlp_engine.get_info, video_url, extend_opts)
 
         if not twitter_info:
             logger.error("video info is None!")
@@ -113,7 +114,7 @@ class TwitterFetcher(VideoFetcher[VideoInfo]):
 
         # yt-dlp 是同步的，放到线程池执行
         await asyncio.to_thread(
-            task_downloader.download_ytdlp,
+            ytdlp_task.download_ytdlp,
             task,
             "",
             first_info.view_url,

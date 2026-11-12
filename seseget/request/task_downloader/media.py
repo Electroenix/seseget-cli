@@ -4,41 +4,13 @@ import re
 import shutil
 import tempfile
 
-from ..utils.file_utils import get_file_basename
-from ..utils.subprocess_utils import exec_cmd
-from ..utils.trace import logger
-from . import ytdlp
-from .downloader import DownloadObserver, _download_file, _download_files
-from .downloadtask import DownloadTask, FileDLProgress, TaskDLProgress
-from .requests import async_request
-
-
-class TaskProgressObserver:
-    """把底层下载事件转换为 TaskDLProgress 更新。"""
-
-    def __init__(self, progress: TaskDLProgress):
-        self.progress = progress
-
-    def on_start(self, file_name: str, total: int) -> None:
-        self.progress.add_progress(file_name, total=total)
-
-    def on_chunk(self, file_name: str, size: int) -> None:
-        self.progress.update(file_name, size)
-
-    def on_skip(self, file_name: str, total: int) -> None:
-        self.progress.add_progress(file_name, total=total)
-        self.progress.update(file_name, total)
-
-    def on_progress(self, file_name: str, downloaded: int, total: int) -> None:
-        self.progress.add_progress(file_name, total=total)
-        self.progress.set_downloaded(file_name, downloaded)
-
-    def on_status(self, status: str) -> None:
-        self.progress.set_status(status)
-
-
-def _observer(task: DownloadTask) -> DownloadObserver:
-    return TaskProgressObserver(task.task_progress)
+from ...utils.file_utils import get_file_basename
+from ...utils.subprocess_utils import exec_cmd
+from ...utils.trace import logger
+from ..downloader import _download_file, _download_files
+from ..downloadtask import DownloadTask, FileDLProgress
+from ..requests import async_request
+from .progress import observer_for
 
 
 async def download_mp4(task: DownloadTask, filename, url):
@@ -48,7 +20,7 @@ async def download_mp4(task: DownloadTask, filename, url):
     progress.set_progress_count(1)
     progress.set_status(FileDLProgress.Status.DOWNLOADING)
 
-    result = await _download_file(filename, url, observer=_observer(task))
+    result = await _download_file(filename, url, observer=observer_for(task))
 
     status = (
         FileDLProgress.Status.DOWNLOAD_OK
@@ -78,7 +50,7 @@ async def download_mp4_by_merge_video_audio(task: DownloadTask, filename, video_
     if await _download_files(
             [audio_path, video_path],
             [audio_url, video_url],
-            observer=_observer(task),
+            observer=observer_for(task),
             headers=headers) != 0:
         logger.error("download_files failed!")
         progress.set_status(FileDLProgress.Status.DOWNLOAD_ERROR)
@@ -216,7 +188,7 @@ async def download_comic_capter_images(task: DownloadTask, save_dir: str, image_
         image_name = "%05d.jpg" % index
         image_path = save_dir + "/" + image_name
         async with semaphore:
-            await _download_file(image_path, url, True, _observer(task))
+            await _download_file(image_path, url, True, observer_for(task))
 
     tasks = [_download_image(idx, url) for idx, url in enumerate(image_urls)]
 
@@ -234,27 +206,3 @@ async def download_comic_capter_images(task: DownloadTask, save_dir: str, image_
 
     logger.info("下载完成！")
     progress.set_status(FileDLProgress.Status.PROCESS)
-
-
-def download_ytdlp(task: DownloadTask, filename, url, extend_opts=None):
-    """通过 yt-dlp 下载视频；同步函数，调用方负责放入线程池。"""
-    progress = task.task_progress
-    progress.init_progress()
-    progress.set_progress_count(2)
-    progress.set_status(FileDLProgress.Status.DOWNLOADING)
-
-    result = ytdlp.download_by_yt_dlp(
-        filename,
-        url,
-        extend_opts,
-        _observer(task),
-    )
-
-    status = (
-        FileDLProgress.Status.DOWNLOAD_OK
-        if result == 0
-        else FileDLProgress.Status.DOWNLOAD_ERROR
-    )
-    progress.set_status(status)
-
-    return result

@@ -46,7 +46,7 @@ jobs:
 
       - name: Import check
         run: |
-          python -c "import seseget; from seseget.request.fetcher import FetcherRegistry; print('sites:', FetcherRegistry.list_sites())"
+          python -c "from seseget.config import settings; from seseget.request.fetcher import FetcherRegistry; FetcherRegistry.discover(settings.SITE_FETCHERS_PACKAGE); print('sites:', FetcherRegistry.list_sites())"
           python -c "import web_app; print('web_app import OK')"
 
       - name: Run Ruff

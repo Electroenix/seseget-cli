@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 import seseget.output.comic as comic_output
-import seseget.request.fetcher as fetcher_module
+import seseget.request.fetcher.video as fetcher_video_module
 import seseget.request.task_downloader as task_downloader
 from seseget.request.download_history import DownloadHistoryStore
 from seseget.request.downloadtask import DownloadManager, FileDLProgress
@@ -147,7 +147,7 @@ async def test_video_download_starts_task_and_waits(monkeypatch, tmp_path):
 
     store = DownloadHistoryStore(str(tmp_path / "history.json"))
     manager = DownloadManager(max_concurrent=1, history_store=store)
-    monkeypatch.setattr(fetcher_module, "download_manager", manager)
+    monkeypatch.setattr(fetcher_video_module, "download_manager", manager)
 
     await fetcher.download("url")
 
