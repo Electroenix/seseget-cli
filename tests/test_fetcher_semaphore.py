@@ -1,10 +1,13 @@
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 
+import seseget.output.comic as comic_output
 import seseget.request.fetcher as fetcher_module
+import seseget.request.task_downloader as task_downloader
 from seseget.request.download_history import DownloadHistoryStore
-from seseget.request.downloadtask import DownloadManager
+from seseget.request.downloadtask import DownloadManager, FileDLProgress
 from seseget.request.errors import SiteParseError
 from seseget.request.fetcher import ComicFetcher, ComicInfo, VideoFetcher, VideoInfo
 from seseget.sites.twitter import TwitterFetcher
@@ -176,3 +179,50 @@ def test_comic_dir_is_reused_without_suffix(tmp_path):
 
     assert second.comic_dir == first.comic_dir
     assert not (tmp_path / "Same Title_[1]").exists()
+
+
+@pytest.mark.asyncio
+async def test_comic_skips_existing_output_before_images(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        comic_output,
+        "config",
+        {"download": {"comic": {"format": ["cbz"]}}},
+    )
+    comic_dir = tmp_path / "Title"
+    comic_dir.mkdir()
+    (comic_dir / "Title_001.cbz").write_bytes(b"existing")
+
+    comic_info = ComicInfo()
+    comic_info.title = "Title"
+    comic_info.comic_dir = str(comic_dir)
+    chapter = SimpleNamespace(
+        comic_info=comic_info,
+        id=1,
+        image_urls=["https://example.test/1.jpg"],
+    )
+
+    class FakeProgress:
+        def __init__(self):
+            self.statuses = []
+
+        def set_status(self, status):
+            self.statuses.append(status)
+
+    class FakeTask:
+        def __init__(self):
+            self.task_progress = FakeProgress()
+
+        def track_dir(self, path):
+            raise AssertionError("skip path should not track artifacts")
+
+    async def fail_download(*args, **kwargs):
+        raise AssertionError("images should not be downloaded")
+
+    monkeypatch.setattr(task_downloader, "download_comic_capter_images", fail_download)
+    fetcher = DummyComic()
+    task = FakeTask()
+
+    await fetcher._download_task(task, "Title_001", chapter)
+
+    assert task.task_progress.statuses == [FileDLProgress.Status.DOWNLOAD_OK]
+    assert not (comic_dir / "img-1").exists()

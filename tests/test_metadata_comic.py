@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import zipfile
+from pathlib import Path
 
 from seseget.output.comic.cbz import write_cbz
 from seseget.output.comic.comic_info import write_comic_info_xml
@@ -70,3 +71,34 @@ def test_package_comic_skips_when_output_exists(monkeypatch, tmp_path, comic_ima
     comic_output.package_comic(str(tmp_path), "chapter", str(comic_images), comic_metadata)
 
     assert target.read_bytes() == b"existing"
+
+
+def test_package_comic_only_packages_missing_formats(monkeypatch, tmp_path, comic_metadata):
+    import seseget.output.comic as comic_output
+
+    calls = []
+
+    def make_packager(name):
+        def packager(save_dir, comic_title, _image_path, _metadata):
+            calls.append(name)
+            Path(save_dir, f"{comic_title}.{name}").write_bytes(name.encode())
+
+        return packager
+
+    monkeypatch.setattr(
+        comic_output,
+        "COMIC_PACKAGERS",
+        {"cbz": make_packager("cbz"), "epub": make_packager("epub")},
+    )
+    monkeypatch.setattr(
+        comic_output,
+        "config",
+        {"download": {"comic": {"format": ["cbz", "epub"]}}},
+    )
+    (tmp_path / "chapter.cbz").write_bytes(b"existing")
+
+    comic_output.package_comic(str(tmp_path), "chapter", str(tmp_path), comic_metadata)
+
+    assert calls == ["epub"]
+    assert (tmp_path / "chapter.cbz").read_bytes() == b"existing"
+    assert (tmp_path / "chapter.epub").read_bytes() == b"epub"

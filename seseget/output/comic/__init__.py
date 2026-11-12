@@ -33,20 +33,37 @@ def register_comic_packager(format_name: str, packager: ComicPackager) -> None:
     COMIC_PACKAGERS[format_name] = packager
 
 
-def package_comic(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
-    """按配置把图片目录打包为一种或多种漫画格式。"""
+def _configured_formats() -> list[str]:
     comic_format = config["download"]["comic"]["format"]
+    return [name for name in COMIC_PACKAGERS if name in comic_format]
 
-    existing = [
+
+def comic_output_paths(save_dir: str, comic_title: str) -> list[str]:
+    """返回当前配置下漫画成品的候选路径。"""
+    return [
         os.path.join(save_dir, f"{comic_title}.{format_name}")
-        for format_name in COMIC_PACKAGERS
-        if format_name in comic_format
-        and os.path.exists(os.path.join(save_dir, f"{comic_title}.{format_name}"))
+        for format_name in _configured_formats()
     ]
-    if existing:
-        logger.warning("漫画文件已存在，跳过打包: %s", ", ".join(existing))
+
+
+def comic_missing_formats(save_dir: str, comic_title: str) -> list[str]:
+    """返回尚未生成的漫画成品格式。"""
+    return [
+        format_name
+        for format_name in _configured_formats()
+        if not os.path.exists(os.path.join(save_dir, f"{comic_title}.{format_name}"))
+    ]
+
+
+def package_comic(save_dir: str, comic_title: str, image_path: str, metadata: ComicMetaData):
+    """按配置把图片目录打包为一种或多种漫画格式；已存在的格式不覆盖。"""
+    missing = comic_missing_formats(save_dir, comic_title)
+    if not missing:
+        logger.warning(
+            "漫画成品已存在，跳过打包: %s",
+            ", ".join(comic_output_paths(save_dir, comic_title)),
+        )
         return
 
-    for format_name, packager in COMIC_PACKAGERS.items():
-        if format_name in comic_format:
-            packager(save_dir, comic_title, image_path, metadata)
+    for format_name in missing:
+        COMIC_PACKAGERS[format_name](save_dir, comic_title, image_path, metadata)

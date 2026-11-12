@@ -22,7 +22,7 @@ from jmcomic import (
 from ..config.config_manager import config
 from ..config.path import DATA_DIR
 from ..config.session_store import session_store
-from ..output.comic import package_comic
+from ..output.comic import comic_missing_formats, package_comic
 from ..request.downloadtask import DownloadTask, FileDLProgress, TaskDLProgress
 from ..request.fetcher import ChapterInfo, ComicFetcher, ComicInfo, FetcherRegistry
 from ..utils.file_utils import make_filename_valid
@@ -414,10 +414,14 @@ class JmComicFetcher(ComicFetcher[JMComicInfo, JMChapterInfo]):
         if comic_info is None:
             raise ValueError("章节缺少所属漫画信息")
 
-        image_dir = os.path.join(comic_info.comic_dir, comic_title)
-        task.track_dir(image_dir)
-
         async with self.capter_lock:
+            if not comic_missing_formats(comic_info.comic_dir, comic_title):
+                logger.warning("漫画成品已存在，跳过下载: %s", comic_title)
+                task.task_progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
+                return 0
+
+            image_dir = os.path.join(comic_info.comic_dir, comic_title)
+            task.track_dir(image_dir)
             before = set(os.listdir(comic_info.comic_dir))
             try:
                 result = await asyncio.to_thread(

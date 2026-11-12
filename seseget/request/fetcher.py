@@ -9,7 +9,7 @@ from typing import Dict, Generic, Optional, Type, TypeVar, Union
 from ..config.config_manager import config
 from ..metadata.comic import ComicMetaData
 from ..metadata.video import VideoMetaData
-from ..output.comic import package_comic
+from ..output.comic import comic_missing_formats, package_comic
 from ..output.video import make_video_metadata_file
 from ..utils.file_utils import make_diff_dir_name, make_filename_valid
 from ..utils.trace import logger
@@ -317,8 +317,7 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
 
     def _prepare_chapter(self, comic_info: ComicInfo, chapter: T_ChapterInfo) -> str:
         image_dir = f"{comic_info.comic_dir}/img-{chapter.id}"
-        if not os.path.exists(image_dir):
-            os.mkdir(image_dir)
+        os.makedirs(image_dir, exist_ok=True)
         return image_dir
 
     def _package(self, task: DownloadTask, comic_dir: str, comic_title: str,
@@ -341,6 +340,11 @@ class ComicFetcher(SSGBaseFetcher[T_ComicInfo], Generic[T_ComicInfo, T_ChapterIn
             raise ValueError("章节缺少所属漫画信息")
 
         async with self.capter_lock:
+            if not comic_missing_formats(comic_info.comic_dir, comic_title):
+                logger.warning("漫画成品已存在，跳过下载: %s", comic_title)
+                task.task_progress.set_status(FileDLProgress.Status.DOWNLOAD_OK)
+                return
+
             image_dir = self._prepare_chapter(comic_info, chapter)
             task.track_dir(image_dir)
             res = await task_downloader.download_comic_capter_images(
